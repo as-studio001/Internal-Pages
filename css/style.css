@@ -490,11 +490,18 @@ button{font-family:inherit;}
 /* ---------- responsive ---------- */
 @media (max-width:900px){
   .grid{grid-template-columns:repeat(4,1fr);}
-  .c-3,.c-4,.c-5,.c-6,.c-7,.c-8,.c-9,.c-10{grid-column-start:1;grid-column-end:span 4;}
+  .c-3,.c-4,.c-5,.c-6,.c-7,.c-8,.c-9,.c-10,.c-12{grid-column-start:1;grid-column-end:span 4;}
   .s-2,.s-3,.s-4,.s-5,.s-6,.s-7,.s-9{grid-column-start:1;}
   .block--photos{grid-template-columns:1fr !important;}
   .process-thumb{height:130px;}
   .drawing-cell{height:130px;}
-  .map-full{height:60vh;min-height:360px;}
+  .map-full__canvas{height:60vh;min-height:360px;}
   .map-full__info{right:var(--side);}
+
+  /* logo 中文字在窄螢幕上會被容器擠到換行（原型建/築），手機版直接
+     不換行，寧可跟旁邊元件靠近一點，也不要案名還沒開始讀者就先看到
+     一個字被腰斬的 logo */
+  .site-header{padding:16px 20px;}
+  .site-header__left,.site-header__right{padding:10px 14px;gap:12px;}
+  .site-logo__text{white-space:nowrap;font-size:14px;}
 }
