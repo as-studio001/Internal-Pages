@@ -1,15 +1,12 @@
 // Header interactivity — hamburger + language dropdowns, mirroring the
 // click-outside-closes behavior of the main site's Header.tsx.
 //
-// This page has no real i18n content system (no per-string translation
-// data like the main site's translations.ts), so instead of a fake
-// language switch, picking a language hands the current page off to
-// Google's translate proxy (https://translate.google.com/translate?...),
-// which works in any browser (not just Chromium's built-in translate,
-// which has no public JS API to trigger on demand) and actually
-// translates the real rendered content. 中文（繁體）is this page's
-// original language, so it just closes the dropdown instead of
-// round-tripping through Google for no reason.
+// Real (AI-translated) content lives in js/data-translations.js, applied
+// by js/i18n-select.js before render.js runs — this file just navigates
+// to ?lang=<code> on the same page (a real reload, not a live in-place
+// swap) and keeps the dropdown's "active" state in sync with whatever
+// language is actually showing. 中文（繁體）is the original — picking it
+// just strips the ?lang= param and reloads.
 (function () {
   function setup(toggleId, dropdownId, boxSelector) {
     var toggle = document.getElementById(toggleId);
@@ -27,35 +24,29 @@
   setup("menu-toggle", "menu-dropdown", "[data-menu-box]");
   setup("lang-toggle", "lang-dropdown", "[data-lang-box]");
 
-  // Google Translate's "tl" (target language) codes — zh-Hans maps to
-  // zh-CN, the rest match our own data-lang values directly.
-  var GOOGLE_TRANSLATE_TARGET = {
-    "zh-Hans": "zh-CN",
-    en: "en",
-    ja: "ja",
-    ko: "ko",
-  };
-
   var langDropdown = document.getElementById("lang-dropdown");
-  if (langDropdown) {
-    langDropdown.querySelectorAll("button[data-lang]").forEach(function (btn) {
-      btn.addEventListener("click", function () {
-        langDropdown.querySelectorAll("button[data-lang]").forEach(function (b) {
-          b.classList.remove("active");
-        });
-        btn.classList.add("active");
-        langDropdown.hidden = true;
+  if (!langDropdown) return;
 
-        var code = btn.getAttribute("data-lang");
-        var target = GOOGLE_TRANSLATE_TARGET[code];
-        if (!target) return; // zh-Hant (original) — nothing to do
-        var url =
-          "https://translate.google.com/translate?sl=zh-TW&tl=" +
-          target +
-          "&u=" +
-          encodeURIComponent(window.location.href);
-        window.open(url, "_blank", "noopener,noreferrer");
-      });
+  var currentLang = new URLSearchParams(window.location.search).get("lang") || "zh-Hant";
+  var buttons = langDropdown.querySelectorAll("button[data-lang]");
+  buttons.forEach(function (b) {
+    b.classList.toggle("active", b.getAttribute("data-lang") === currentLang);
+  });
+
+  buttons.forEach(function (btn) {
+    btn.addEventListener("click", function () {
+      var code = btn.getAttribute("data-lang");
+      if (code === currentLang) {
+        langDropdown.hidden = true;
+        return;
+      }
+      var url = new URL(window.location.href);
+      if (code === "zh-Hant") {
+        url.searchParams.delete("lang");
+      } else {
+        url.searchParams.set("lang", code);
+      }
+      window.location.href = url.toString();
     });
-  }
+  });
 })();
