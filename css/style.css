@@ -93,44 +93,150 @@ button{font-family:inherit;}
 .ph[data-ph="sketch"]{background:#f0f0f0;}
 .ph[data-ph="drawing"]{background:#f7f7f7;}
 
-/* ---------- header / footer (暫代，合併主站時替換) ---------- */
-/* 上排標籤頁樣式照主站 as-studio001.github.io/asarch/ 現有的頂部列還原：
-   左邊漢堡選單 + 小寫斜體 logotype「as」，右邊 Team / Film / Contact
-   + 語言切換圖示，深色底、白字。合併進主站時這整個 header 會直接被
-   換掉，這裡只是先讓預覽跟主站視覺一致。 */
+/* ---------- header / footer ----------
+   Kept in sync by hand with the main site's Header.tsx/Footer.tsx
+   (as-studio001.github.io/asarch/) — same glass panels, hamburger menu
+   content, logo, language switcher, and footer contact block. Colors are
+   the same oklch values Header.tsx/Footer.tsx use inline. Unlike the main
+   site this header stays in normal document flow (not position:fixed) —
+   this page's content starts with a text-only title block rather than a
+   full-bleed hero photo, so a fixed header would just cover it. */
 .site-header{
   display:flex;
   align-items:center;
   justify-content:space-between;
-  padding:1.6rem var(--side);
+  padding:24px 40px;
 }
-.site-header__left,.site-header__right{
+.site-header__left{
   display:flex;
   align-items:center;
-  gap:1.6rem;
+  gap:20px;
+  padding:16px 24px;
+  border-radius:8px;
+  background-color:oklch(0.15 0 0 / 0.15);
+  -webkit-backdrop-filter:blur(12px);
+  backdrop-filter:blur(12px);
 }
-.site-menu-btn,.site-lang-btn{
+.site-header__right{
+  display:flex;
+  align-items:center;
+  gap:32px;
+  padding:16px 24px;
+  border-radius:8px;
+  background-color:oklch(0.15 0 0 / 0.15);
+}
+.site-menu{position:relative;}
+.site-menu-btn{
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  justify-content:center;
+  gap:5px;
+  width:36px;
+  height:36px;
   background:none;
   border:none;
-  color:var(--ink);
-  font-size:1.1rem;
-  line-height:1;
   cursor:pointer;
   padding:0;
 }
-.site-logo{
-  font-style:italic;
-  font-size:1.4rem;
-  letter-spacing:.01em;
+.site-menu-btn span{display:block;width:22px;height:2px;background:#fff;}
+.site-menu__dropdown,.site-lang__dropdown{
+  position:absolute;
+  top:100%;
+  margin-top:8px;
+  overflow:hidden;
+  border-radius:8px;
+  background-color:oklch(0.12 0 0);
+  border:1px solid oklch(0.25 0 0);
+  box-shadow:0 8px 24px rgba(0,0,0,.2);
+  z-index:1001;
 }
-.site-nav{display:flex;gap:2rem;font-size:.82rem;letter-spacing:.04em;color:var(--ink-soft);}
-.site-nav a:hover{color:var(--ink);}
+.site-menu__dropdown{left:0;width:200px;}
+.site-lang__dropdown{right:0;min-width:140px;}
+.site-menu__dropdown a{
+  display:block;
+  padding:12px 16px;
+  font-size:14px;
+  color:#fff;
+  border-bottom:1px solid oklch(0.2 0 0);
+  transition:background-color .2s;
+  font-family:"Noto Sans TC",sans-serif;
+}
+.site-menu__dropdown a:last-child{border-bottom:none;}
+.site-menu__dropdown a:hover{background-color:rgba(255,255,255,.1);}
+.site-logo{display:flex;align-items:center;gap:12px;}
+.site-logo__img{width:36px;height:36px;display:block;}
+.site-logo__text{
+  font-size:16px;
+  color:#fff;
+  letter-spacing:.1em;
+  font-family:"Noto Serif TC",serif;
+}
+.site-lang{position:relative;}
+.site-lang-btn{
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  width:36px;
+  height:36px;
+  background:none;
+  border:none;
+  color:#fff;
+  cursor:pointer;
+  padding:0;
+}
+.site-lang__dropdown button{
+  display:block;
+  width:100%;
+  text-align:left;
+  padding:10px 14px;
+  font-size:13px;
+  border:none;
+  background:none;
+  color:#fff;
+  font-weight:400;
+  cursor:pointer;
+  font-family:"Noto Sans TC",sans-serif;
+  transition:background-color .2s;
+}
+.site-lang__dropdown button.active{font-weight:700;}
+.site-lang__dropdown button:hover{background-color:rgba(255,255,255,.1);}
+
 .site-footer{
-  padding:2.4rem var(--side) 3.5rem;
-  font-size:.8rem;
-  color:var(--ink-soft);
+  padding:80px 40px;
+  background-color:oklch(0.12 0 0);
   margin-top:5rem;
 }
+.site-footer__inner{
+  max-width:1200px;
+  margin:0 auto;
+  display:flex;
+  align-items:flex-start;
+  justify-content:space-between;
+  flex-wrap:wrap;
+  gap:24px;
+}
+.site-footer__contact p,.site-footer__address p{
+  margin:0 0 8px;
+  font-size:14px;
+  color:oklch(0.7 0 0);
+}
+.site-footer__contact p:last-child,.site-footer__address p:last-child{margin-bottom:0;}
+.site-footer__contact a{color:oklch(0.7 0 0);transition:opacity .2s;}
+.site-footer__contact a:hover{opacity:.7;}
+.site-footer__social{display:flex;align-items:center;gap:16px;}
+.site-footer__social a{
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  width:32px;
+  height:32px;
+  border-radius:50%;
+  background-color:oklch(0.25 0 0);
+  color:oklch(0.95 0 0);
+  transition:opacity .2s;
+}
+.site-footer__social a:hover{opacity:.7;}
 
 /* ---------- page head：純文字，不疊圖 ---------- */
 .page-head{padding-top:2.5rem;padding-bottom:3rem;row-gap:1rem;}
