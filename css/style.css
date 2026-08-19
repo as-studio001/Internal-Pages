@@ -1,0 +1,349 @@
+/* ============================================================
+   建築案例內頁樣式 v2
+   直接依照 rshp.com / snohetta.com / herzogdemeuron.com
+   三個參考網站的實際 DOM 與版面比例還原：
+   - 標題先以純文字呈現在白底上，圖片在標題「之後」，不是疊字在圖上
+   - 12 欄編輯式網格，非對稱圖文分割（8/4、7/5、6/6 交錯）
+   - 內文以 ch 為單位控制在約 60 字寬
+   - 次要照片（工地/草圖/圖面）用緊密的多欄拼貼，滑過才顯示說明
+   - 地圖用真實可辨識的地形輪廓 + 定位點，不是抽象線條
+   ============================================================ */
+
+:root{
+  --ink:#f2f2f2;
+  --ink-soft:#8c8c8c;
+  --paper:#0a0a0a;
+  --paper-deep:#1c1c1c;
+  --gutter:32px;
+  --side:6vw;
+  --measure:62ch;
+}
+
+*{box-sizing:border-box;}
+html{
+  scroll-behavior:smooth;
+  /* 依「CSS 視窗寬度」微幅放大字級：高解析度筆電螢幕在系統縮放
+     100% 時，CSS 寬度會回報成物理像素寬（例如 3840px），導致所有
+     rem 字級實際顯示得比一般螢幕小很多。這裡加一點 vw 補償，讓
+     字級不完全依賴使用者的系統縮放設定。一般 1400~1920px 螢幕維持
+     接近原本的 16px，超寬/超高解析度螢幕會自動放大到最多 22px。 */
+  font-size:clamp(16px, 0.32vw + 11.5px, 22px);
+}
+body{
+  margin:0;
+  background:var(--paper);
+  color:var(--ink);
+  font-family:"Noto Serif TC",Georgia,"PingFang TC",serif;
+  font-weight:400;
+  line-height:1.7;
+  font-size:1.0625rem;
+  -webkit-font-smoothing:antialiased;
+}
+a{color:inherit;text-decoration:none;}
+p{margin:0 0 1.3em;}
+p:last-child{margin-bottom:0;}
+img{display:block;max-width:100%;}
+button{font-family:inherit;}
+
+/* ---------- 12-column grid ---------- */
+.grid{
+  display:grid;
+  grid-template-columns:repeat(12,1fr);
+  column-gap:var(--gutter);
+  max-width:1680px;
+  margin:0 auto;
+  padding:0 var(--side);
+}
+.c-12{grid-column-end:span 12;min-width:0;}
+.c-10{grid-column-end:span 10;min-width:0;}
+.c-9{grid-column-end:span 9;min-width:0;}
+.c-8{grid-column-end:span 8;min-width:0;}
+.c-7{grid-column-end:span 7;min-width:0;}
+.c-6{grid-column-end:span 6;min-width:0;}
+.c-5{grid-column-end:span 5;min-width:0;}
+.c-4{grid-column-end:span 4;min-width:0;}
+.c-3{grid-column-end:span 3;min-width:0;}
+.s-2{grid-column-start:2;}
+.s-3{grid-column-start:3;}
+.s-4{grid-column-start:4;}
+.s-5{grid-column-start:5;}
+.s-6{grid-column-start:6;}
+.s-7{grid-column-start:7;}
+.s-9{grid-column-start:9;}
+
+/* ---------- placeholder image blocks ---------- */
+.ph{
+  position:relative;
+  width:100%;
+  height:100%;
+  overflow:hidden;
+  background-repeat:no-repeat;
+  background-position:center;
+  background-size:cover;
+}
+.ph[data-ph="1"]{background:linear-gradient(155deg,#dcdcdc,#a8a8a8);}
+.ph[data-ph="2"]{background:linear-gradient(155deg,#d4d4d4,#9c9c9c);}
+.ph[data-ph="3"]{background:linear-gradient(155deg,#e0e0e0,#b0b0b0);}
+.ph[data-ph="4"]{background:linear-gradient(155deg,#cfcfcf,#949494);}
+.ph[data-ph="5"]{background:linear-gradient(155deg,#d8d8d8,#a4a4a4);}
+.ph[data-ph="6"]{background:linear-gradient(155deg,#d2d2d2,#989898);}
+.ph[data-ph="7"]{background:linear-gradient(155deg,#dedede,#acacac);}
+.ph[data-ph="8"]{background:linear-gradient(155deg,#cacaca,#909090);}
+.ph[data-ph="9"]{background:linear-gradient(155deg,#d6d6d6,#a0a0a0);}
+.ph[data-ph="sketch"]{background:#f0f0f0;}
+.ph[data-ph="drawing"]{background:#f7f7f7;}
+
+/* ---------- header / footer (暫代，合併主站時替換) ---------- */
+/* 上排標籤頁樣式照主站 as-studio001.github.io/asarch/ 現有的頂部列還原：
+   左邊漢堡選單 + 小寫斜體 logotype「as」，右邊 Team / Film / Contact
+   + 語言切換圖示，深色底、白字。合併進主站時這整個 header 會直接被
+   換掉，這裡只是先讓預覽跟主站視覺一致。 */
+.site-header{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  padding:1.6rem var(--side);
+}
+.site-header__left,.site-header__right{
+  display:flex;
+  align-items:center;
+  gap:1.6rem;
+}
+.site-menu-btn,.site-lang-btn{
+  background:none;
+  border:none;
+  color:var(--ink);
+  font-size:1.1rem;
+  line-height:1;
+  cursor:pointer;
+  padding:0;
+}
+.site-logo{
+  font-style:italic;
+  font-size:1.4rem;
+  letter-spacing:.01em;
+}
+.site-nav{display:flex;gap:2rem;font-size:.82rem;letter-spacing:.04em;color:var(--ink-soft);}
+.site-nav a:hover{color:var(--ink);}
+.site-footer{
+  padding:2.4rem var(--side) 3.5rem;
+  font-size:.8rem;
+  color:var(--ink-soft);
+  margin-top:5rem;
+}
+
+/* ---------- page head：純文字，不疊圖 ---------- */
+.page-head{padding-top:2.5rem;padding-bottom:3rem;row-gap:1rem;}
+.eyebrow{
+  font-size:.78rem;
+  letter-spacing:.12em;
+  text-transform:uppercase;
+  color:var(--ink-soft);
+  margin:0;
+}
+.page-head h1{
+  margin:0;
+  font-size:clamp(2.4rem,5.2vw,4.6rem);
+  font-weight:700;
+  line-height:1.05;
+  letter-spacing:-.01em;
+  font-family:"Noto Serif TC",serif;
+}
+.page-head .lede-meta{
+  margin:0;
+  font-size:1.05rem;
+  color:var(--ink-soft);
+}
+
+/* ---------- hero photo：全幅大圖，接在標題文字之後 ---------- */
+.hero-photo{width:100%;}
+.hero-photo .ph{aspect-ratio:16/9;}
+@media (min-width:900px){
+  .hero-photo .ph{aspect-ratio:21/9;}
+}
+
+/* ---------- section label：靠左標題，緊接內容，不留側邊空欄 ---------- */
+.research-section{padding:1.5rem 0;border-top:1px solid rgba(255,255,255,.15);}
+.process-section{padding:1.5rem 0;}
+.drawings-section{padding:0 0 4rem;}
+.section-label{
+  font-size:.95rem;
+  letter-spacing:.1em;
+  text-transform:uppercase;
+  color:var(--ink);
+  margin:0 0 .6rem;
+  font-family:"Noto Serif TC",serif;
+  font-weight:700;
+}
+
+/* ---------- editorial content blocks ---------- */
+/* 段落與照片自動交錯，由陣列長度算出結果，不需要手動指定版型：
+   文字永遠固定在同一個欄位（c-6 s-7，跟引言同欄位，照 Snøhetta 實際頁面
+   的做法），不論前後接哪種照片排列都不會跳動；照片跟文字位置脫鉤，
+   統一頂到內縮後的邊緣（c-12），2～3 張一組時寬度不平均＋上下錯開
+   製造錯落感，落單的 1 張獨立成一排 */
+.content{padding-top:4rem;padding-bottom:3rem;row-gap:3rem;}
+/* 只做透明度淡入，不做位移——位移淡入若剛好卡在動畫中途被截到畫面，
+   會讓圖片跟文字的間距看起來忽大忽小（曾經真的發生過） */
+.block{opacity:0;transition:opacity .7s ease;}
+.block.in-view{opacity:1;}
+
+.block--text p{font-size:.95rem;font-family:"Noto Sans TC",sans-serif;}
+
+.block--photos{display:grid;gap:1.25rem;align-items:start;}
+.block--photos .ph{height:auto;aspect-ratio:4/3;}
+/* 連續直幅照片（2～3 張）：等寬等高並排，不做大小不一 */
+.block--photos--portrait .ph{aspect-ratio:3/4;}
+/* 混合方向（落單照片併組後的結果）：比例由 JS 依每張圖各自設定，這裡只需讓出 height */
+.block--photos--mixed .ph{height:auto;}
+
+.block--solo .ph{height:auto;aspect-ratio:16/9;}
+
+/* ---------- map：標題在地圖之前、座標地址在地圖之下，都是正常文件流，
+   不再疊在地圖圖片上 ---------- */
+.map-full{
+  width:100%;
+  padding:3rem 0 4rem;
+  background:var(--paper);
+}
+.map-full__label{
+  margin:0 0 1.5rem;
+  padding:0 var(--side);
+  font-size:.95rem;
+  letter-spacing:.1em;
+  text-transform:uppercase;
+  color:var(--ink);
+  font-family:"Noto Serif TC",serif;
+  font-weight:700;
+}
+.map-full__canvas{
+  position:relative;
+  height:60vh;
+  min-height:400px;
+  margin:0 var(--side);
+}
+.map-full__info{
+  margin-top:1.5rem;
+  padding:0 var(--side);
+}
+.map-full__canvas .leaflet-tile{
+  filter:saturate(.95) contrast(1.12) brightness(.8) hue-rotate(15deg);
+}
+.map-full__canvas::after{
+  content:"";
+  position:absolute;
+  inset:0;
+  z-index:500;
+  pointer-events:none;
+  background:rgba(40,80,150,.18);
+  mix-blend-mode:overlay;
+}
+.map-full__canvas .leaflet-control-attribution{
+  font-size:.62rem;
+  background:rgba(10,10,10,.55);
+  color:#ccc;
+}
+.map-full__canvas .leaflet-control-attribution a{color:#fff;}
+
+/* 定位圖標：照 RSHP 專案地圖的水滴形橘色 marker */
+.site-pin{position:relative;width:34px;height:46px;}
+.site-pin__drop{
+  position:absolute;
+  top:0;left:5px;
+  width:24px;height:24px;
+  background:#f2793d;
+  border-radius:50% 50% 50% 0;
+  transform:rotate(-45deg);
+  box-shadow:0 3px 8px rgba(0,0,0,.35);
+}
+.site-pin__shadow{
+  position:absolute;
+  bottom:1px;left:11px;
+  width:14px;height:5px;
+  border-radius:50%;
+  background:rgba(0,0,0,.3);
+  filter:blur(1.5px);
+}
+.site-pin__ring{
+  position:absolute;
+  top:6px;left:6px;
+  width:12px;height:12px;
+  border-radius:50%;
+  background:#fff;
+  animation:pulse 2.2s ease-out infinite;
+}
+@keyframes pulse{
+  0%{box-shadow:0 0 0 0 rgba(242,121,61,.5);}
+  100%{box-shadow:0 0 0 18px rgba(242,121,61,0);}
+}
+.map__address{margin:0 0 .3rem;font-size:1.02rem;font-family:"Noto Sans TC",sans-serif;}
+.map__coords{margin:0;font-size:.82rem;color:var(--ink-soft);font-variant-numeric:tabular-nums;font-family:"Noto Sans TC",sans-serif;}
+
+/* ---------- 施工過程：不分類，段落接一排等大縮圖網格（照
+   herzogdemeuron.com「230 Process」頁面的固定網格排法），不顯示圖名 ---------- */
+.process-step{margin-bottom:2.5rem;}
+.process-step:last-child{margin-bottom:0;}
+.process-step__text{
+  max-width:82ch;
+  font-size:.92rem;
+  margin:0 0 1.5rem;
+  font-family:"Noto Sans TC",sans-serif;
+}
+.process-thumbs{
+  display:flex;
+  flex-wrap:wrap;
+  align-items:flex-start;
+  gap:12px;
+}
+.process-thumb{
+  position:relative;
+  height:190px;
+  cursor:pointer;
+  overflow:hidden;
+}
+.process-thumb .ph,
+.process-thumb img{width:auto;height:100%;display:block;}
+
+/* ---------- 圖面：跟施工照片同樣的縮圖尺寸（固定高度、寬度依照片
+   實際比例決定），不顯示圖名，只是不分類、獨立收納 ---------- */
+.drawings-grid{
+  display:flex;
+  flex-wrap:wrap;
+  align-items:flex-start;
+  gap:12px;
+}
+.drawing-cell{cursor:pointer;height:190px;}
+.drawing-cell .ph,
+.drawing-cell img{width:auto;height:100%;display:block;}
+
+/* ---------- lightbox ---------- */
+.lightbox{
+  position:fixed;inset:0;
+  background:rgba(10,10,10,.95);
+  display:none;
+  align-items:center;
+  justify-content:center;
+  flex-direction:column;
+  z-index:100;
+  padding:5vh 5vw;
+}
+.lightbox.open{display:flex;}
+.lightbox__img{max-height:78vh;max-width:100%;object-fit:contain;background:#1c1c1c;}
+.lightbox__caption{color:#eee;font-size:.85rem;margin-top:1.2rem;font-family:"Noto Sans TC",sans-serif;}
+.lightbox__close{
+  position:absolute;top:2rem;right:2.5rem;
+  background:none;border:none;color:#fff;
+  font-size:2rem;line-height:1;cursor:pointer;
+}
+
+/* ---------- responsive ---------- */
+@media (max-width:900px){
+  .grid{grid-template-columns:repeat(4,1fr);}
+  .c-3,.c-4,.c-5,.c-6,.c-7,.c-8,.c-9,.c-10{grid-column-start:1;grid-column-end:span 4;}
+  .s-2,.s-3,.s-4,.s-5,.s-6,.s-7,.s-9{grid-column-start:1;}
+  .block--photos{grid-template-columns:1fr !important;}
+  .process-thumb{height:130px;}
+  .drawing-cell{height:130px;}
+  .map-full{height:60vh;min-height:360px;}
+  .map-full__info{right:var(--side);}
+}
