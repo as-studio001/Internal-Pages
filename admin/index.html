@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>案例後台</title>
+<script src="https://unpkg.com/decap-cms@^3.0.0/dist/decap-cms.js"></script>
+</head>
+<body>
+<script>
+  var h = window.h;
+  var createClass = window.createClass;
+
+  // 後台編輯的照片在還沒存檔前，路徑指向的是暫存的草稿檔案，要透過
+  // getAsset() 才能拿到瀏覽器可以直接顯示的網址；已經存檔過的照片
+  // getAsset() 也一樣能正確解析回 repo 裡的真實路徑，兩種情況都適用。
+  function resolveImagePaths(getAsset, data) {
+    function resolve(path) {
+      if (!path) return path;
+      var asset = getAsset(path);
+      return asset ? asset.toString() : path;
+    }
+    function resolvePhotoList(list) {
+      return (list || []).map(function (item) {
+        return Object.assign({}, item, { src: resolve(item.src) });
+      });
+    }
+    var out = Object.assign({}, data);
+    out.hero = resolve(out.hero);
+    out.photos = resolvePhotoList(out.photos);
+    out.drawings = resolvePhotoList(out.drawings);
+    ["designResearch", "process"].forEach(function (key) {
+      out[key] = (out[key] || []).map(function (step) {
+        return Object.assign({}, step, { photos: resolvePhotoList(step.photos) });
+      });
+    });
+    return out;
+  }
+
+  var ProjectPreview = createClass({
+    postToFrame: function () {
+      var iframe = this.refs.frame;
+      if (!iframe || !iframe.contentWindow) return;
+      var data = this.props.entry.get("data").toJS();
+      var resolved = resolveImagePaths(this.props.getAsset, data);
+      iframe.contentWindow.postMessage({ type: "cms-preview", project: resolved }, "*");
+    },
+    componentDidMount: function () {
+      this.postToFrame();
+    },
+    componentDidUpdate: function () {
+      this.postToFrame();
+    },
+    render: function () {
+      return h("iframe", {
+        ref: "frame",
+        src: "../index.html?preview=1",
+        style: { width: "100%", height: "100%", border: "0", background: "#0a0a0a" },
+        onLoad: this.postToFrame,
+      });
+    },
+  });
+
+  CMS.registerPreviewTemplate("projects", ProjectPreview);
+</script>
+</body>
+</html>
