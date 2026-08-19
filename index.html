@@ -71,32 +71,30 @@
   <!-- 內文：文字與照片交錯 -->
   <div class="content grid" id="content"></div>
 
-  <!-- 設計研究：模型照片、手稿，跟施工過程分開收納，一樣是不分類、文字接縮圖 -->
-  <section class="research-section">
+  <!-- 設計研究／施工過程／圖面整合成一個可收合區塊，預設收起，
+       點「+ More in Detail」展開。三個子區塊內部邏輯不變，只是外面
+       多包一層收合容器。互動邏輯見 js/site-chrome.js -->
+  <section class="detail-section">
     <div class="grid">
       <div class="c-12">
-        <p class="section-label">設計研究</p>
-        <div id="research-steps"></div>
-      </div>
-    </div>
-  </section>
-
-  <!-- 施工過程：不分類，文字接一排小縮圖，照 herzogdemeuron.com 專案頁的 Process 段落做法 -->
-  <section class="process-section">
-    <div class="grid">
-      <div class="c-12">
-        <p class="section-label">施工過程</p>
-        <div id="process-steps"></div>
-      </div>
-    </div>
-  </section>
-
-  <!-- 圖面：平面圖、剖面圖、立面圖等技術圖說，跟施工過程的照片分開獨立收納 -->
-  <section class="drawings-section">
-    <div class="grid">
-      <div class="c-12">
-        <p class="section-label">圖面</p>
-        <div class="drawings-grid" id="drawings-grid"></div>
+        <button class="detail-toggle" type="button" id="detail-toggle" aria-expanded="false" aria-controls="detail-panel">
+          <span class="detail-toggle__icon" aria-hidden="true">+</span>
+          <span class="detail-toggle__label">More in Detail</span>
+        </button>
+        <div class="detail-panel" id="detail-panel" hidden>
+          <div class="detail-panel__group">
+            <p class="section-label">設計研究</p>
+            <div id="research-steps"></div>
+          </div>
+          <div class="detail-panel__group">
+            <p class="section-label">施工過程</p>
+            <div id="process-steps"></div>
+          </div>
+          <div class="detail-panel__group">
+            <p class="section-label">圖面</p>
+            <div class="drawings-grid" id="drawings-grid"></div>
+          </div>
+        </div>
       </div>
     </div>
   </section>

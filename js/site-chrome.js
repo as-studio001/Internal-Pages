@@ -73,3 +73,17 @@
     });
   });
 })();
+
+// 設計研究／施工過程／圖面收合區塊：預設收起，點「+」展開／收合，
+// 沒有捲動觸發、沒有動畫時機的問題——單純點擊就切換，一定看得到。
+(function () {
+  var toggle = document.getElementById("detail-toggle");
+  var panel = document.getElementById("detail-panel");
+  if (!toggle || !panel) return;
+
+  toggle.addEventListener("click", function () {
+    var expanded = toggle.getAttribute("aria-expanded") === "true";
+    toggle.setAttribute("aria-expanded", String(!expanded));
+    panel.hidden = expanded;
+  });
+})();
