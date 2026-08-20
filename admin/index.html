@@ -907,16 +907,8 @@ function caseEditorHtml(ed){
 
       <div class="field-block">
         <div class="label">內文段落</div>
-        <div id="paragraphsList">
-          ${(c.paragraphs || []).map((p, i) => `
-            <div class="text-list-row">
-              <textarea data-path="paragraphs.${i}">${esc(p)}</textarea>
-              <button type="button" class="row-remove-btn" data-remove-paragraph="${i}" title="移除">×</button>
-            </div>
-          `).join("")}
-        </div>
-        <button type="button" class="add-step-btn" id="addParagraphBtn">${iconUpload()}<span>新增段落</span></button>
-        <div class="field-hint">依順序排列，會跟下面的內文照片自動交錯排版</div>
+        <textarea id="paragraphsText" style="min-height:320px">${esc((c.paragraphs || []).join("\n\n"))}</textarea>
+        <div class="field-hint">直接打字就好，一整段連續打，段落之間空一行即可——存檔時會自動依空行拆成段落，跟下面的內文照片自動交錯排版</div>
       </div>
 
       <div class="field-block">
@@ -983,17 +975,11 @@ function renderCaseEditor(){
   bindPathInputs(ed, app);
   bindCoverDropEvents(ed, "hero", `images/${ed.item.slug || "tmp"}`);
 
-  document.getElementById("addParagraphBtn").addEventListener("click", () => {
-    ed.item.paragraphs = ed.item.paragraphs || [];
-    ed.item.paragraphs.push("");
-    rerenderCurrentEditor();
-  });
-  app.querySelectorAll("[data-remove-paragraph]").forEach(btn => {
-    btn.addEventListener("click", () => {
-      const i = parseInt(btn.dataset.removeParagraph, 10);
-      ed.item.paragraphs.splice(i, 1);
-      rerenderCurrentEditor();
-    });
+  document.getElementById("paragraphsText").addEventListener("input", (e) => {
+    ed.item.paragraphs = e.target.value
+      .split(/\n\s*\n/)
+      .map((s) => s.trim())
+      .filter(Boolean);
   });
 
   const folder = () => `images/${ed.item.slug || "tmp"}`;
