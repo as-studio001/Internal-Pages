@@ -83,6 +83,244 @@
   });
 
   CMS.registerPreviewTemplate("projects", ProjectPreview);
+
+  // ==========================================================
+  // 「lang5」自訂欄位：中/簡/英/日/韓 5 個文字框 + 一顆「自動翻譯其他
+  // 語言」按鈕。按下去會拿「中文（繁體）」欄位的內容，透過免費、不用
+  // 金鑰的 Google 翻譯端點翻成其他 4 種語言、自動填入對應欄位——這是
+  // 未經審核的機器翻譯草稿，填完務必自己看過、微調用詞，不要直接發布。
+  // ==========================================================
+  var LANG5_LANGS = [
+    ["zh-Hant", "中文（繁體）"],
+    ["zh-Hans", "中文（簡體）"],
+    ["en", "English"],
+    ["ja", "日本語"],
+    ["ko", "한국어"],
+  ];
+
+  function lang5Get(value, key) {
+    if (!value) return "";
+    if (typeof value.get === "function") return value.get(key) || "";
+    return value[key] || "";
+  }
+
+  function lang5Set(value, key, v) {
+    if (value && typeof value.set === "function") return value.set(key, v);
+    var obj = Object.assign({}, value || {});
+    obj[key] = v;
+    return obj;
+  }
+
+  var Lang5Control = createClass({
+    getInitialState: function () {
+      return { translating: false };
+    },
+    onChangeField: function (key, e) {
+      this.props.onChange(lang5Set(this.props.value, key, e.target.value));
+    },
+    translateAll: function () {
+      var source = lang5Get(this.props.value, "zh-Hant");
+      if (!source) {
+        window.alert("請先填寫「中文（繁體）」欄位，再按自動翻譯");
+        return;
+      }
+      var targets = ["zh-Hans", "en", "ja", "ko"];
+      var self = this;
+      this.setState({ translating: true });
+      Promise.all(
+        targets.map(function (t) {
+          var url =
+            "https://translate.googleapis.com/translate_a/single?client=gtx&sl=zh-TW&tl=" +
+            t +
+            "&dt=t&q=" +
+            encodeURIComponent(source);
+          return fetch(url)
+            .then(function (r) {
+              return r.json();
+            })
+            .then(function (json) {
+              return (json[0] || [])
+                .map(function (seg) {
+                  return seg[0];
+                })
+                .join("");
+            })
+            .catch(function () {
+              return "";
+            });
+        })
+      ).then(function (results) {
+        var next = self.props.value;
+        targets.forEach(function (t, i) {
+          if (results[i]) next = lang5Set(next, t, results[i]);
+        });
+        self.setState({ translating: false });
+        self.props.onChange(next);
+      });
+    },
+    render: function () {
+      var value = this.props.value;
+      var self = this;
+      var rows = LANG5_LANGS.map(function (pair) {
+        var key = pair[0];
+        var label = pair[1];
+        return h(
+          "div",
+          { key: key, style: { marginBottom: "8px" } },
+          h(
+            "label",
+            { style: { display: "block", fontSize: "12px", color: "#666", marginBottom: "2px" } },
+            label
+          ),
+          h("textarea", {
+            value: lang5Get(value, key),
+            onChange: self.onChangeField.bind(self, key),
+            rows: 3,
+            style: { width: "100%", fontFamily: "inherit", padding: "6px", boxSizing: "border-box" },
+          })
+        );
+      });
+      return h(
+        "div",
+        { style: { border: "1px solid #ddd", borderRadius: "6px", padding: "10px" } },
+        h(
+          "button",
+          {
+            type: "button",
+            onClick: this.translateAll,
+            disabled: this.state.translating,
+            style: {
+              marginBottom: "10px",
+              padding: "6px 12px",
+              background: "#1a1a1a",
+              color: "#fff",
+              border: "none",
+              borderRadius: "4px",
+              cursor: "pointer",
+            },
+          },
+          this.state.translating ? "翻譯中…" : "自動翻譯其他語言"
+        ),
+        rows
+      );
+    },
+  });
+
+  var Lang5Preview = createClass({
+    render: function () {
+      return h("div", {}, lang5Get(this.props.value, "zh-Hant"));
+    },
+  });
+
+  CMS.registerWidget("lang5", Lang5Control, Lang5Preview);
+
+  // ==========================================================
+  // 主網站內容（宣言／各章節）的預覽——外觀比照 asarch 真實主網站的
+  // 深色底、襯線字，讓後台編輯時大致看得出前台會長怎樣。
+  // ==========================================================
+  var SitePreview = createClass({
+    render: function () {
+      var data = this.props.entry.get("data").toJS();
+      var getAsset = this.props.getAsset;
+      var children = [];
+
+      if (data.headline) {
+        children.push(
+          h(
+            "h1",
+            {
+              key: "headline",
+              style: { fontFamily: "serif", fontSize: "26px", lineHeight: 1.7, marginBottom: "24px", fontWeight: 400 },
+            },
+            (data.headline || [])
+              .map(function (item) {
+                return item && item["zh-Hant"];
+              })
+              .join("　")
+          )
+        );
+      }
+      if (data.paragraphs) {
+        children.push(
+          h(
+            "div",
+            { key: "paragraphs", style: { maxWidth: "640px" } },
+            (data.paragraphs || []).map(function (p, i) {
+              return h(
+                "p",
+                { key: i, style: { marginBottom: "14px", lineHeight: 2, color: "#ddd" } },
+                p && p["zh-Hant"]
+              );
+            })
+          )
+        );
+      }
+      if (data.title) {
+        children.push(
+          h(
+            "h2",
+            { key: "title", style: { fontFamily: "serif", fontSize: "22px", marginBottom: "14px", fontWeight: 400 } },
+            data.title["zh-Hant"]
+          )
+        );
+      }
+      if (data.description) {
+        children.push(
+          h(
+            "p",
+            { key: "desc", style: { lineHeight: 2, marginBottom: "28px", maxWidth: "640px", color: "#ddd" } },
+            data.description["zh-Hant"]
+          )
+        );
+      }
+      if (data.cases) {
+        children.push(
+          h(
+            "div",
+            { key: "cases", style: { display: "flex", flexWrap: "wrap", gap: "20px" } },
+            (data.cases || []).map(function (c, i) {
+              var src = "";
+              if (c.image) {
+                var asset = getAsset(c.image);
+                src = asset ? asset.toString() : c.image;
+              }
+              return h(
+                "div",
+                { key: i, style: { width: "160px", textAlign: "center" } },
+                h("img", {
+                  src: src,
+                  style: { width: "100%", aspectRatio: "4 / 3", objectFit: "cover", display: "block" },
+                }),
+                h(
+                  "p",
+                  { style: { marginTop: "10px", fontFamily: "serif", fontSize: "14px", color: "#fff" } },
+                  c.label ? c.label["zh-Hant"] : ""
+                )
+              );
+            })
+          )
+        );
+      }
+
+      return h(
+        "div",
+        {
+          style: {
+            background: "#0a0a0a",
+            color: "#fff",
+            padding: "40px",
+            minHeight: "100%",
+            boxSizing: "border-box",
+          },
+        },
+        children
+      );
+    },
+  });
+
+  ["declaration", "chapter-restore", "chapter-detail", "chapter-exhibit", "chapter-digital"].forEach(function (name) {
+    CMS.registerPreviewTemplate(name, SitePreview);
+  });
 </script>
 </body>
 </html>

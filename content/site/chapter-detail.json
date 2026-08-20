@@ -1,0 +1,40 @@
+{
+  "title": {
+    "zh-Hant": "原型細部",
+    "zh-Hans": "原型细部",
+    "en": "Detail",
+    "ja": "プロトタイプ細部",
+    "ko": "프로토타입 세부"
+  },
+  "description": {
+    "zh-Hant": "建築真正精華與實踐的地方，往往藏在細部。原型細部關注材料的相接、構件的工作、施工的發生，以及設計如何經得起現場的考驗。從結構、材料、工法與施工順序出發，把微小的節點視為建築設計的重要尺度。以設計方法反覆推敲、現場驗證與工法實驗，讓每一個接點都同時具備性能、邏輯與美感。",
+    "zh-Hans": "建筑真正精华与实践的地方，往往藏在细部。原型细部关注材料的相接、构件的工作、施工的发生，以及设计如何经得起现场的考验。从结构、材料、工法与施工顺序出发，把微小的节点视为建筑设计的重要尺度。以设计方法反复推敲、现场验证与工法实验，让每一个接点都同时具备性能、逻辑与美感。",
+    "en": "Architecture's true essence often hides in its details. Prototype Detail focuses on how materials meet, how components work, and how design holds up on site. Treating the smallest joint as a key scale of design, we refine it through iteration, on-site verification, and construction experiments — until each joint carries performance, logic, and beauty together.",
+    "ja": "建築の真髄と実践は、しばしばディテールのなかに宿っています。プロトタイプ細部は、素材の取り合い、部材の働き、施工の実際、そしてデザインが現場の試練にどう耐えうるかに注目します。構造・素材・工法・施工の順序から出発し、小さな接合部を建築デザインの重要なスケールとして捉えます。デザイン手法による検討の繰り返し、現場での検証、そして工法の実験を通じて、それぞれの接合部が性能・論理・美しさを同時に備えることを目指します。",
+    "ko": "건축의 진정한 정수와 실천은 종종 디테일 속에 숨어 있습니다. 프로토타입 세부는 재료가 만나는 방식, 부재의 작동, 시공의 실제 과정, 그리고 디자인이 현장의 시험을 어떻게 견뎌내는지에 주목합니다. 구조, 재료, 공법, 시공 순서에서 출발해 작은 접합부를 건축 디자인의 중요한 스케일로 다룹니다. 디자인 방법의 반복적인 검토, 현장 검증, 공법 실험을 통해 모든 접합부가 성능과 논리, 그리고 아름다움을 동시에 갖추도록 합니다."
+  },
+  "cases": [
+    {
+      "image": "https://as-studio001.github.io/Internal-Pages/images/site/case-detail-proto1.jpg",
+      "href": "https://asstudio029.wixsite.com/ashouse1",
+      "label": {
+        "zh-Hant": "原型1號宅",
+        "zh-Hans": "原型1号宅",
+        "en": "Prototype House No. 1",
+        "ja": "プロトタイプ1号邸",
+        "ko": "프로토타입 1호 주택"
+      }
+    },
+    {
+      "image": "https://as-studio001.github.io/Internal-Pages/images/site/case-detail-yizai.jpg",
+      "href": "https://www.mashup.com.tw/as%20studio/?page=product_shop&p_id=609194",
+      "label": {
+        "zh-Hant": "億載金城入口意象",
+        "zh-Hans": "亿载金城入口意象",
+        "en": "Yizaijincheng Fort Entrance Landmark",
+        "ja": "億載金城 入口イメージ",
+        "ko": "이짜이진청 요새 입구 랜드마크"
+      }
+    }
+  ]
+}

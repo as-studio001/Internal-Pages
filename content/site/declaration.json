@@ -1,0 +1,48 @@
+{
+  "headline": [
+    {
+      "zh-Hant": "如果可以，我們希望把建築與結構都當作設計；",
+      "zh-Hans": "如果可以，我们希望把建筑与结构都当作设计；",
+      "en": "If we could, we'd treat both architecture and structure as design;",
+      "ja": "できることなら、建築も構造も、ともにデザインとして捉えたい。",
+      "ko": "가능하다면, 우리는 건축과 구조를 모두 디자인으로 다루고 싶습니다;"
+    },
+    {
+      "zh-Hant": "我們設計建築，也設計它如何站立。",
+      "zh-Hans": "我们设计建筑，也设计它如何站立。",
+      "en": "we design buildings, and we design how they stand.",
+      "ja": "私たちは建築をデザインし、その立ち方もデザインする。",
+      "ko": "우리는 건축을 디자인하고, 그것이 어떻게 서 있을지도 디자인합니다."
+    }
+  ],
+  "paragraphs": [
+    {
+      "zh-Hant": "我們相信，建築不只是空間的形塑美學，結構也不只是支撐的技術工學。",
+      "zh-Hans": "我们相信，建筑不只是空间的形塑美学，结构也不只是支撑的技术工学。",
+      "en": "We believe architecture is not only the aesthetics of shaping space, and structure is not only the technical engineering of support.",
+      "ja": "私たちは、建築が空間を形づくる美学だけではなく、構造も支持のための技術工学だけではないと信じています。",
+      "ko": "우리는 건축이 공간을 빚어내는 미학만이 아니며, 구조 또한 지탱을 위한 기술 공학만이 아니라고 믿습니다."
+    },
+    {
+      "zh-Hant": "建築元素是從一個細部、一根柱、一道牆或屋頂，所形成的點、線、面，乃至整體空間的尺度，原型建築探索材料與構造，更努力創造結構的可能，我們試圖讓每一個必要的工程條件，都成為設計的一部分。",
+      "zh-Hans": "建筑元素是从一个细部、一根柱、一道墙或屋顶，所形成的点、线、面，乃至整体空间的尺度，原型建筑探索材料与构造，更努力创造结构的可能，我们试图让每一个必要的工程条件，都成为设计的一部分。",
+      "en": "Architectural elements emerge from a single detail — a column, a wall, a roof — forming points, lines, and planes, and ultimately the scale of the whole space. Prototype Architecture explores material and construction, and works to create structural possibility, striving to make every necessary engineering condition part of the design.",
+      "ja": "建築の要素は、一つのディテール、一本の柱、一枚の壁、あるいは屋根から生まれる点・線・面、そして空間全体のスケールへとつながっていきます。プロトタイプ建築は素材と構法を探求し、構造の可能性を創り出そうと努め、必要なあらゆる工学的条件をデザインの一部にしようとしています。",
+      "ko": "건축의 요소는 하나의 디테일, 하나의 기둥, 하나의 벽 또는 지붕에서 시작되어 점·선·면을, 나아가 공간 전체의 스케일을 이룹니다. 프로토타입 건축은 재료와 구법을 탐구하며 구조의 가능성을 만들어내고자 하며, 모든 필수적인 공학적 조건이 디자인의 일부가 되도록 노력합니다."
+    },
+    {
+      "zh-Hant": "原型建築以建築與結構的交會為起點，從設計思考、材料實驗到構造實踐，重新理解建築如何被創造、被建造，也如何回應真實的生活。",
+      "zh-Hans": "原型建筑以建筑与结构的交会为起点，从设计思考、材料实验到构造实践，重新理解建筑如何被创造、被建造，也如何回应真实的生活。",
+      "en": "Prototype Architecture begins where architecture and structure meet — from design thinking to material experiments to construction, rethinking how buildings are made, built, and lived in.",
+      "ja": "プロトタイプ建築は、建築と構造が出会う地点を出発点とし、デザイン思考から素材実験、構法の実践へと至りながら、建築がどのように創られ、建てられ、そして本当の生活にどう応えるのかを、あらためて理解し直します。",
+      "ko": "프로토타입 건축은 건축과 구조가 만나는 지점을 출발점으로 삼아, 디자인 사고에서 재료 실험, 구법 실천에 이르기까지, 건축이 어떻게 창조되고 지어지는지, 그리고 진짜 삶에 어떻게 응답하는지를 다시금 이해합니다."
+    },
+    {
+      "zh-Hant": "我們不把建築與結構分開思考，因為建築與結構本來就在一起。",
+      "zh-Hans": "我们不把建筑与结构分开思考，因为建筑与结构本来就在一起。",
+      "en": "We don't think of architecture and structure as separate, because architecture and structure were always together.",
+      "ja": "私たちは建築と構造を切り離して考えません。なぜなら、建築と構造は、もともと一つだからです。",
+      "ko": "우리는 건축과 구조를 따로 떼어 생각하지 않습니다. 건축과 구조는 본래부터 함께였기 때문입니다."
+    }
+  ]
+}

@@ -115,3 +115,82 @@ collections:
         fields:
           - { label: "圖面", name: "src", widget: "image" }
           - { label: "圖說（選填）", name: "caption", widget: "string", required: false }
+
+  # 主網站（asarch）的宣言／章節文字跟案例卡片，寫進 content/site/ 底下
+  # 幾個固定檔案（不像案例是一筆一筆新增，這幾份內容各自只有一份）。
+  # 主網站在瀏覽器端直接抓這幾個 JSON 檔案顯示，存檔後很快就會反映在
+  # 主網站上，不需要重新部署主網站。每段文字都有中/簡/英/日/韓 5 個
+  # 欄位，用自訂的「lang5」欄位（在 admin/index.html 裡註冊），填好中文
+  # 後可以按「自動翻譯其他語言」自動帶入其他 4 種語言草稿，再自己微調。
+  - name: "site"
+    label: "主網站內容"
+    files:
+      - name: "declaration"
+        label: "首頁宣言"
+        file: "content/site/declaration.json"
+        fields:
+          - label: "標題（兩行）"
+            name: "headline"
+            widget: "list"
+            min: 2
+            max: 2
+            field: { label: "這一行", name: "line", widget: "lang5" }
+          - label: "內文段落"
+            name: "paragraphs"
+            widget: "list"
+            field: { label: "這一段", name: "text", widget: "lang5" }
+
+      - name: "chapter-restore"
+        label: "章節：原型修復"
+        file: "content/site/chapter-restore.json"
+        fields:
+          - { label: "章節標題", name: "title", widget: "lang5" }
+          - { label: "論述文字", name: "description", widget: "lang5" }
+          - label: "案例卡片"
+            name: "cases"
+            widget: "list"
+            summary: "{{fields.label}}"
+            fields:
+              - { label: "照片", name: "image", widget: "image" }
+              - { label: "連結網址", name: "href", widget: "string" }
+              - { label: "標題", name: "label", widget: "lang5" }
+
+      - name: "chapter-detail"
+        label: "章節：原型細部"
+        file: "content/site/chapter-detail.json"
+        fields:
+          - { label: "章節標題", name: "title", widget: "lang5" }
+          - { label: "論述文字", name: "description", widget: "lang5" }
+          - label: "案例卡片"
+            name: "cases"
+            widget: "list"
+            summary: "{{fields.label}}"
+            fields:
+              - { label: "照片", name: "image", widget: "image" }
+              - { label: "連結網址", name: "href", widget: "string" }
+              - { label: "標題", name: "label", widget: "lang5" }
+
+      - name: "chapter-exhibit"
+        label: "章節：原型展覽"
+        file: "content/site/chapter-exhibit.json"
+        fields:
+          - { label: "章節標題", name: "title", widget: "lang5" }
+          - label: "論述文字"
+            name: "description"
+            widget: "lang5"
+            hint: "這個章節的案例卡片目前有相簿彈窗效果，還沒開放後台編輯，只有文字可以改"
+
+      - name: "chapter-digital"
+        label: "章節：原型數位"
+        file: "content/site/chapter-digital.json"
+        fields:
+          - { label: "章節標題", name: "title", widget: "lang5" }
+          - { label: "論述文字", name: "description", widget: "lang5" }
+          - label: "案例卡片"
+            name: "cases"
+            widget: "list"
+            summary: "{{fields.label}}"
+            fields:
+              - { label: "照片", name: "image", widget: "image" }
+              - { label: "連結網址", name: "href", widget: "string" }
+              - { label: "標題", name: "label", widget: "lang5" }
