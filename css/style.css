@@ -516,17 +516,24 @@ button{font-family:inherit;}
   .s-2,.s-3,.s-4,.s-5,.s-6,.s-7,.s-9{grid-column-start:1;}
   .block--photos{grid-template-columns:1fr !important;}
 
-  /* 手機版的施工過程/設計研究/圖面縮圖改成兩欄網格（照
-     herzogdemeuron.com 手機版 Process 頁面的做法），但不強制裁成
-     正方形——直幅照片維持直的、橫幅照片維持橫的，寬度統一撐滿欄位、
-     高度依照片實際比例算，不裁切 */
+  /* 手機版的施工過程/設計研究/圖面縮圖改成兩欄，直幅照片維持直的、
+     橫幅照片維持橫的、不裁切。用 CSS 多欄（columns）做成 masonry
+     排列，不是 grid 兩欄配對——grid 兩欄配對時「一排」的高度是那排
+     最高的那張決定，旁邊比較矮的照片下面就會留一大塊黑色空白（實測
+     真的看到這個狀況）。多欄排列每張圖各自往目前最短的欄位補上去，
+     不會硬配對，也就不會留空 */
   .process-thumbs,.drawings-grid{
-    display:grid;
-    grid-template-columns:repeat(2,1fr);
-    gap:10px;
-    align-items:start;
+    display:block; /* 蓋掉桌面版的 display:flex——flex 容器完全不吃
+      columns 屬性，這是這次多欄排列一開始沒生效的原因 */
+    columns:2;
+    column-gap:10px;
   }
-  .process-thumb,.drawing-cell{height:auto;}
+  .process-thumb,.drawing-cell{
+    break-inside:avoid;
+    width:100%;
+    height:auto;
+    margin-bottom:10px;
+  }
   /* 真實照片：img 本身的高度依實際比例自動算，撐滿寬度就好 */
   .process-thumb img,.drawing-cell img{width:100%;height:auto;display:block;}
   /* 示意色塊：本身沒有內容撐開高度，靠外層 cell 的 aspect-ratio
