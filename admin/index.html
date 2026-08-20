@@ -228,14 +228,13 @@ input,textarea,select{ font-family:inherit; font-size:14px; }
 const REPO_OWNER = "as-studio001";
 const REPO_NAME = "Internal-Pages";
 const REPO_BRANCH = "main";
-// 登入用 email／密碼（Netlify Identity），編輯者不需要自己的 GitHub 帳號。
-// 實際寫回 GitHub 的動作走 Git Gateway 的代理端點（同一個 Netlify 網站，
-// 今天已經設定好 Identity + Git Gateway，綁定的就是這個 repo）。
-const NETLIFY_SITE = "https://zingy-bonbon-36e6c9.netlify.app";
-const IDENTITY_BASE = `${NETLIFY_SITE}/.netlify/identity`;
+// 登入改回 GitHub 帳號登入——Netlify Identity 的 email／密碼那套一直
+// 卡在各種驗證問題，這套沿用 anassembly-studio 已經在用、驗證過可以動
+// 的 GitHub OAuth 中繼站。要新增editor，去這個 repo 的 GitHub
+// Settings → Collaborators 加對方的 GitHub 帳號即可，不用再管 Netlify。
+const AUTH_ENDPOINT = "https://sunny-kangaroo-3eb599.netlify.app/.netlify/functions/auth";
 const RAW_BASE = `https://raw.githubusercontent.com/${REPO_OWNER}/${REPO_NAME}/${REPO_BRANCH}/`;
-const API_BASE = `${NETLIFY_SITE}/.netlify/git/github/repos/${REPO_OWNER}/${REPO_NAME}`;
-const USERS_ENDPOINT = `${NETLIFY_SITE}/.netlify/functions/manage-users`;
+const API_BASE = `https://api.github.com/repos/${REPO_OWNER}/${REPO_NAME}`;
 
 function rawUrl(path){
   if(!path) return "";
@@ -267,94 +266,68 @@ function setLoading(on, text){
 }
 
 /* ============================================================
-   Auth（Netlify Identity 的 email／密碼登入，GoTrue 的 REST API 直接
-   打，沒有用官方 widget——這樣登入畫面才能完全用自己的介面，不會跳出
-   widget 內建的樣式。邀請新編輯者還是要請你在 Netlify 後台
-   Identity → Invite users 手動寄邀請信，這裡沒有做「後台裡面再邀請
-   別人」的功能）
+   Auth（GitHub OAuth，跟 Decap CMS 原本用的 postMessage 協定相同）
    ============================================================ */
-let authToken = localStorage.getItem("ip_id_token") || null;
-let refreshToken = localStorage.getItem("ip_id_refresh") || null;
+let authToken = localStorage.getItem("ip_gh_token") || null;
 
-function saveSession(tokens){
-  authToken = tokens.access_token;
-  refreshToken = tokens.refresh_token;
-  localStorage.setItem("ip_id_token", authToken);
-  localStorage.setItem("ip_id_refresh", refreshToken);
-}
+function login(){
+  return new Promise((resolve, reject) => {
+    const w = 600, h = 700;
+    const left = (screen.width - w) / 2, top = (screen.height - h) / 2;
+    const popup = window.open(AUTH_ENDPOINT, "github-oauth", `width=${w},height=${h},left=${left},top=${top}`);
+    if(!popup){ reject(new Error("彈出視窗被瀏覽器擋掉了，請允許彈出視窗後再試一次")); return; }
 
-async function identityLogin(email, password){
-  const res = await fetch(`${IDENTITY_BASE}/token`, {
-    method: "POST",
-    headers: { "Content-Type": "application/x-www-form-urlencoded" },
-    body: new URLSearchParams({ grant_type: "password", username: email, password }),
+    function handshake(e){
+      if(e.data === "authorizing:github"){
+        window.removeEventListener("message", handshake);
+        window.addEventListener("message", onResult);
+        popup.postMessage(e.data, e.origin);
+      }
+    }
+    function onResult(e){
+      if(typeof e.data !== "string") return;
+      if(e.data.indexOf("authorization:github:success:") === 0){
+        window.removeEventListener("message", onResult);
+        try{
+          const body = JSON.parse(e.data.slice("authorization:github:success:".length));
+          resolve(body.token);
+        }catch(err){ reject(err); }
+      } else if(e.data.indexOf("authorization:github:error:") === 0){
+        window.removeEventListener("message", onResult);
+        try{
+          const body = JSON.parse(e.data.slice("authorization:github:error:".length));
+          reject(new Error(body.message || "登入失敗"));
+        }catch(err){ reject(new Error("登入失敗")); }
+      }
+    }
+    window.addEventListener("message", handshake);
   });
-  const data = await res.json();
-  if(!res.ok) throw new Error(data.error_description || data.error || "登入失敗，請確認帳號密碼");
-  saveSession(data);
-  return data;
-}
-
-async function identityRefresh(){
-  if(!refreshToken) throw new Error("沒有可用的登入狀態");
-  const res = await fetch(`${IDENTITY_BASE}/token`, {
-    method: "POST",
-    headers: { "Content-Type": "application/x-www-form-urlencoded" },
-    body: new URLSearchParams({ grant_type: "refresh_token", refresh_token: refreshToken }),
-  });
-  const data = await res.json();
-  if(!res.ok) throw new Error("登入已過期");
-  saveSession(data);
-  return data;
-}
-
-/* 邀請信／忘記密碼信的連結會帶 #invite_token=xxx 或 #recovery_token=xxx，
-   這個 token 是一次性的驗證碼，不是 JWT，不能直接當 Bearer 打 PUT
-   /user（會被 GoTrue 拒絕：invalid number of segments）。正確做法是
-   打 /verify，把 type（invite／recovery）、token、新密碼一起送出去，
-   一次就換到登入用的 access_token/refresh_token */
-async function identityVerify(type, token, password){
-  const res = await fetch(`${IDENTITY_BASE}/verify`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ type, token, password }),
-  });
-  const data = await res.json();
-  if(!res.ok) throw new Error(data.msg || data.error_description || data.error || "設定密碼失敗，邀請連結可能已經過期");
-  saveSession(data);
-  return data;
-}
-
-async function identityGetUser(){
-  const res = await fetch(`${IDENTITY_BASE}/user`, { headers: { "Authorization": "Bearer " + authToken } });
-  if(!res.ok) throw new Error("無法讀取使用者資訊");
-  return res.json();
 }
 
 function logout(){
   authToken = null;
-  refreshToken = null;
-  localStorage.removeItem("ip_id_token");
-  localStorage.removeItem("ip_id_refresh");
+  localStorage.removeItem("ip_gh_token");
   state.user = null;
   render();
 }
 
+async function ghGetUser(){
+  const res = await fetch("https://api.github.com/user", { headers: { "Authorization": "token " + authToken } });
+  if(!res.ok) throw new Error("無法讀取使用者資訊");
+  return res.json();
+}
+
 /* ============================================================
-   GitHub API 小工具（實際上打的是 Git Gateway 代理端點，語法跟真正
-   的 GitHub Contents API 一模一樣，只是驗證方式換成 Identity token）
+   GitHub API 小工具
    ============================================================ */
 async function ghFetch(path, opts, _retried){
   opts = opts || {};
   opts.headers = Object.assign({
-    "Authorization": "Bearer " + authToken,
+    "Authorization": "token " + authToken,
     "Accept": "application/vnd.github+json",
   }, opts.headers || {});
   const res = await fetch(API_BASE + path, opts);
   if(res.status === 401){
-    if(!_retried && refreshToken){
-      try{ await identityRefresh(); return ghFetch(path, opts, true); }catch(e){}
-    }
     logout();
     throw new Error("登入已失效，請重新登入");
   }
@@ -468,7 +441,6 @@ const state = {
     { name: "chapter-digital", label: "章節：原型數位", file: "content/site/chapter-digital.json" },
   ],
   editingSite: null, // { meta, item, sha, pendingUploads }
-  users: null, // [{id, email, confirmed_at}]
 };
 
 async function loadCaseList(){
@@ -490,18 +462,7 @@ async function loadCaseList(){
    ============================================================ */
 const app = document.getElementById("app");
 
-function getHashParam(name){
-  const m = location.hash.match(new RegExp("[#&]" + name + "=([^&]+)"));
-  return m ? decodeURIComponent(m[1]) : null;
-}
-
 function render(){
-  const inviteToken = getHashParam("invite_token");
-  const recoveryToken = getHashParam("recovery_token");
-  if(inviteToken || recoveryToken){
-    renderSetPassword(inviteToken || recoveryToken, inviteToken ? "invite" : "recovery");
-    return;
-  }
   if(!authToken || !state.user){
     renderLogin();
     return;
@@ -511,96 +472,28 @@ function render(){
   renderList();
 }
 
-function renderSetPassword(token, mode){
-  app.innerHTML = `
-    <div class="wrap">
-      <div class="login-screen">
-        <h1>${mode === "invite" ? "設定密碼" : "重設密碼"}</h1>
-        <p>${mode === "invite" ? "第一次登入，請先設定一組密碼。" : "請輸入新密碼。"}</p>
-        <div class="field-block" style="width:280px;text-align:left">
-          <label>新密碼（至少 4 個字元，數字或文字都可以）</label>
-          <input type="password" id="newPassword" placeholder="例如：1234">
-        </div>
-        <button class="btn primary" id="setPasswordBtn">儲存密碼並登入</button>
-      </div>
-    </div>
-  `;
-  document.getElementById("setPasswordBtn").addEventListener("click", async () => {
-    const password = document.getElementById("newPassword").value;
-    if(!password || password.length < 4){ toast("密碼至少要 4 個字元", true); return; }
-    try{
-      setLoading(true, "設定密碼中…");
-      // GoTrue 的 /verify 只認得 "signup" 跟 "recovery" 兩種 type，
-      // 邀請信的連結（我們畫面上叫它 "invite"）在 API 層其實要送 "signup"
-      await identityVerify(mode === "invite" ? "signup" : "recovery", token, password);
-      state.user = await identityGetUser();
-      history.replaceState(null, "", location.pathname);
-      setLoading(true, "載入案例清單中…");
-      await loadCaseList();
-      render();
-    }catch(err){
-      toast(err.message || "設定失敗", true);
-    }finally{
-      setLoading(false);
-    }
-  });
-}
-
 function renderLogin(){
   app.innerHTML = `
     <div class="wrap">
       <div class="login-screen">
         <h1>後台管理</h1>
-        <p>用 Google 帳號登入，就能新增、編輯案例內容跟主網站的宣言／章節文字（必須是已經被加進使用者清單的帳號）。</p>
-        <button class="btn primary" id="googleLoginBtn">使用 Google 帳號登入</button>
-        <p class="field-hint" style="margin-top:28px">也可以用 email／密碼登入：</p>
-        <div class="field-block" style="width:280px;text-align:left">
-          <label>Email</label>
-          <input type="text" id="loginEmail" placeholder="you@example.com">
-        </div>
-        <div class="field-block" style="width:280px;text-align:left">
-          <label>密碼</label>
-          <input type="password" id="loginPassword">
-        </div>
-        <button class="btn" id="loginBtn">登入</button>
-        <button class="btn ghost" id="forgotBtn" style="font-size:12.5px">忘記密碼？</button>
+        <p>用你的 GitHub 帳號登入，就能新增、編輯案例內容跟主網站的宣言／章節文字。要新增編輯者，去這個 repo 的 GitHub Settings → Collaborators 加對方的帳號即可。</p>
+        <button class="btn primary" id="loginBtn">使用 GitHub 帳號登入</button>
       </div>
     </div>
   `;
-  document.getElementById("googleLoginBtn").addEventListener("click", () => {
-    location.href = `${IDENTITY_BASE}/authorize?provider=google`;
-  });
   document.getElementById("loginBtn").addEventListener("click", async () => {
-    const email = document.getElementById("loginEmail").value.trim();
-    const password = document.getElementById("loginPassword").value;
-    if(!email || !password){ toast("請輸入 Email 跟密碼", true); return; }
     try{
       setLoading(true, "登入中…");
-      await identityLogin(email, password);
-      state.user = await identityGetUser();
+      const token = await login();
+      authToken = token;
+      localStorage.setItem("ip_gh_token", token);
+      state.user = await ghGetUser();
       setLoading(true, "載入案例清單中…");
       await loadCaseList();
       render();
     }catch(err){
       toast(err.message || "登入失敗", true);
-    }finally{
-      setLoading(false);
-    }
-  });
-  document.getElementById("forgotBtn").addEventListener("click", async () => {
-    const email = document.getElementById("loginEmail").value.trim();
-    if(!email){ toast("請先輸入 Email", true); return; }
-    try{
-      setLoading(true, "寄送中…");
-      const res = await fetch(`${IDENTITY_BASE}/recover`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email }),
-      });
-      if(!res.ok) throw new Error("寄送失敗");
-      toast("重設密碼信已寄出，請去信箱收信");
-    }catch(err){
-      toast(err.message || "寄送失敗", true);
     }finally{
       setLoading(false);
     }
@@ -613,7 +506,8 @@ function renderTopBar(){
       <div class="wrap">
         <div class="site-title">後台管理<a href="../" target="_blank">↗ 查看網站</a></div>
         <div class="user-box">
-          <span>${esc(state.user.email)}</span>
+          <img src="${esc(state.user.avatar_url)}" alt="">
+          <span>${esc(state.user.login)}</span>
           <button class="btn ghost" id="logoutBtn">登出</button>
         </div>
       </div>
@@ -628,7 +522,6 @@ function renderList(){
       <div class="tab-nav">
         <button data-tab="cases" class="${state.tab === "cases" ? "active" : ""}">建築案例</button>
         <button data-tab="site" class="${state.tab === "site" ? "active" : ""}">主網站內容</button>
-        <button data-tab="users" class="${state.tab === "users" ? "active" : ""}">使用者管理</button>
       </div>
       <div id="tabContent"></div>
     </div>
@@ -643,10 +536,8 @@ function renderList(){
 function renderTabContent(){
   const el = document.getElementById("tabContent");
   if(state.tab === "cases"){ el.innerHTML = casesListHtml(); bindListEvents(); return; }
-  if(state.tab === "site"){ el.innerHTML = siteListHtml(); bindListEvents(); return; }
-  el.innerHTML = usersListHtml();
-  bindUsersEvents();
-  if(state.users === null) loadUsers();
+  el.innerHTML = siteListHtml();
+  bindListEvents();
 }
 
 function addCardHtml(label){
@@ -672,97 +563,6 @@ function casesListHtml(){
     </div>
   `).join("");
   return `<div class="item-grid">${cards}${addCardHtml("新增案例")}</div>`;
-}
-
-/* ============================================================
-   使用者管理（新增／移除誰可以登入這個後台）——透過 netlify/functions/
-   manage-users.js 這支 function，用目前登入者自己的 Identity token 去
-   打 GoTrue 的管理 API，不需要另外去 Netlify 官方後台操作。
-   ============================================================ */
-async function usersFetch(opts){
-  const res = await fetch(USERS_ENDPOINT, Object.assign({
-    headers: Object.assign({ "Authorization": "Bearer " + authToken }, (opts && opts.headers) || {}),
-  }, opts || {}));
-  const data = await res.json().catch(() => ({}));
-  if(!res.ok) throw new Error(data.message || data.msg || (res.status + " " + res.statusText));
-  return data;
-}
-
-async function loadUsers(){
-  try{
-    const data = await usersFetch({});
-    state.users = data.users || data || [];
-    if(state.tab === "users") renderTabContent();
-  }catch(err){
-    toast("載入使用者清單失敗：" + err.message, true);
-    state.users = [];
-  }
-}
-
-function usersListHtml(){
-  const rows = state.users === null ? `<div class="empty-note">載入中…</div>` : state.users.length === 0 ? `<div class="empty-note">還沒有其他使用者</div>` : `
-    <div class="user-list">
-      ${state.users.map(u => `
-        <div class="user-row" data-user-id="${esc(u.id)}">
-          <div>
-            <span class="email">${esc(u.email)}</span>
-            <span class="status">${u.confirmed_at ? "已啟用" : "邀請信已寄出，等待對方設定密碼"}</span>
-          </div>
-          <button type="button" class="btn small danger" data-remove-user="${esc(u.id)}">移除</button>
-        </div>
-      `).join("")}
-    </div>
-  `;
-  return `
-    <div class="invite-row">
-      <input type="text" id="inviteEmail" placeholder="輸入 email 邀請新使用者">
-      <button class="btn primary" id="inviteBtn">寄出邀請</button>
-    </div>
-    ${rows}
-  `;
-}
-
-function bindUsersEvents(){
-  const inviteBtn = document.getElementById("inviteBtn");
-  if(inviteBtn) inviteBtn.addEventListener("click", async () => {
-    const email = document.getElementById("inviteEmail").value.trim();
-    if(!email){ toast("請輸入 email", true); return; }
-    try{
-      setLoading(true, "寄送邀請信中…");
-      await usersFetch({
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action: "invite", email }),
-      });
-      toast("邀請信已寄出");
-      state.users = null;
-      renderTabContent();
-    }catch(err){
-      toast("邀請失敗：" + err.message, true);
-    }finally{
-      setLoading(false);
-    }
-  });
-  document.querySelectorAll("[data-remove-user]").forEach(btn => {
-    btn.addEventListener("click", async () => {
-      if(!confirm("確定要移除這個使用者的登入權限嗎？")) return;
-      try{
-        setLoading(true, "移除中…");
-        await usersFetch({
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ action: "remove", id: btn.dataset.removeUser }),
-        });
-        toast("已移除");
-        state.users = null;
-        renderTabContent();
-      }catch(err){
-        toast("移除失敗：" + err.message, true);
-      }finally{
-        setLoading(false);
-      }
-    });
-  });
 }
 
 function siteListHtml(){
@@ -1406,25 +1206,14 @@ async function saveSiteEditor(ed){
    啟動
    ============================================================ */
 (async function init(){
-  // Google 登入走完 OAuth 流程後，GoTrue 會把使用者導回這個頁面，網址
-  // 帶著 #access_token=...&refresh_token=...（不是 invite/recovery 那種
-  // 一次性驗證碼，是直接可以用的登入 session），接住它、存起來即可
-  const oauthAccessToken = getHashParam("access_token");
-  const oauthRefreshToken = getHashParam("refresh_token");
-  if(oauthAccessToken){
-    saveSession({ access_token: oauthAccessToken, refresh_token: oauthRefreshToken });
-    history.replaceState(null, "", location.pathname);
-  }
   if(authToken){
     try{
       setLoading(true, "載入中…");
-      state.user = await identityGetUser();
+      state.user = await ghGetUser();
       await loadCaseList();
     }catch(err){
       authToken = null;
-      refreshToken = null;
-      localStorage.removeItem("ip_id_token");
-      localStorage.removeItem("ip_id_refresh");
+      localStorage.removeItem("ip_gh_token");
     }finally{
       setLoading(false);
     }

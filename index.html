@@ -9,14 +9,6 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@300;400;500;600;700&family=Noto+Serif+TC:wght@200;300;400;500;600;700;900&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="css/style.css">
-<script>
-  // Netlify 的邀請信／忘記密碼信連結一律導到網站首頁（不是
-  // /admin/），網址帶著 #invite_token=.../#recovery_token=...；後台
-  // 自己的登入畫面才有處理這個雜湊參數的邏輯，這裡只是把它轉送過去。
-  if (/^#(invite_token|recovery_token)=/.test(location.hash)) {
-    location.replace("admin/" + location.hash);
-  }
-</script>
 </head>
 <body>
 
