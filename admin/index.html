@@ -518,8 +518,8 @@ function renderSetPassword(token, mode){
         <h1>${mode === "invite" ? "設定密碼" : "重設密碼"}</h1>
         <p>${mode === "invite" ? "第一次登入，請先設定一組密碼。" : "請輸入新密碼。"}</p>
         <div class="field-block" style="width:280px;text-align:left">
-          <label>新密碼（至少 4 位數字）</label>
-          <input type="password" id="newPassword" inputmode="numeric" pattern="[0-9]*" placeholder="例如：1234">
+          <label>新密碼（至少 4 個字元，數字或文字都可以）</label>
+          <input type="password" id="newPassword" placeholder="例如：1234">
         </div>
         <button class="btn primary" id="setPasswordBtn">儲存密碼並登入</button>
       </div>
@@ -527,7 +527,7 @@ function renderSetPassword(token, mode){
   `;
   document.getElementById("setPasswordBtn").addEventListener("click", async () => {
     const password = document.getElementById("newPassword").value;
-    if(!/^\d{4,}$/.test(password)){ toast("密碼請輸入至少 4 位數字", true); return; }
+    if(!password || password.length < 4){ toast("密碼至少要 4 個字元", true); return; }
     try{
       setLoading(true, "設定密碼中…");
       // GoTrue 的 /verify 只認得 "signup" 跟 "recovery" 兩種 type，
