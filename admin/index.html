@@ -1,326 +1,1212 @@
 <!DOCTYPE html>
 <html lang="zh-Hant">
 <head>
-<meta charset="utf-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>案例後台</title>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>後台管理 — AS. studio</title>
+<style>
+:root{
+  --paper:   #fbfaf8;
+  --ink:     #201f1d;
+  --muted:   #8a8781;
+  --line:    #eae7e1;
+  --accent:  #6b6355;
+  --danger:  #b23b3b;
+  --f-heading: 'Trebuchet MS', 'Yu Gothic', 'Meiryo', sans-serif;
+  --f-body:    'Yu Gothic Light', 'Yu Gothic', 'Meiryo', sans-serif;
+}
+*,*::before,*::after{ box-sizing:border-box; }
+body{
+  margin:0; background:var(--paper); color:var(--ink);
+  font-family:var(--f-body); font-size:15px; line-height:1.6;
+  -webkit-font-smoothing:antialiased;
+}
+img{ max-width:100%; display:block; }
+a{ color:inherit; }
+button{ font-family:inherit; cursor:pointer; }
+h1,h2,h3{ font-family:var(--f-heading); font-weight:700; letter-spacing:-0.01em; margin:0; }
+input,textarea,select{ font-family:inherit; font-size:14px; }
+
+.wrap{ max-width:1000px; margin:0 auto; padding:0 24px; }
+
+.top-bar{ border-bottom:1px solid var(--line); padding:18px 0; margin-bottom:28px; }
+.top-bar .wrap{ display:flex; align-items:center; justify-content:space-between; gap:16px; flex-wrap:wrap; }
+.top-bar .site-title{ font-family:var(--f-heading); font-weight:700; font-size:18px; }
+.top-bar .site-title a{ text-decoration:none; color:var(--muted); font-weight:400; font-size:13px; margin-left:10px; }
+.top-bar .user-box{ display:flex; align-items:center; gap:10px; font-size:13px; color:var(--muted); }
+.top-bar .user-box img{ width:26px; height:26px; border-radius:50%; }
+.btn{
+  display:inline-flex; align-items:center; gap:8px;
+  padding:9px 16px; border-radius:5px; border:1px solid var(--line);
+  background:#fff; color:var(--ink); font-size:13.5px; font-weight:600;
+  transition:all .15s ease;
+}
+.btn:hover{ border-color:var(--ink); }
+.btn.primary{ background:var(--ink); color:#fff; border-color:var(--ink); }
+.btn.primary:hover{ background:#000; }
+.btn.danger{ color:var(--danger); border-color:#e6c9c9; }
+.btn.danger:hover{ background:#fdf1f1; border-color:var(--danger); }
+.btn.ghost{ border-color:transparent; background:none; color:var(--muted); padding:9px 10px; }
+.btn.ghost:hover{ color:var(--ink); }
+.btn.small{ padding:6px 12px; font-size:12.5px; }
+.btn:disabled{ opacity:.5; cursor:default; }
+.btn svg{ width:15px; height:15px; flex-shrink:0; }
+
+.login-screen{
+  min-height:70vh; display:flex; flex-direction:column; align-items:center; justify-content:center;
+  gap:22px; text-align:center; padding:40px 20px;
+}
+.login-screen h1{ font-size:24px; }
+.login-screen p{ color:var(--muted); max-width:360px; font-size:14px; line-height:1.7; }
+
+.tab-nav{ display:flex; gap:6px; margin-bottom:28px; border-bottom:1px solid var(--line); }
+.tab-nav button{
+  padding:11px 18px; background:none; border:none; border-bottom:2px solid transparent;
+  font-size:14.5px; font-weight:600; color:var(--muted); margin-bottom:-1px;
+}
+.tab-nav button.active{ color:var(--ink); border-color:var(--ink); }
+.tab-nav button:hover{ color:var(--ink); }
+
+.item-grid{ display:grid; grid-template-columns:repeat(auto-fill, minmax(190px, 1fr)); gap:20px; padding-bottom:60px; }
+.item-card{
+  border:1px solid var(--line); border-radius:8px; overflow:hidden; cursor:pointer;
+  background:#fff; transition:box-shadow .15s ease, transform .15s ease;
+}
+.item-card:hover{ box-shadow:0 6px 18px rgba(32,31,29,0.1); transform:translateY(-2px); }
+.item-card .thumb{ aspect-ratio:4/3; background:#efece5; overflow:hidden; }
+.item-card .thumb img{ width:100%; height:100%; object-fit:cover; }
+.item-card .thumb.empty{ display:flex; align-items:center; justify-content:center; color:var(--muted); font-size:12px; }
+.item-card .info{ padding:12px 14px; }
+.item-card .info .t{ font-size:14px; font-weight:600; margin-bottom:2px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.item-card .info .m{ font-size:12px; color:var(--muted); }
+.add-card{
+  border:1.5px dashed var(--line); border-radius:8px; aspect-ratio:4/3;
+  display:flex; flex-direction:column; align-items:center; justify-content:center; gap:8px;
+  color:var(--muted); cursor:pointer; background:none;
+}
+.add-card:hover{ border-color:var(--ink); color:var(--ink); }
+.add-card svg{ width:26px; height:26px; }
+.add-card span{ font-size:13px; font-weight:600; }
+
+.editor{ padding-bottom:80px; }
+.editor-head{ display:flex; justify-content:space-between; align-items:center; margin-bottom:24px; gap:12px; flex-wrap:wrap; }
+.back-link{ display:inline-flex; align-items:center; gap:6px; color:var(--muted); font-size:13.5px; background:none; border:none; padding:0; }
+.back-link:hover{ color:var(--ink); }
+.field-block{ margin-bottom:26px; }
+.field-block > label, .field-block > .label{
+  display:block; font-family:var(--f-heading); font-weight:700; font-size:13px;
+  letter-spacing:.02em; margin-bottom:8px; color:var(--ink);
+}
+.field-hint{ font-size:12px; color:var(--muted); margin-top:6px; line-height:1.6; }
+.field-block input[type=text], .field-block input[type=number], .field-block textarea{
+  width:100%; padding:10px 12px; border:1px solid var(--line); border-radius:5px;
+  background:#fff; color:var(--ink); resize:vertical;
+}
+.field-block input:focus, .field-block textarea:focus{ outline:none; border-color:var(--ink); }
+.field-block textarea{ min-height:90px; line-height:1.7; }
+.two-col{ display:grid; grid-template-columns:1fr 1fr; gap:18px; }
+.three-col{ display:grid; grid-template-columns:repeat(3,1fr); gap:18px; }
+.four-col{ display:grid; grid-template-columns:repeat(4,1fr); gap:18px; }
+@media (max-width:640px){ .two-col, .three-col, .four-col{ grid-template-columns:1fr; } }
+
+.cover-drop{
+  aspect-ratio:16/9; max-width:520px; border-radius:8px; overflow:hidden;
+  background:#efece5; border:1.5px dashed var(--line); position:relative; cursor:pointer;
+}
+.cover-drop.has-image{ border-style:solid; }
+.cover-drop img{ width:100%; height:100%; object-fit:cover; }
+.cover-drop .placeholder{
+  position:absolute; inset:0; display:flex; flex-direction:column; align-items:center; justify-content:center;
+  gap:8px; color:var(--muted); font-size:13px;
+}
+.cover-drop .placeholder svg{ width:26px; height:26px; }
+.cover-drop:hover{ border-color:var(--ink); }
+.cover-drop.drag-over{ border-color:var(--ink); background:rgba(107,99,85,0.08); }
+.cover-drop .replace-hint{
+  position:absolute; inset:0; display:flex; align-items:center; justify-content:center;
+  background:rgba(20,19,17,0.55); color:#fff; font-size:12.5px; opacity:0; transition:opacity .15s ease;
+}
+.cover-drop.has-image:hover .replace-hint{ opacity:1; }
+.cover-drop.small{ max-width:200px; aspect-ratio:4/3; }
+
+/* simple text list (paragraphs) */
+.text-list-row{ display:flex; gap:10px; align-items:flex-start; margin-bottom:10px; }
+.text-list-row textarea{ flex:1; min-height:70px; }
+.row-remove-btn{
+  flex-shrink:0; width:32px; height:32px; border-radius:50%; border:1px solid var(--line);
+  background:#fff; color:var(--muted); font-size:16px; line-height:1;
+}
+.row-remove-btn:hover{ color:var(--danger); border-color:var(--danger); }
+
+/* photo list (with per-photo caption) */
+.photo-list{ display:flex; flex-direction:column; gap:10px; }
+.photo-list-drop{ border-radius:8px; transition:background .15s ease; }
+.photo-list-drop.drag-over{ background:rgba(107,99,85,0.08); outline:1.5px dashed var(--ink); outline-offset:6px; }
+.photo-row{ display:flex; gap:12px; align-items:center; }
+.photo-row .thumb{ width:84px; height:63px; flex-shrink:0; border-radius:5px; overflow:hidden; background:#efece5; border:1px solid var(--line); }
+.photo-row .thumb img{ width:100%; height:100%; object-fit:cover; }
+.photo-row input[type=text]{ flex:1; }
+.add-photo-btn{
+  align-self:flex-start; display:inline-flex; align-items:center; gap:8px;
+  padding:9px 14px; border-radius:6px; border:1.5px dashed var(--line); background:none; color:var(--muted); font-size:13px; font-weight:600;
+}
+.add-photo-btn:hover{ border-color:var(--ink); color:var(--ink); }
+.add-photo-btn svg{ width:16px; height:16px; }
+
+/* step card (designResearch / process) */
+.step-card{ border:1px solid var(--line); border-radius:8px; padding:16px; margin-bottom:16px; background:#fff; }
+.step-card-head{ display:flex; justify-content:space-between; align-items:center; margin-bottom:10px; }
+.step-card-head .step-label{ font-size:12px; font-weight:700; color:var(--muted); letter-spacing:.04em; }
+.add-step-btn{
+  display:inline-flex; align-items:center; gap:8px; padding:10px 16px; border-radius:6px;
+  border:1.5px dashed var(--line); background:none; color:var(--muted); font-size:13.5px; font-weight:600;
+}
+.add-step-btn:hover{ border-color:var(--ink); color:var(--ink); }
+
+/* 5-language block */
+.lang5-block{ border:1px solid var(--line); border-radius:8px; padding:14px; background:#fff; }
+.lang5-row{ margin-bottom:8px; }
+.lang5-row label{ display:block; font-size:11.5px; color:var(--muted); margin-bottom:3px; }
+.lang5-row textarea{ min-height:56px; }
+.translate-btn{
+  margin-bottom:12px; padding:7px 14px; background:var(--ink); color:#fff; border:none; border-radius:5px;
+  font-size:12.5px; font-weight:600;
+}
+.translate-btn:hover{ background:#000; }
+.translate-btn:disabled{ opacity:.5; }
+
+.case-card-editor{ border:1px solid var(--line); border-radius:8px; padding:16px; margin-bottom:16px; background:#fff; }
+.case-card-editor-head{ display:flex; justify-content:space-between; align-items:center; margin-bottom:12px; }
+
+.save-bar{
+  position:sticky; bottom:0; margin-top:32px; padding:16px 0; background:var(--paper);
+  border-top:1px solid var(--line); display:flex; justify-content:space-between; align-items:center; gap:12px; flex-wrap:wrap;
+}
+.save-status{ font-size:12.5px; color:var(--muted); }
+.save-status.err{ color:var(--danger); }
+
+#toast{
+  position:fixed; bottom:24px; left:50%; transform:translateX(-50%) translateY(20px);
+  background:var(--ink); color:#fff; padding:12px 20px; border-radius:6px; font-size:13.5px;
+  opacity:0; pointer-events:none; transition:all .25s ease; z-index:999; max-width:90vw; text-align:center;
+}
+#toast.show{ opacity:1; transform:translateX(-50%) translateY(0); }
+#toast.err{ background:var(--danger); }
+
+#loadingOverlay{
+  position:fixed; inset:0; background:rgba(251,250,248,0.85); backdrop-filter:blur(2px);
+  display:none; align-items:center; justify-content:center; z-index:998; font-size:14px; color:var(--muted);
+}
+#loadingOverlay.show{ display:flex; }
+
+.spinner{
+  width:16px; height:16px; border-radius:50%; border:2px solid var(--line); border-top-color:var(--ink);
+  animation:spin .7s linear infinite; display:inline-block; margin-right:8px; vertical-align:-3px;
+}
+@keyframes spin{ to{ transform:rotate(360deg); } }
+</style>
 </head>
 <body>
-<!-- Decap CMS 的 script 一定要放在 <body> 裡（不能在 <head>），
-     它初始化時會直接操作 document.body，放在 <head> 執行時 body
-     還不存在，會直接整個掛掉、CMS/h/createClass 都不會被定義出來 -->
 
-<!-- 邀請信／忘記密碼信裡的連結會帶 #invite_token=.../#recovery_token=...
-     這種網址雜湊參數，一定要在 decap-cms.js 之前載入 Netlify Identity
-     widget，讓它先讀到這個參數並跳出設密碼視窗——如果晚一步載入，
-     Decap CMS 自己的路由會先把網址雜湊清成 #/，邀請連結就永遠失效、
-     只會看到普通的登入畫面 -->
-<script src="https://identity.netlify.com/v1/netlify-identity-widget.js"></script>
+<div id="loadingOverlay"><span class="spinner"></span><span id="loadingText">處理中…</span></div>
+<div id="toast"></div>
+<div id="app"></div>
+
 <script>
-  if (window.netlifyIdentity) {
-    window.netlifyIdentity.on("init", function (user) {
-      if (!user) {
-        window.netlifyIdentity.on("login", function () {
-          document.location.href = "/admin/";
-        });
+/* ============================================================
+   設定
+   ============================================================ */
+const REPO_OWNER = "as-studio001";
+const REPO_NAME = "Internal-Pages";
+const REPO_BRANCH = "main";
+// 沿用 anassembly-studio 那套已經驗證過可以用的 GitHub OAuth 中繼站——
+// 這支 Netlify function 只是幫忙走完 GitHub 登入流程換一個 token，
+// 跟哪個 repo 無關，只要登入的 GitHub 帳號對這個 repo 有寫入權限就行。
+const AUTH_ENDPOINT = "https://sunny-kangaroo-3eb599.netlify.app/.netlify/functions/auth";
+const RAW_BASE = `https://raw.githubusercontent.com/${REPO_OWNER}/${REPO_NAME}/${REPO_BRANCH}/`;
+const API_BASE = `https://api.github.com/repos/${REPO_OWNER}/${REPO_NAME}`;
+
+function rawUrl(path){
+  if(!path) return "";
+  if(/^https?:\/\//.test(path)) return path;
+  return RAW_BASE + path.split("/").map(encodeURIComponent).join("/");
+}
+function esc(str){
+  return String(str == null ? "" : str).replace(/[&<>"']/g, s => ({
+    "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"
+  }[s]));
+}
+function uid(){ return Math.random().toString(36).slice(2, 9); }
+
+/* ============================================================
+   Toast / loading
+   ============================================================ */
+let toastTimer = null;
+function toast(msg, isErr){
+  const el = document.getElementById("toast");
+  el.textContent = msg;
+  el.classList.toggle("err", !!isErr);
+  el.classList.add("show");
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => el.classList.remove("show"), 3200);
+}
+function setLoading(on, text){
+  document.getElementById("loadingText").textContent = text || "處理中…";
+  document.getElementById("loadingOverlay").classList.toggle("show", !!on);
+}
+
+/* ============================================================
+   Auth（GitHub OAuth，跟 Decap CMS 原本用的 postMessage 協定相同）
+   ============================================================ */
+let authToken = localStorage.getItem("ip_gh_token") || null;
+
+function login(){
+  return new Promise((resolve, reject) => {
+    const w = 600, h = 700;
+    const left = (screen.width - w) / 2, top = (screen.height - h) / 2;
+    const popup = window.open(AUTH_ENDPOINT, "github-oauth", `width=${w},height=${h},left=${left},top=${top}`);
+    if(!popup){ reject(new Error("彈出視窗被瀏覽器擋掉了，請允許彈出視窗後再試一次")); return; }
+
+    function handshake(e){
+      if(e.data === "authorizing:github"){
+        window.removeEventListener("message", handshake);
+        window.addEventListener("message", onResult);
+        popup.postMessage(e.data, e.origin);
+      }
+    }
+    function onResult(e){
+      if(typeof e.data !== "string") return;
+      if(e.data.indexOf("authorization:github:success:") === 0){
+        window.removeEventListener("message", onResult);
+        try{
+          const body = JSON.parse(e.data.slice("authorization:github:success:".length));
+          resolve(body.token);
+        }catch(err){ reject(err); }
+      } else if(e.data.indexOf("authorization:github:error:") === 0){
+        window.removeEventListener("message", onResult);
+        try{
+          const body = JSON.parse(e.data.slice("authorization:github:error:".length));
+          reject(new Error(body.message || "登入失敗"));
+        }catch(err){ reject(new Error("登入失敗")); }
+      }
+    }
+    window.addEventListener("message", handshake);
+  });
+}
+
+function logout(){
+  authToken = null;
+  localStorage.removeItem("ip_gh_token");
+  state.user = null;
+  render();
+}
+
+/* ============================================================
+   GitHub API 小工具
+   ============================================================ */
+async function ghFetch(path, opts){
+  opts = opts || {};
+  opts.headers = Object.assign({
+    "Authorization": "token " + authToken,
+    "Accept": "application/vnd.github+json",
+  }, opts.headers || {});
+  const res = await fetch(API_BASE + path, opts);
+  if(res.status === 401){ logout(); throw new Error("登入已失效，請重新登入"); }
+  if(!res.ok){
+    let msg = res.status + " " + res.statusText;
+    try{ const j = await res.json(); if(j.message) msg = j.message; }catch(e){}
+    throw new Error(msg);
+  }
+  return res;
+}
+
+async function ghGetUser(){
+  const res = await fetch("https://api.github.com/user", { headers: { "Authorization": "token " + authToken } });
+  if(!res.ok) throw new Error("無法讀取使用者資訊");
+  return res.json();
+}
+
+function utf8ToBase64(str){
+  return btoa(unescape(encodeURIComponent(str)));
+}
+
+async function ghGetFile(path){
+  const res = await ghFetch(`/contents/${path.split("/").map(encodeURIComponent).join("/")}?ref=${REPO_BRANCH}&_=${Date.now()}`);
+  const data = await res.json();
+  const content = decodeURIComponent(escape(atob(data.content.replace(/\n/g, ""))));
+  return { sha: data.sha, content, json: JSON.parse(content) };
+}
+
+async function ghListDir(path){
+  try{
+    const res = await ghFetch(`/contents/${path}?ref=${REPO_BRANCH}&_=${Date.now()}`);
+    return res.json();
+  }catch(err){
+    if(String(err.message).indexOf("Not Found") !== -1) return [];
+    throw err;
+  }
+}
+
+async function ghPutFile(path, base64Content, message, sha){
+  const body = { message, content: base64Content, branch: REPO_BRANCH };
+  if(sha) body.sha = sha;
+  const res = await ghFetch(`/contents/${path.split("/").map(encodeURIComponent).join("/")}`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+  return res.json();
+}
+
+async function ghDeleteFile(path, message, sha){
+  return ghFetch(`/contents/${path.split("/").map(encodeURIComponent).join("/")}`, {
+    method: "DELETE",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ message, sha, branch: REPO_BRANCH }),
+  });
+}
+
+function readFileAsBase64(file){
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result.split(",")[1]);
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
+}
+
+function sanitizeFilename(name){
+  return name.replace(/[^\w.\-一-鿿]+/g, "_");
+}
+
+/* 上傳一張照片到指定資料夾（案例照片放 images/<slug>/，主網站案例卡片
+   放 images/site/），檔名衝突就自動加時間戳記，回傳最終路徑 */
+async function uploadAsset(file, folder){
+  let name = sanitizeFilename(file.name);
+  const path = `${folder}/${name}`;
+  const b64 = await readFileAsBase64(file);
+  try{
+    await ghPutFile(path, b64, `Upload ${name} via admin`);
+    return path;
+  }catch(err){
+    const altPath = `${folder}/${Date.now()}-${name}`;
+    await ghPutFile(altPath, b64, `Upload ${name} via admin`);
+    return altPath;
+  }
+}
+
+/* ============================================================
+   路徑式讀寫（處理任意深度的巢狀資料，例如 "photos.2.caption"、
+   "designResearch.0.photos.1.caption"），文字輸入用「打字當下直接寫回
+   state，不整個重畫畫面」，只有新增/刪除/上傳這種「結構改變」的操作
+   才會呼叫 rerenderEditor() 整個重畫，這樣打字就不會卡頓、游標也不會
+   跳掉。
+   ============================================================ */
+function getPath(obj, path){
+  return path.split(".").reduce((o, k) => (o == null ? undefined : o[k]), obj);
+}
+function setPath(obj, path, value){
+  const keys = path.split(".");
+  let o = obj;
+  for(let i = 0; i < keys.length - 1; i++) o = o[keys[i]];
+  o[keys[keys.length - 1]] = value;
+}
+
+/* ============================================================
+   全域狀態
+   ============================================================ */
+const state = {
+  user: null,
+  tab: "cases", // cases | site
+  cases: null, // [{slug, title, ledeMeta, tag, hero}]
+  editingCase: null, // { slug, item, sha, isNew, pendingUploads }
+  siteMeta: [
+    { name: "declaration", label: "首頁宣言", file: "content/site/declaration.json" },
+    { name: "chapter-restore", label: "章節：原型修復", file: "content/site/chapter-restore.json" },
+    { name: "chapter-detail", label: "章節：原型細部", file: "content/site/chapter-detail.json" },
+    { name: "chapter-exhibit", label: "章節：原型展覽", file: "content/site/chapter-exhibit.json" },
+    { name: "chapter-digital", label: "章節：原型數位", file: "content/site/chapter-digital.json" },
+  ],
+  editingSite: null, // { meta, item, sha, pendingUploads }
+};
+
+async function loadCaseList(){
+  const entries = await ghListDir("content/projects");
+  const files = entries.filter(e => e.type === "file" && e.name.endsWith(".json"));
+  const items = await Promise.all(files.map(async f => {
+    try{
+      const { json } = await ghGetFile(f.path);
+      return { slug: json.slug || f.name.replace(/\.json$/, ""), title: json.title || "", ledeMeta: json.ledeMeta || "", hero: json.hero || "" };
+    }catch(e){
+      return { slug: f.name.replace(/\.json$/, ""), title: "（讀取失敗）", ledeMeta: "", hero: "" };
+    }
+  }));
+  state.cases = items;
+}
+
+/* ============================================================
+   Router / render
+   ============================================================ */
+const app = document.getElementById("app");
+
+function render(){
+  if(!authToken || !state.user){
+    renderLogin();
+    return;
+  }
+  if(state.editingCase){ renderCaseEditor(); return; }
+  if(state.editingSite){ renderSiteEditor(); return; }
+  renderList();
+}
+
+function renderLogin(){
+  app.innerHTML = `
+    <div class="wrap">
+      <div class="login-screen">
+        <h1>後台管理</h1>
+        <p>用你的 GitHub 帳號登入，就能新增、編輯案例內容跟主網站的宣言／章節文字。</p>
+        <button class="btn primary" id="loginBtn">使用 GitHub 帳號登入</button>
+      </div>
+    </div>
+  `;
+  document.getElementById("loginBtn").addEventListener("click", async () => {
+    try{
+      setLoading(true, "登入中…");
+      const token = await login();
+      authToken = token;
+      localStorage.setItem("ip_gh_token", token);
+      state.user = await ghGetUser();
+      setLoading(true, "載入案例清單中…");
+      await loadCaseList();
+      render();
+    }catch(err){
+      toast(err.message || "登入失敗", true);
+    }finally{
+      setLoading(false);
+    }
+  });
+}
+
+function renderTopBar(){
+  return `
+    <div class="top-bar">
+      <div class="wrap">
+        <div class="site-title">後台管理<a href="../" target="_blank">↗ 查看網站</a></div>
+        <div class="user-box">
+          <img src="${esc(state.user.avatar_url)}" alt="">
+          <span>${esc(state.user.login)}</span>
+          <button class="btn ghost" id="logoutBtn">登出</button>
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+function renderList(){
+  app.innerHTML = `
+    ${renderTopBar()}
+    <div class="wrap">
+      <div class="tab-nav">
+        <button data-tab="cases" class="${state.tab === "cases" ? "active" : ""}">建築案例</button>
+        <button data-tab="site" class="${state.tab === "site" ? "active" : ""}">主網站內容</button>
+      </div>
+      <div id="tabContent"></div>
+    </div>
+  `;
+  document.getElementById("logoutBtn").addEventListener("click", logout);
+  app.querySelectorAll(".tab-nav button").forEach(btn => {
+    btn.addEventListener("click", () => { state.tab = btn.dataset.tab; render(); });
+  });
+  renderTabContent();
+}
+
+function renderTabContent(){
+  const el = document.getElementById("tabContent");
+  if(state.tab === "cases") el.innerHTML = casesListHtml();
+  else el.innerHTML = siteListHtml();
+  bindListEvents();
+}
+
+function addCardHtml(label){
+  return `
+    <button class="add-card" data-add="1">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+      <span>${label}</span>
+    </button>
+  `;
+}
+
+function casesListHtml(){
+  if(!state.cases) return `<div class="empty-note">載入中…</div>`;
+  const cards = state.cases.map((c, i) => `
+    <div class="item-card" data-edit="${i}">
+      <div class="thumb ${c.hero ? "" : "empty"}">
+        ${c.hero ? `<img src="${esc(rawUrl(c.hero))}" alt="" loading="lazy">` : "尚無主視覺"}
+      </div>
+      <div class="info">
+        <div class="t">${esc(c.title || "（未命名）")}</div>
+        <div class="m">${esc(c.ledeMeta || c.slug)}</div>
+      </div>
+    </div>
+  `).join("");
+  return `<div class="item-grid">${cards}${addCardHtml("新增案例")}</div>`;
+}
+
+function siteListHtml(){
+  const cards = state.siteMeta.map((m, i) => `
+    <div class="item-card" data-edit-site="${i}">
+      <div class="thumb empty" style="background:#201f1d;color:#fff;">${esc(m.label.slice(0,2))}</div>
+      <div class="info">
+        <div class="t">${esc(m.label)}</div>
+      </div>
+    </div>
+  `).join("");
+  return `<div class="item-grid">${cards}</div>`;
+}
+
+function bindListEvents(){
+  const el = document.getElementById("tabContent");
+  el.querySelectorAll("[data-edit]").forEach(card => {
+    card.addEventListener("click", async () => {
+      const idx = parseInt(card.dataset.edit, 10);
+      const slug = state.cases[idx].slug;
+      try{
+        setLoading(true, "載入中…");
+        const { json, sha } = await ghGetFile(`content/projects/${slug}.json`);
+        openCaseEditor(json, sha, false);
+      }catch(err){
+        toast("載入失敗：" + err.message, true);
+      }finally{
+        setLoading(false);
       }
     });
-  }
-</script>
-<script src="https://cdn.jsdelivr.net/npm/decap-cms@3/dist/decap-cms.js"></script>
-<script>
-  var h = window.h;
-  var createClass = window.createClass;
+  });
+  const addBtn = el.querySelector("[data-add]");
+  if(addBtn) addBtn.addEventListener("click", () => {
+    openCaseEditor(blankCase(), null, true);
+  });
+  el.querySelectorAll("[data-edit-site]").forEach(card => {
+    card.addEventListener("click", async () => {
+      const idx = parseInt(card.dataset.editSite, 10);
+      const meta = state.siteMeta[idx];
+      try{
+        setLoading(true, "載入中…");
+        const { json, sha } = await ghGetFile(meta.file);
+        openSiteEditor(meta, json, sha);
+      }catch(err){
+        toast("載入失敗：" + err.message, true);
+      }finally{
+        setLoading(false);
+      }
+    });
+  });
+}
 
-  // 後台編輯的照片在還沒存檔前，路徑指向的是暫存的草稿檔案，要透過
-  // getAsset() 才能拿到瀏覽器可以直接顯示的網址；已經存檔過的照片
-  // getAsset() 也一樣能正確解析回 repo 裡的真實路徑，兩種情況都適用。
-  function resolveImagePaths(getAsset, data) {
-    function resolve(path) {
-      if (!path) return path;
-      var asset = getAsset(path);
-      return asset ? asset.toString() : path;
-    }
-    function resolvePhotoList(list) {
-      return (list || []).map(function (item) {
-        return Object.assign({}, item, { src: resolve(item.src) });
-      });
-    }
-    var out = Object.assign({}, data);
-    out.hero = resolve(out.hero);
-    out.photos = resolvePhotoList(out.photos);
-    out.drawings = resolvePhotoList(out.drawings);
-    ["designResearch", "process"].forEach(function (key) {
-      out[key] = (out[key] || []).map(function (step) {
-        return Object.assign({}, step, { photos: resolvePhotoList(step.photos) });
+function blankCase(){
+  return {
+    slug: "", title: "", ledeMeta: "", tag: "", hero: "",
+    paragraphs: [""], photos: [],
+    map: { address: "", lat: null, lng: null, zoom: 17 },
+    designResearch: [], process: [], drawings: [],
+  };
+}
+
+function openCaseEditor(item, sha, isNew){
+  state.editingCase = { item, sha, isNew, pendingUploads: {} };
+  render();
+}
+function closeCaseEditor(){ state.editingCase = null; render(); }
+
+function openSiteEditor(meta, item, sha){
+  state.editingSite = { meta, item, sha, pendingUploads: {} };
+  render();
+}
+function closeSiteEditor(){ state.editingSite = null; render(); }
+
+/* ============================================================
+   共用小元件
+   ============================================================ */
+function iconUpload(){
+  return `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M12 16V4M12 4l-4 4M12 4l4 4"/><path d="M4 16v3a1 1 0 001 1h14a1 1 0 001-1v-3"/></svg>`;
+}
+
+function resolveSrc(pendingUploads, srcValue){
+  if(pendingUploads && pendingUploads[srcValue]) return pendingUploads[srcValue].previewUrl;
+  return rawUrl(srcValue);
+}
+
+function coverDropHtml(fieldPath, imgSrc, small){
+  return `
+    <div class="cover-drop ${imgSrc ? "has-image" : ""} ${small ? "small" : ""}" data-cover-field="${esc(fieldPath)}">
+      ${imgSrc
+        ? `<img src="${esc(imgSrc)}" alt=""><div class="replace-hint">點擊或拖曳圖片以更換</div>`
+        : `<div class="placeholder">${iconUpload()}<span>點擊或拖曳圖片</span></div>`
+      }
+      <input type="file" accept="image/*" style="display:none">
+    </div>
+  `;
+}
+
+function bindCoverDropEvents(ed, fieldPath, folder){
+  const dropEl = app.querySelector(`[data-cover-field="${CSS.escape(fieldPath)}"]`);
+  if(!dropEl) return;
+  const fileInput = dropEl.querySelector("input[type=file]");
+  dropEl.addEventListener("click", () => fileInput.click());
+  fileInput.addEventListener("change", () => {
+    if(fileInput.files[0]) handleCoverFile(ed, fieldPath, fileInput.files[0]);
+  });
+  ["dragover","dragenter"].forEach(evt => dropEl.addEventListener(evt, e => { e.preventDefault(); dropEl.classList.add("drag-over"); }));
+  ["dragleave","drop"].forEach(evt => dropEl.addEventListener(evt, e => { e.preventDefault(); dropEl.classList.remove("drag-over"); }));
+  dropEl.addEventListener("drop", e => {
+    const file = e.dataTransfer.files && e.dataTransfer.files[0];
+    if(file && file.type.startsWith("image/")) handleCoverFile(ed, fieldPath, file);
+  });
+}
+
+function handleCoverFile(ed, fieldPath, file){
+  const tempKey = "PENDING::" + uid();
+  ed.pendingUploads[tempKey] = { file, previewUrl: URL.createObjectURL(file) };
+  setPath(ed.item, fieldPath, tempKey);
+  rerenderCurrentEditor();
+}
+
+/* 通用文字欄位繫結：任何帶 data-path 的 input/textarea，打字當下直接寫回
+   ed.item，不重畫畫面 */
+function bindPathInputs(ed, container){
+  container.querySelectorAll("[data-path]").forEach(el => {
+    el.addEventListener("input", () => {
+      let val = el.value;
+      if(el.dataset.numeric){ val = val === "" ? null : parseFloat(val); }
+      setPath(ed.item, el.dataset.path, val);
+    });
+  });
+}
+
+/* ============================================================
+   照片清單（含圖說），designResearch/process 的每個步驟、drawings、
+   案例 photos 都共用這個元件
+   ============================================================ */
+function photoListHtml(ed, basePath, listId, showCaption){
+  const list = getPath(ed.item, basePath) || [];
+  const rows = list.map((p, i) => `
+    <div class="photo-row" data-photo-index="${i}">
+      <div class="thumb"><img src="${esc(resolveSrc(ed.pendingUploads, p.src))}" alt=""></div>
+      ${showCaption === false ? "" : `<input type="text" data-path="${basePath}.${i}.caption" value="${esc(p.caption || "")}" placeholder="圖說（選填）">`}
+      <button type="button" class="row-remove-btn" data-remove-photo="${i}" title="移除">×</button>
+    </div>
+  `).join("");
+  return `
+    <div class="photo-list-drop" id="${listId}">
+      <div class="photo-list">
+        ${rows}
+        <button type="button" class="add-photo-btn" data-add-photo="1">${iconUpload()}<span>新增照片</span></button>
+      </div>
+    </div>
+  `;
+}
+
+function bindPhotoList(ed, basePath, listId, folder){
+  const wrap = document.getElementById(listId);
+  if(!wrap) return;
+  wrap.querySelectorAll("[data-remove-photo]").forEach(btn => {
+    btn.addEventListener("click", () => {
+      const i = parseInt(btn.dataset.removePhoto, 10);
+      getPath(ed.item, basePath).splice(i, 1);
+      rerenderCurrentEditor();
+    });
+  });
+  const addBtn = wrap.querySelector("[data-add-photo]");
+  const fileInput = document.createElement("input");
+  fileInput.type = "file"; fileInput.accept = "image/*"; fileInput.multiple = true; fileInput.style.display = "none";
+  addBtn.after(fileInput);
+  addBtn.addEventListener("click", () => fileInput.click());
+  fileInput.addEventListener("change", () => addPhotoFiles(ed, basePath, Array.from(fileInput.files)));
+  ["dragover","dragenter"].forEach(evt => wrap.addEventListener(evt, e => { e.preventDefault(); wrap.classList.add("drag-over"); }));
+  ["dragleave","drop"].forEach(evt => wrap.addEventListener(evt, e => { e.preventDefault(); wrap.classList.remove("drag-over"); }));
+  wrap.addEventListener("drop", e => {
+    const files = Array.from(e.dataTransfer.files || []).filter(f => f.type.startsWith("image/"));
+    if(files.length) addPhotoFiles(ed, basePath, files);
+  });
+}
+
+function addPhotoFiles(ed, basePath, files){
+  const list = getPath(ed.item, basePath);
+  files.forEach(file => {
+    const tempKey = "PENDING::" + uid();
+    ed.pendingUploads[tempKey] = { file, previewUrl: URL.createObjectURL(file) };
+    list.push({ src: tempKey, caption: "" });
+  });
+  rerenderCurrentEditor();
+}
+
+/* 把 ed.item 裡所有指向 pendingUploads 的暫時 key，實際上傳到對應資料夾，換成正式路徑 */
+async function flushPendingUploads(ed, folder){
+  const keys = Object.keys(ed.pendingUploads);
+  for(let i = 0; i < keys.length; i++){
+    const key = keys[i];
+    setLoading(true, `上傳圖片中… (${i+1}/${keys.length})`);
+    const finalPath = await uploadAsset(ed.pendingUploads[key].file, folder);
+    replaceValueDeep(ed.item, key, finalPath);
+    delete ed.pendingUploads[key];
+  }
+}
+function replaceValueDeep(obj, oldVal, newVal){
+  if(Array.isArray(obj)){ obj.forEach(v => replaceValueDeep(v, oldVal, newVal)); return; }
+  if(obj && typeof obj === "object"){
+    Object.keys(obj).forEach(k => {
+      if(obj[k] === oldVal) obj[k] = newVal;
+      else if(typeof obj[k] === "object") replaceValueDeep(obj[k], oldVal, newVal);
+    });
+  }
+}
+
+function rerenderCurrentEditor(){
+  if(state.editingCase) renderCaseEditor();
+  else if(state.editingSite) renderSiteEditor();
+}
+
+/* ============================================================
+   案例編輯器
+   ============================================================ */
+function stepsHtml(ed, basePath, addLabel){
+  const steps = getPath(ed.item, basePath) || [];
+  const cards = steps.map((s, i) => `
+    <div class="step-card" data-step-index="${i}">
+      <div class="step-card-head">
+        <span class="step-label">第 ${i + 1} 段</span>
+        <button type="button" class="row-remove-btn" data-remove-step="${i}" title="移除這段">×</button>
+      </div>
+      <div class="field-block">
+        <label>文字說明</label>
+        <textarea data-path="${basePath}.${i}.body" placeholder="這個階段在做什麼">${esc(s.body || "")}</textarea>
+      </div>
+      <div class="field-block">
+        <div class="label">照片</div>
+        ${photoListHtml(ed, `${basePath}.${i}.photos`, `${basePath.replace(/\./g,"_")}_${i}_photos`, true)}
+      </div>
+    </div>
+  `).join("");
+  return `${cards}<button type="button" class="add-step-btn" data-add-step="1">${iconUpload()}<span>${addLabel}</span></button>`;
+}
+
+/* 分開處理 designResearch / process 各自的 step 事件綁定，
+   避免兩組 step-card 互相干擾 */
+function bindStepsFor(ed, basePath, containerId, folder){
+  const container = document.getElementById(containerId);
+  if(!container) return;
+  const list = getPath(ed.item, basePath) || [];
+  container.querySelectorAll("[data-step-index]").forEach(card => {
+    const i = parseInt(card.dataset.stepIndex, 10);
+    const listId = `${basePath.replace(/\./g,"_")}_${i}_photos`;
+    bindPhotoList(ed, `${basePath}.${i}.photos`, listId, folder);
+    card.querySelector("[data-remove-step]").addEventListener("click", () => {
+      list.splice(i, 1);
+      rerenderCurrentEditor();
+    });
+  });
+  const addBtn = container.querySelector("[data-add-step]");
+  if(addBtn) addBtn.addEventListener("click", () => {
+    list.push({ body: "", photos: [] });
+    rerenderCurrentEditor();
+  });
+}
+
+function caseEditorHtml(ed){
+  const c = ed.item;
+  return `
+    <div class="editor">
+      <div class="editor-head">
+        <button class="back-link" id="backBtn">← 回到案例列表</button>
+        ${!ed.isNew ? `<button class="btn danger" id="deleteBtn">刪除這個案例</button>` : ""}
+      </div>
+
+      <div class="field-block">
+        <label>網址代號（slug）</label>
+        <input type="text" id="f_slug" value="${esc(c.slug)}" placeholder="例如：laogu-fang" ${ed.isNew ? "" : "disabled"}>
+        <div class="field-hint">只能用英文小寫、數字、連字號，建立後不要再更改，否則舊連結會失效。</div>
+      </div>
+
+      <div class="field-block">
+        <div class="label">主視覺大圖</div>
+        ${coverDropHtml("hero", resolveSrc(ed.pendingUploads, c.hero))}
+      </div>
+
+      <div class="field-block two-col">
+        <div>
+          <label>案名</label>
+          <input type="text" data-path="title" value="${esc(c.title)}">
+        </div>
+        <div>
+          <label>副標（地點／年份／類型）</label>
+          <input type="text" data-path="ledeMeta" value="${esc(c.ledeMeta)}" placeholder="台南市 / 台灣 / 2025 / 展覽空間">
+        </div>
+      </div>
+
+      <div class="field-block">
+        <label>分類標籤（選填）</label>
+        <input type="text" data-path="tag" value="${esc(c.tag || "")}">
+      </div>
+
+      <div class="field-block">
+        <div class="label">內文段落</div>
+        <div id="paragraphsList">
+          ${(c.paragraphs || []).map((p, i) => `
+            <div class="text-list-row">
+              <textarea data-path="paragraphs.${i}">${esc(p)}</textarea>
+              <button type="button" class="row-remove-btn" data-remove-paragraph="${i}" title="移除">×</button>
+            </div>
+          `).join("")}
+        </div>
+        <button type="button" class="add-step-btn" id="addParagraphBtn">${iconUpload()}<span>新增段落</span></button>
+        <div class="field-hint">依順序排列，會跟下面的內文照片自動交錯排版</div>
+      </div>
+
+      <div class="field-block">
+        <div class="label">內文照片</div>
+        ${photoListHtml(ed, "photos", "photosList")}
+        <div class="field-hint">依順序排列，系統會依每張照片的實際比例自動決定並排或全幅顯示，不需要手動排版</div>
+      </div>
+
+      <div class="field-block">
+        <div class="label">基地位置</div>
+        <div class="two-col">
+          <div>
+            <label>地址</label>
+            <input type="text" data-path="map.address" value="${esc(c.map.address || "")}">
+          </div>
+          <div>
+            <label>地圖縮放層級（15~19）</label>
+            <input type="number" data-path="map.zoom" data-numeric="1" value="${c.map.zoom != null ? c.map.zoom : 17}">
+          </div>
+        </div>
+        <div class="two-col" style="margin-top:12px">
+          <div>
+            <label>緯度 lat</label>
+            <input type="text" data-path="map.lat" data-numeric="1" value="${c.map.lat != null ? c.map.lat : ""}">
+          </div>
+          <div>
+            <label>經度 lng</label>
+            <input type="text" data-path="map.lng" data-numeric="1" value="${c.map.lng != null ? c.map.lng : ""}">
+          </div>
+        </div>
+      </div>
+
+      <div class="field-block">
+        <div class="label">設計研究</div>
+        <div id="designResearchList">${stepsHtml(ed, "designResearch", "新增一段設計研究")}</div>
+      </div>
+
+      <div class="field-block">
+        <div class="label">施工過程</div>
+        <div id="processList">${stepsHtml(ed, "process", "新增一段施工過程")}</div>
+      </div>
+
+      <div class="field-block">
+        <div class="label">圖面</div>
+        ${photoListHtml(ed, "drawings", "drawingsList")}
+      </div>
+
+      <div class="save-bar">
+        <span class="save-status" id="saveStatus"></span>
+        <button class="btn primary" id="saveBtn">儲存並發布</button>
+      </div>
+    </div>
+  `;
+}
+
+function renderCaseEditor(){
+  const ed = state.editingCase;
+  app.innerHTML = `${renderTopBar()}<div class="wrap">${caseEditorHtml(ed)}</div>`;
+  document.getElementById("logoutBtn").addEventListener("click", logout);
+  document.getElementById("backBtn").addEventListener("click", closeCaseEditor);
+  const deleteBtn = document.getElementById("deleteBtn");
+  if(deleteBtn) deleteBtn.addEventListener("click", deleteCurrentCase);
+
+  bindPathInputs(ed, app);
+  bindCoverDropEvents(ed, "hero", `images/${ed.item.slug || "tmp"}`);
+
+  document.getElementById("addParagraphBtn").addEventListener("click", () => {
+    ed.item.paragraphs = ed.item.paragraphs || [];
+    ed.item.paragraphs.push("");
+    rerenderCurrentEditor();
+  });
+  app.querySelectorAll("[data-remove-paragraph]").forEach(btn => {
+    btn.addEventListener("click", () => {
+      const i = parseInt(btn.dataset.removeParagraph, 10);
+      ed.item.paragraphs.splice(i, 1);
+      rerenderCurrentEditor();
+    });
+  });
+
+  const folder = () => `images/${ed.item.slug || "tmp"}`;
+  bindPhotoList(ed, "photos", "photosList", folder());
+  bindPhotoList(ed, "drawings", "drawingsList", folder());
+  bindStepsFor(ed, "designResearch", "designResearchList", folder());
+  bindStepsFor(ed, "process", "processList", folder());
+
+  document.getElementById("saveBtn").addEventListener("click", () => saveCaseEditor(ed));
+}
+
+async function saveCaseEditor(ed){
+  const slugInput = document.getElementById("f_slug");
+  const slug = slugInput.value.trim();
+  if(!/^[a-z0-9]+(-[a-z0-9]+)*$/.test(slug)){
+    toast("網址代號只能用小寫英文字母、數字、連字號", true);
+    return;
+  }
+  ed.item.slug = slug;
+  if(!ed.item.title){ toast("請至少填寫案名", true); return; }
+
+  try{
+    setLoading(true, "儲存中…");
+    await flushPendingUploads(ed, `images/${slug}`);
+    const json = JSON.stringify(ed.item, null, 2) + "\n";
+    await ghPutFile(`content/projects/${slug}.json`, utf8ToBase64(json), `Update case ${slug} via admin`, ed.sha);
+    toast("已發布，網站幾分鐘內會更新");
+    setLoading(true, "重新載入清單中…");
+    await loadCaseList();
+    closeCaseEditor();
+  }catch(err){
+    toast("儲存失敗：" + err.message, true);
+  }finally{
+    setLoading(false);
+  }
+}
+
+async function deleteCurrentCase(){
+  if(!confirm("確定要刪除這個案例嗎？這個動作沒辦法復原。")) return;
+  const ed = state.editingCase;
+  try{
+    setLoading(true, "刪除中…");
+    await ghDeleteFile(`content/projects/${ed.item.slug}.json`, `Delete case ${ed.item.slug} via admin`, ed.sha);
+    toast("已刪除");
+    await loadCaseList();
+    closeCaseEditor();
+  }catch(err){
+    toast("刪除失敗：" + err.message, true);
+  }finally{
+    setLoading(false);
+  }
+}
+
+/* ============================================================
+   主網站內容編輯器（5 語言欄位 + 自動翻譯）
+   ============================================================ */
+const LANG5 = [
+  ["zh-Hant", "中文（繁體）"],
+  ["zh-Hans", "中文（簡體）"],
+  ["en", "English"],
+  ["ja", "日本語"],
+  ["ko", "한국어"],
+];
+
+function lang5Html(basePath, value, blockId){
+  value = value || {};
+  return `
+    <div class="lang5-block" id="${blockId}">
+      <button type="button" class="translate-btn" data-translate="${esc(basePath)}">自動翻譯其他語言</button>
+      ${LANG5.map(([code, label]) => `
+        <div class="lang5-row">
+          <label>${label}</label>
+          <textarea data-path="${basePath}.${code}">${esc(value[code] || "")}</textarea>
+        </div>
+      `).join("")}
+    </div>
+  `;
+}
+
+async function translateLang5(ed, basePath){
+  const source = getPath(ed.item, `${basePath}.zh-Hant`);
+  if(!source){ toast("請先填寫「中文（繁體）」欄位，再按自動翻譯", true); return; }
+  const targets = ["zh-Hans", "en", "ja", "ko"];
+  try{
+    setLoading(true, "翻譯中…");
+    const results = await Promise.all(targets.map(async t => {
+      const url = "https://translate.googleapis.com/translate_a/single?client=gtx&sl=zh-TW&tl=" + t + "&dt=t&q=" + encodeURIComponent(source);
+      try{
+        const r = await fetch(url);
+        const json = await r.json();
+        return (json[0] || []).map(seg => seg[0]).join("");
+      }catch(e){ return ""; }
+    }));
+    targets.forEach((t, i) => { if(results[i]) setPath(ed.item, `${basePath}.${t}`, results[i]); });
+    rerenderCurrentEditor();
+  }catch(err){
+    toast("翻譯失敗：" + err.message, true);
+  }finally{
+    setLoading(false);
+  }
+}
+
+function bindLang5Blocks(ed, container){
+  container.querySelectorAll("[data-translate]").forEach(btn => {
+    btn.addEventListener("click", () => translateLang5(ed, btn.dataset.translate));
+  });
+}
+
+function siteEditorHtml(ed){
+  const meta = ed.meta;
+  const item = ed.item;
+
+  if(meta.name === "declaration"){
+    return `
+      <div class="editor">
+        <div class="editor-head"><button class="back-link" id="backBtn">← 回到主網站內容列表</button></div>
+        <div class="field-block">
+          <div class="label">標題（兩行）</div>
+          ${(item.headline || []).map((h, i) => `
+            <div style="margin-bottom:14px">
+              <div class="field-hint" style="margin:0 0 6px">第 ${i + 1} 行</div>
+              ${lang5Html(`headline.${i}`, h, `headline_${i}`)}
+            </div>
+          `).join("")}
+        </div>
+        <div class="field-block">
+          <div class="label">內文段落</div>
+          <div id="paragraphsBlocks">
+            ${(item.paragraphs || []).map((p, i) => `
+              <div class="case-card-editor" data-para-index="${i}">
+                <div class="case-card-editor-head">
+                  <span class="step-label">第 ${i + 1} 段</span>
+                  <button type="button" class="row-remove-btn" data-remove-para="${i}" title="移除">×</button>
+                </div>
+                ${lang5Html(`paragraphs.${i}`, p, `para_${i}`)}
+              </div>
+            `).join("")}
+          </div>
+          <button type="button" class="add-step-btn" id="addParaBtn">${iconUpload()}<span>新增段落</span></button>
+        </div>
+        <div class="save-bar">
+          <span class="save-status" id="saveStatus"></span>
+          <button class="btn primary" id="saveBtn">儲存並發布</button>
+        </div>
+      </div>
+    `;
+  }
+
+  // 章節（restore / detail / exhibit / digital）
+  const hasCases = Array.isArray(item.cases);
+  return `
+    <div class="editor">
+      <div class="editor-head"><button class="back-link" id="backBtn">← 回到主網站內容列表</button></div>
+      <div class="field-block">
+        <div class="label">章節標題</div>
+        ${lang5Html("title", item.title, "title_block")}
+      </div>
+      <div class="field-block">
+        <div class="label">論述文字</div>
+        ${lang5Html("description", item.description, "desc_block")}
+      </div>
+      ${hasCases ? `
+        <div class="field-block">
+          <div class="label">案例卡片</div>
+          <div id="casesBlocks">
+            ${(item.cases || []).map((c, i) => `
+              <div class="case-card-editor" data-case-index="${i}">
+                <div class="case-card-editor-head">
+                  <span class="step-label">第 ${i + 1} 張</span>
+                  <button type="button" class="row-remove-btn" data-remove-case="${i}" title="移除">×</button>
+                </div>
+                <div class="two-col">
+                  <div>
+                    ${coverDropHtml(`cases.${i}.image`, resolveSrc(ed.pendingUploads, c.image), true)}
+                    <div class="field-block" style="margin-top:10px">
+                      <label>連結網址</label>
+                      <input type="text" data-path="cases.${i}.href" value="${esc(c.href || "")}">
+                    </div>
+                  </div>
+                  <div>
+                    ${lang5Html(`cases.${i}.label`, c.label, `case_label_${i}`)}
+                  </div>
+                </div>
+              </div>
+            `).join("")}
+          </div>
+          <button type="button" class="add-step-btn" id="addCaseBtn">${iconUpload()}<span>新增案例卡片</span></button>
+        </div>
+      ` : `<div class="field-hint">這個章節的案例卡片目前有相簿彈窗效果，還沒開放後台編輯。</div>`}
+      <div class="save-bar">
+        <span class="save-status" id="saveStatus"></span>
+        <button class="btn primary" id="saveBtn">儲存並發布</button>
+      </div>
+    </div>
+  `;
+}
+
+function renderSiteEditor(){
+  const ed = state.editingSite;
+  app.innerHTML = `${renderTopBar()}<div class="wrap">${siteEditorHtml(ed)}</div>`;
+  document.getElementById("logoutBtn").addEventListener("click", logout);
+  document.getElementById("backBtn").addEventListener("click", closeSiteEditor);
+
+  bindPathInputs(ed, app);
+  bindLang5Blocks(ed, app);
+
+  if(ed.meta.name === "declaration"){
+    document.getElementById("addParaBtn").addEventListener("click", () => {
+      ed.item.paragraphs = ed.item.paragraphs || [];
+      ed.item.paragraphs.push({ "zh-Hant":"", "zh-Hans":"", en:"", ja:"", ko:"" });
+      rerenderCurrentEditor();
+    });
+    app.querySelectorAll("[data-remove-para]").forEach(btn => {
+      btn.addEventListener("click", () => {
+        ed.item.paragraphs.splice(parseInt(btn.dataset.removePara, 10), 1);
+        rerenderCurrentEditor();
       });
     });
-    return out;
+  } else if(Array.isArray(ed.item.cases)){
+    ed.item.cases.forEach((c, i) => {
+      bindCoverDropEvents(ed, `cases.${i}.image`, "images/site");
+    });
+    app.querySelectorAll("[data-remove-case]").forEach(btn => {
+      btn.addEventListener("click", () => {
+        ed.item.cases.splice(parseInt(btn.dataset.removeCase, 10), 1);
+        rerenderCurrentEditor();
+      });
+    });
+    const addCaseBtn = document.getElementById("addCaseBtn");
+    if(addCaseBtn) addCaseBtn.addEventListener("click", () => {
+      ed.item.cases.push({ image: "", href: "", label: { "zh-Hant":"", "zh-Hans":"", en:"", ja:"", ko:"" } });
+      rerenderCurrentEditor();
+    });
   }
 
-  var ProjectPreview = createClass({
-    postToFrame: function () {
-      var iframe = this.refs.frame;
-      if (!iframe || !iframe.contentWindow) return;
-      var data = this.props.entry.get("data").toJS();
-      var resolved = resolveImagePaths(this.props.getAsset, data);
-      iframe.contentWindow.postMessage({ type: "cms-preview", project: resolved }, "*");
-    },
-    componentDidMount: function () {
-      this.postToFrame();
-    },
-    componentDidUpdate: function () {
-      this.postToFrame();
-    },
-    render: function () {
-      return h("iframe", {
-        ref: "frame",
-        src: "../index.html?preview=1",
-        style: { width: "100%", height: "100%", border: "0", background: "#0a0a0a" },
-        onLoad: this.postToFrame,
-      });
-    },
-  });
+  document.getElementById("saveBtn").addEventListener("click", () => saveSiteEditor(ed));
+}
 
-  CMS.registerPreviewTemplate("projects", ProjectPreview);
-
-  // ==========================================================
-  // 「lang5」自訂欄位：中/簡/英/日/韓 5 個文字框 + 一顆「自動翻譯其他
-  // 語言」按鈕。按下去會拿「中文（繁體）」欄位的內容，透過免費、不用
-  // 金鑰的 Google 翻譯端點翻成其他 4 種語言、自動填入對應欄位——這是
-  // 未經審核的機器翻譯草稿，填完務必自己看過、微調用詞，不要直接發布。
-  // ==========================================================
-  var LANG5_LANGS = [
-    ["zh-Hant", "中文（繁體）"],
-    ["zh-Hans", "中文（簡體）"],
-    ["en", "English"],
-    ["ja", "日本語"],
-    ["ko", "한국어"],
-  ];
-
-  function lang5Get(value, key) {
-    if (!value) return "";
-    if (typeof value.get === "function") return value.get(key) || "";
-    return value[key] || "";
+async function saveSiteEditor(ed){
+  try{
+    setLoading(true, "儲存中…");
+    await flushPendingUploads(ed, "images/site");
+    const json = JSON.stringify(ed.item, null, 2) + "\n";
+    const res = await ghPutFile(ed.meta.file, utf8ToBase64(json), `Update ${ed.meta.name} via admin`, ed.sha);
+    ed.sha = res.content.sha;
+    toast("已發布，主網站幾分鐘內會更新");
+  }catch(err){
+    toast("儲存失敗：" + err.message, true);
+  }finally{
+    setLoading(false);
   }
+}
 
-  function lang5Set(value, key, v) {
-    if (value && typeof value.set === "function") return value.set(key, v);
-    var obj = Object.assign({}, value || {});
-    obj[key] = v;
-    return obj;
+/* ============================================================
+   啟動
+   ============================================================ */
+(async function init(){
+  if(authToken){
+    try{
+      setLoading(true, "載入中…");
+      state.user = await ghGetUser();
+      await loadCaseList();
+    }catch(err){
+      authToken = null;
+      localStorage.removeItem("ip_gh_token");
+    }finally{
+      setLoading(false);
+    }
   }
-
-  var Lang5Control = createClass({
-    getInitialState: function () {
-      return { translating: false };
-    },
-    onChangeField: function (key, e) {
-      this.props.onChange(lang5Set(this.props.value, key, e.target.value));
-    },
-    translateAll: function () {
-      var source = lang5Get(this.props.value, "zh-Hant");
-      if (!source) {
-        window.alert("請先填寫「中文（繁體）」欄位，再按自動翻譯");
-        return;
-      }
-      var targets = ["zh-Hans", "en", "ja", "ko"];
-      var self = this;
-      this.setState({ translating: true });
-      Promise.all(
-        targets.map(function (t) {
-          var url =
-            "https://translate.googleapis.com/translate_a/single?client=gtx&sl=zh-TW&tl=" +
-            t +
-            "&dt=t&q=" +
-            encodeURIComponent(source);
-          return fetch(url)
-            .then(function (r) {
-              return r.json();
-            })
-            .then(function (json) {
-              return (json[0] || [])
-                .map(function (seg) {
-                  return seg[0];
-                })
-                .join("");
-            })
-            .catch(function () {
-              return "";
-            });
-        })
-      ).then(function (results) {
-        var next = self.props.value;
-        targets.forEach(function (t, i) {
-          if (results[i]) next = lang5Set(next, t, results[i]);
-        });
-        self.setState({ translating: false });
-        self.props.onChange(next);
-      });
-    },
-    render: function () {
-      var value = this.props.value;
-      var self = this;
-      var rows = LANG5_LANGS.map(function (pair) {
-        var key = pair[0];
-        var label = pair[1];
-        return h(
-          "div",
-          { key: key, style: { marginBottom: "8px" } },
-          h(
-            "label",
-            { style: { display: "block", fontSize: "12px", color: "#666", marginBottom: "2px" } },
-            label
-          ),
-          h("textarea", {
-            value: lang5Get(value, key),
-            onChange: self.onChangeField.bind(self, key),
-            rows: 3,
-            style: { width: "100%", fontFamily: "inherit", padding: "6px", boxSizing: "border-box" },
-          })
-        );
-      });
-      return h(
-        "div",
-        { style: { border: "1px solid #ddd", borderRadius: "6px", padding: "10px" } },
-        h(
-          "button",
-          {
-            type: "button",
-            onClick: this.translateAll,
-            disabled: this.state.translating,
-            style: {
-              marginBottom: "10px",
-              padding: "6px 12px",
-              background: "#1a1a1a",
-              color: "#fff",
-              border: "none",
-              borderRadius: "4px",
-              cursor: "pointer",
-            },
-          },
-          this.state.translating ? "翻譯中…" : "自動翻譯其他語言"
-        ),
-        rows
-      );
-    },
-  });
-
-  var Lang5Preview = createClass({
-    render: function () {
-      return h("div", {}, lang5Get(this.props.value, "zh-Hant"));
-    },
-  });
-
-  CMS.registerWidget("lang5", Lang5Control, Lang5Preview);
-
-  // ==========================================================
-  // 主網站內容（宣言／各章節）的預覽——外觀比照 asarch 真實主網站的
-  // 深色底、襯線字，讓後台編輯時大致看得出前台會長怎樣。
-  // ==========================================================
-  var SitePreview = createClass({
-    render: function () {
-      var data = this.props.entry.get("data").toJS();
-      var getAsset = this.props.getAsset;
-      var children = [];
-
-      if (data.headline) {
-        children.push(
-          h(
-            "h1",
-            {
-              key: "headline",
-              style: { fontFamily: "serif", fontSize: "26px", lineHeight: 1.7, marginBottom: "24px", fontWeight: 400 },
-            },
-            (data.headline || [])
-              .map(function (item) {
-                return item && item["zh-Hant"];
-              })
-              .join("　")
-          )
-        );
-      }
-      if (data.paragraphs) {
-        children.push(
-          h(
-            "div",
-            { key: "paragraphs", style: { maxWidth: "640px" } },
-            (data.paragraphs || []).map(function (p, i) {
-              return h(
-                "p",
-                { key: i, style: { marginBottom: "14px", lineHeight: 2, color: "#ddd" } },
-                p && p["zh-Hant"]
-              );
-            })
-          )
-        );
-      }
-      if (data.title) {
-        children.push(
-          h(
-            "h2",
-            { key: "title", style: { fontFamily: "serif", fontSize: "22px", marginBottom: "14px", fontWeight: 400 } },
-            data.title["zh-Hant"]
-          )
-        );
-      }
-      if (data.description) {
-        children.push(
-          h(
-            "p",
-            { key: "desc", style: { lineHeight: 2, marginBottom: "28px", maxWidth: "640px", color: "#ddd" } },
-            data.description["zh-Hant"]
-          )
-        );
-      }
-      if (data.cases) {
-        children.push(
-          h(
-            "div",
-            { key: "cases", style: { display: "flex", flexWrap: "wrap", gap: "20px" } },
-            (data.cases || []).map(function (c, i) {
-              var src = "";
-              if (c.image) {
-                var asset = getAsset(c.image);
-                src = asset ? asset.toString() : c.image;
-              }
-              return h(
-                "div",
-                { key: i, style: { width: "160px", textAlign: "center" } },
-                h("img", {
-                  src: src,
-                  style: { width: "100%", aspectRatio: "4 / 3", objectFit: "cover", display: "block" },
-                }),
-                h(
-                  "p",
-                  { style: { marginTop: "10px", fontFamily: "serif", fontSize: "14px", color: "#fff" } },
-                  c.label ? c.label["zh-Hant"] : ""
-                )
-              );
-            })
-          )
-        );
-      }
-
-      return h(
-        "div",
-        {
-          style: {
-            background: "#0a0a0a",
-            color: "#fff",
-            padding: "40px",
-            minHeight: "100%",
-            boxSizing: "border-box",
-          },
-        },
-        children
-      );
-    },
-  });
-
-  ["declaration", "chapter-restore", "chapter-detail", "chapter-exhibit", "chapter-digital"].forEach(function (name) {
-    CMS.registerPreviewTemplate(name, SitePreview);
-  });
+  render();
+})();
 </script>
 </body>
 </html>

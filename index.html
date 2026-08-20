@@ -160,23 +160,6 @@
 </script>
 <script src="https://translate.google.com/translate_a/element.js?cb=googleTranslateElementInit"></script>
 
-<!-- Netlify 邀請信／忘記密碼信裡的連結一律導到網站首頁（不是
-     /admin/），網址帶著 #invite_token=.../#recovery_token=...，要在
-     這裡也載入 Identity 小工具接住它、跳出設密碼視窗，完成後才轉去
-     後台，不然邀請連結在首頁會被當作沒發生過 -->
-<script src="https://identity.netlify.com/v1/netlify-identity-widget.js"></script>
-<script>
-  if (window.netlifyIdentity) {
-    window.netlifyIdentity.on("init", function (user) {
-      if (!user) {
-        window.netlifyIdentity.on("login", function () {
-          document.location.href = "/admin/";
-        });
-      }
-    });
-  }
-</script>
-
 <!-- ============================================================
      案例內容由 content/projects/<slug>.json 提供，網址用
      ?case=<slug> 指定要顯示哪個案例（後台編輯後會自動產生新檔案）
