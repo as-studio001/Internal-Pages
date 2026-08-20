@@ -468,6 +468,14 @@
   // 後台編輯畫面用 postMessage 送過來的即時內容，每次編輯都重新渲染，
   // 讓後台看到的預覽跟真正上線後的頁面完全一致（同一套 render.js/CSS）。
   function initPreviewMode() {
+    // 後台預覽時，設計研究／施工過程／圖面預設直接展開，編輯者才不用
+    // 每次存檔、切換欄位都要手動點一次「+」才看得到內容有沒有跑版
+    const toggle = $("#detail-toggle");
+    const panel = $("#detail-panel");
+    if (toggle && panel) {
+      toggle.setAttribute("aria-expanded", "true");
+      panel.hidden = false;
+    }
     window.addEventListener("message", (e) => {
       if (!e.data || e.data.type !== "cms-preview") return;
       renderAll(e.data.project);

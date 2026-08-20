@@ -4,9 +4,12 @@
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>案例後台</title>
-<script src="https://unpkg.com/decap-cms@^3.0.0/dist/decap-cms.js"></script>
 </head>
 <body>
+<!-- Decap CMS 的 script 一定要放在 <body> 裡（不能在 <head>），
+     它初始化時會直接操作 document.body，放在 <head> 執行時 body
+     還不存在，會直接整個掛掉、CMS/h/createClass 都不會被定義出來 -->
+<script src="https://cdn.jsdelivr.net/npm/decap-cms@3/dist/decap-cms.js"></script>
 <script>
   var h = window.h;
   var createClass = window.createClass;
