@@ -9,6 +9,24 @@
 <!-- Decap CMS 的 script 一定要放在 <body> 裡（不能在 <head>），
      它初始化時會直接操作 document.body，放在 <head> 執行時 body
      還不存在，會直接整個掛掉、CMS/h/createClass 都不會被定義出來 -->
+
+<!-- 邀請信／忘記密碼信裡的連結會帶 #invite_token=.../#recovery_token=...
+     這種網址雜湊參數，一定要在 decap-cms.js 之前載入 Netlify Identity
+     widget，讓它先讀到這個參數並跳出設密碼視窗——如果晚一步載入，
+     Decap CMS 自己的路由會先把網址雜湊清成 #/，邀請連結就永遠失效、
+     只會看到普通的登入畫面 -->
+<script src="https://identity.netlify.com/v1/netlify-identity-widget.js"></script>
+<script>
+  if (window.netlifyIdentity) {
+    window.netlifyIdentity.on("init", function (user) {
+      if (!user) {
+        window.netlifyIdentity.on("login", function () {
+          document.location.href = "/admin/";
+        });
+      }
+    });
+  }
+</script>
 <script src="https://cdn.jsdelivr.net/npm/decap-cms@3/dist/decap-cms.js"></script>
 <script>
   var h = window.h;
