@@ -493,8 +493,8 @@ button{font-family:inherit;}
   .c-3,.c-4,.c-5,.c-6,.c-7,.c-8,.c-9,.c-10,.c-12{grid-column-start:1;grid-column-end:span 4;}
   .s-2,.s-3,.s-4,.s-5,.s-6,.s-7,.s-9{grid-column-start:1;}
   .block--photos{grid-template-columns:1fr !important;}
-  .process-thumb{height:130px;}
-  .drawing-cell{height:130px;}
+  .process-thumb{height:90px;}
+  .drawing-cell{height:90px;}
   .map-full__canvas{height:60vh;min-height:360px;}
   .map-full__info{right:var(--side);}
 
