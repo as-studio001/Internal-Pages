@@ -14,13 +14,34 @@
     "如今的信義街台南硓𥑮石．芳宅，不再只是保存百年歷史的老房子，而是一座介於住宅、展覽與城市公共文化之間的建築美術館。人們可以在磚牆、木門、庭院與新的空間縫隙之間行走，看見不同時代彼此重疊的痕跡。建築沒有試圖抹去時間，而是讓時間成為空間的一部分。從胡澄淵的府城宅第，到黃家的家族生活，再到今日向城市開放的文化場域，老宅持續承載著臺南的城市記憶，也在歷史與當代的交會之中重新獲得生命。它所保存的，不僅是一座房子的形式，更是地方生活、人物故事與城市文化持續流動的軌跡；而那座留白的白色盒子，則讓這段歷史不只停留在過去，也為芳宅與臺南的下一個百年，留下了可以繼續想像的空間。"
   ],
   "photos": [
-    { "src": "images/laogu-fang/OSD09942.jpg", "caption": "中央大院立面，巴洛克式山牆與雙側迴旋梯，木作大門居中" },
-    { "src": "images/laogu-fang/OSD09630.jpg", "caption": "後院夾巷，新舊材料交界處的磚牆與木構露台" },
-    { "src": "images/laogu-fang/OSD09514.jpg", "caption": "折板木屋頂與紅磚牆交界，光線灑落室內" },
-    { "src": "images/laogu-fang/OSP02528.jpg", "caption": "木屋頂節點細部，仰視磚牆與玻璃天窗交會" },
-    { "src": "images/laogu-fang/restore-main.jpg", "caption": "前院白色玻璃盒子，映照老宅立面與木門" },
-    { "src": "images/laogu-fang/OSD09806.jpg", "caption": "老宅室內展間，斑駁牆面與建築模型展示" },
-    { "src": "images/laogu-fang/OSD09455.jpg", "caption": "迴廊列柱與紅色旋轉樓梯" }
+    {
+      "src": "images/laogu-fang/OSD09942.jpg",
+      "caption": "中央大院立面，巴洛克式山牆與雙側迴旋梯，木作大門居中"
+    },
+    {
+      "src": "images/laogu-fang/OSD09630.jpg",
+      "caption": "後院夾巷，新舊材料交界處的磚牆與木構露台"
+    },
+    {
+      "src": "images/laogu-fang/OSD09514.jpg",
+      "caption": "折板木屋頂與紅磚牆交界，光線灑落室內"
+    },
+    {
+      "src": "images/laogu-fang/OSP02528.jpg",
+      "caption": "木屋頂節點細部，仰視磚牆與玻璃天窗交會"
+    },
+    {
+      "src": "images/laogu-fang/restore-main.jpg",
+      "caption": "前院白色玻璃盒子，映照老宅立面與木門"
+    },
+    {
+      "src": "images/laogu-fang/OSD09806.jpg",
+      "caption": "老宅室內展間，斑駁牆面與建築模型展示"
+    },
+    {
+      "src": "images/laogu-fang/OSD09455.jpg",
+      "caption": "迴廊列柱與紅色旋轉樓梯"
+    }
   ],
   "map": {
     "address": "700 台南市中西區兌悅里信義街46巷15號",
@@ -30,19 +51,37 @@
   },
   "designResearch": [
     {
-      "body": "設計初期以手繪推演回應老宅時間刻痕與裂縫的處理方式，思考如何以新肌理（UHPC）補強原有柱體結構，並比對新舊構造的受力邏輯，找出新舊接合的合理節點。",
+      "body": "",
       "photos": [
-        { "src": "images/laogu-fang/S__14475316.jpg", "caption": "柱體補強設計推演手稿" },
-        { "src": "images/laogu-fang/S__14475317.jpg", "caption": "新舊屋頂結構軸測手稿" }
+        {
+          "src": "images/laogu-fang/S__14475316.jpg",
+          "caption": "柱體補強設計推演手稿"
+        },
+        {
+          "src": "images/laogu-fang/S__14475317.jpg",
+          "caption": "新舊屋頂結構軸測手稿"
+        }
       ]
     },
     {
       "body": "透過實體模型驗證新舊量體的空間關係，測試中庭迴廊、白盒子與既有磚牆、木構屋頂之間的交接方式，反覆比對整體配置與量體比例。",
       "photos": [
-        { "src": "images/laogu-fang/DSC_0017.jpg", "caption": "整體配置模型，俯視三座量體與中庭關係" },
-        { "src": "images/laogu-fang/DSC_0036.jpg", "caption": "模型局部，木構屋頂與磚牆量體交界" },
-        { "src": "images/laogu-fang/DSC_0044.jpg", "caption": "模型細部，新舊材料交界處理" },
-        { "src": "images/laogu-fang/DSC_0053.jpg", "caption": "模型俯視，中庭迴廊柱列與白盒子屋頂節點" }
+        {
+          "src": "images/laogu-fang/DSC_0017.jpg",
+          "caption": "整體配置模型，俯視三座量體與中庭關係"
+        },
+        {
+          "src": "images/laogu-fang/DSC_0036.jpg",
+          "caption": "模型局部，木構屋頂與磚牆量體交界"
+        },
+        {
+          "src": "images/laogu-fang/DSC_0044.jpg",
+          "caption": "模型細部，新舊材料交界處理"
+        },
+        {
+          "src": "images/laogu-fang/DSC_0053.jpg",
+          "caption": "模型俯視，中庭迴廊柱列與白盒子屋頂節點"
+        }
       ]
     }
   ],
@@ -50,41 +89,90 @@
     {
       "body": "中庭迴廊以 UHPC（超高性能混凝土）重新澆置柱體，依 1C1～1C6 各柱位分批施作，取代原有損毀嚴重的柱身，同時延續既有柱列的節奏與尺寸。",
       "photos": [
-        { "src": "images/laogu-fang/LINE_ALBUM_20231018 中庭迴廊UHPC施作1C1~1C6柱子_250627_7.jpg" },
-        { "src": "images/laogu-fang/LINE_ALBUM_20231018 中庭迴廊UHPC施作1C1~1C6柱子_250627_18.jpg" },
-        { "src": "images/laogu-fang/LINE_ALBUM_20231018 中庭迴廊UHPC施作1C1~1C6柱子_250627_32.jpg" },
-        { "src": "images/laogu-fang/LINE_ALBUM_20231018 中庭迴廊UHPC施作1C1~1C6柱子_250627_42.jpg" }
+        {
+          "src": "images/laogu-fang/LINE_ALBUM_20231018 中庭迴廊UHPC施作1C1~1C6柱子_250627_7.jpg"
+        },
+        {
+          "src": "images/laogu-fang/LINE_ALBUM_20231018 中庭迴廊UHPC施作1C1~1C6柱子_250627_18.jpg"
+        },
+        {
+          "src": "images/laogu-fang/LINE_ALBUM_20231018 中庭迴廊UHPC施作1C1~1C6柱子_250627_32.jpg"
+        },
+        {
+          "src": "images/laogu-fang/LINE_ALBUM_20231018 中庭迴廊UHPC施作1C1~1C6柱子_250627_42.jpg"
+        }
       ]
     },
     {
       "body": "既有磚牆與樓板進行結構補強工程，針對裂損嚴重的區域以鋼構加固，確保老屋量體在新設計介入後仍維持足夠的結構安全。",
       "photos": [
-        { "src": "images/laogu-fang/LINE_ALBUM_B 補強工程 SCC_250627_11.jpg" },
-        { "src": "images/laogu-fang/LINE_ALBUM_B 補強工程 SCC_250627_12.jpg" },
-        { "src": "images/laogu-fang/LINE_ALBUM_B 補強工程 SCC_250627_13.jpg" },
-        { "src": "images/laogu-fang/LINE_ALBUM_B 補強工程 SCC_250627_14.jpg" },
-        { "src": "images/laogu-fang/LINE_ALBUM_B 補強工程 SCC_250627_15.jpg" }
+        {
+          "src": "images/laogu-fang/LINE_ALBUM_B 補強工程 SCC_250627_11.jpg"
+        },
+        {
+          "src": "images/laogu-fang/LINE_ALBUM_B 補強工程 SCC_250627_12.jpg"
+        },
+        {
+          "src": "images/laogu-fang/LINE_ALBUM_B 補強工程 SCC_250627_13.jpg"
+        },
+        {
+          "src": "images/laogu-fang/LINE_ALBUM_B 補強工程 SCC_250627_14.jpg"
+        },
+        {
+          "src": "images/laogu-fang/LINE_ALBUM_B 補強工程 SCC_250627_15.jpg"
+        }
       ]
     },
     {
       "body": "曲面木構屋頂於地面組裝完成後整體吊裝定位，再進行屋面構造的細部收邊，讓折板屋頂與下方磚牆準確對齊接合。",
       "photos": [
-        { "src": "images/laogu-fang/曲木屋頂吊裝作業.jpg" },
-        { "src": "images/laogu-fang/LINE_ALBUM_E 屋面構造工程_250627_1.jpg" },
-        { "src": "images/laogu-fang/LINE_ALBUM_E 屋面構造工程_250627_5.jpg" },
-        { "src": "images/laogu-fang/LINE_ALBUM_E 屋面構造工程_250627_8.jpg" },
-        { "src": "images/laogu-fang/LINE_ALBUM_E 屋面構造工程_250627_27.jpg" },
-        { "src": "images/laogu-fang/LINE_ALBUM_E 屋面構造工程_250627_36.jpg" },
-        { "src": "images/laogu-fang/LINE_ALBUM_E 屋面構造工程_250627_42.jpg" },
-        { "src": "images/laogu-fang/LINE_ALBUM_H 新作門窗工程_250627_8.jpg" }
+        {
+          "src": "images/laogu-fang/曲木屋頂吊裝作業.jpg"
+        },
+        {
+          "src": "images/laogu-fang/LINE_ALBUM_E 屋面構造工程_250627_1.jpg"
+        },
+        {
+          "src": "images/laogu-fang/LINE_ALBUM_E 屋面構造工程_250627_5.jpg"
+        },
+        {
+          "src": "images/laogu-fang/LINE_ALBUM_E 屋面構造工程_250627_8.jpg"
+        },
+        {
+          "src": "images/laogu-fang/LINE_ALBUM_E 屋面構造工程_250627_27.jpg"
+        },
+        {
+          "src": "images/laogu-fang/LINE_ALBUM_E 屋面構造工程_250627_36.jpg"
+        },
+        {
+          "src": "images/laogu-fang/LINE_ALBUM_E 屋面構造工程_250627_42.jpg"
+        },
+        {
+          "src": "images/laogu-fang/LINE_ALBUM_H 新作門窗工程_250627_8.jpg"
+        }
       ]
     }
   ],
   "drawings": [
-    { "src": "images/laogu-fang/螢幕擷取畫面 2026-08-19 110219.jpg", "caption": "設計一樓平面圖" },
-    { "src": "images/laogu-fang/螢幕擷取畫面 2026-08-19 110249.png", "caption": "設計二樓平面圖" },
-    { "src": "images/laogu-fang/螢幕擷取畫面 2026-08-19 110335.jpg", "caption": "B-B、D-D 剖立面圖" },
-    { "src": "images/laogu-fang/螢幕擷取畫面 2026-08-19 110409.jpg", "caption": "山牆立面大樣圖" },
-    { "src": "images/laogu-fang/螢幕擷取畫面 2026-08-19 110435.jpg", "caption": "曲面屋頂剖面節點大樣圖" }
+    {
+      "src": "images/laogu-fang/螢幕擷取畫面 2026-08-19 110219.jpg",
+      "caption": "設計一樓平面圖"
+    },
+    {
+      "src": "images/laogu-fang/螢幕擷取畫面 2026-08-19 110249.png",
+      "caption": "設計二樓平面圖"
+    },
+    {
+      "src": "images/laogu-fang/螢幕擷取畫面 2026-08-19 110335.jpg",
+      "caption": "B-B、D-D 剖立面圖"
+    },
+    {
+      "src": "images/laogu-fang/螢幕擷取畫面 2026-08-19 110409.jpg",
+      "caption": "山牆立面大樣圖"
+    },
+    {
+      "src": "images/laogu-fang/螢幕擷取畫面 2026-08-19 110435.jpg",
+      "caption": "曲面屋頂剖面節點大樣圖"
+    }
   ]
 }
