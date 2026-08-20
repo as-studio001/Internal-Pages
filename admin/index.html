@@ -309,15 +309,19 @@ async function identityRefresh(){
 }
 
 /* 邀請信／忘記密碼信的連結會帶 #invite_token=xxx 或 #recovery_token=xxx，
-   用那組 token 當 Bearer 打 PUT /user 設定新密碼，設完再視為登入成功 */
-async function identitySetPassword(token, password){
-  const res = await fetch(`${IDENTITY_BASE}/user`, {
-    method: "PUT",
-    headers: { "Content-Type": "application/json", "Authorization": "Bearer " + token },
-    body: JSON.stringify({ password }),
+   這個 token 是一次性的驗證碼，不是 JWT，不能直接當 Bearer 打 PUT
+   /user（會被 GoTrue 拒絕：invalid number of segments）。正確做法是
+   打 /verify，把 type（invite／recovery）、token、新密碼一起送出去，
+   一次就換到登入用的 access_token/refresh_token */
+async function identityVerify(type, token, password){
+  const res = await fetch(`${IDENTITY_BASE}/verify`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ type, token, password }),
   });
   const data = await res.json();
-  if(!res.ok) throw new Error(data.msg || data.error_description || "設定密碼失敗，邀請連結可能已經過期");
+  if(!res.ok) throw new Error(data.msg || data.error_description || data.error || "設定密碼失敗，邀請連結可能已經過期");
+  saveSession(data);
   return data;
 }
 
@@ -526,8 +530,9 @@ function renderSetPassword(token, mode){
     if(!/^\d{4,}$/.test(password)){ toast("密碼請輸入至少 4 位數字", true); return; }
     try{
       setLoading(true, "設定密碼中…");
-      const user = await identitySetPassword(token, password);
-      await identityLogin(user.email, password);
+      // GoTrue 的 /verify 只認得 "signup" 跟 "recovery" 兩種 type，
+      // 邀請信的連結（我們畫面上叫它 "invite"）在 API 層其實要送 "signup"
+      await identityVerify(mode === "invite" ? "signup" : "recovery", token, password);
       state.user = await identityGetUser();
       history.replaceState(null, "", location.pathname);
       setLoading(true, "載入案例清單中…");
