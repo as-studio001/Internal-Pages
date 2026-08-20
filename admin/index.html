@@ -752,6 +752,51 @@ function addPhotoFiles(ed, basePath, files){
   rerenderCurrentEditor();
 }
 
+/* 純圖片清單（沒有圖說），例如章節的輪播縮圖——陣列裡每一項就是一個
+   網址字串，不是 {src, caption} 物件 */
+function imageListHtml(ed, basePath, listId){
+  const list = getPath(ed.item, basePath) || [];
+  const rows = list.map((src, i) => `
+    <div class="photo-row" data-photo-index="${i}">
+      <div class="thumb"><img src="${esc(resolveSrc(ed.pendingUploads, src))}" alt=""></div>
+      <button type="button" class="row-remove-btn" data-remove-image="${i}" title="移除">×</button>
+    </div>
+  `).join("");
+  return `
+    <div class="photo-list-drop" id="${listId}">
+      <div class="photo-list">
+        ${rows}
+        <button type="button" class="add-photo-btn" data-add-image="1">${iconUpload()}<span>新增照片</span></button>
+      </div>
+    </div>
+  `;
+}
+
+function bindImageList(ed, basePath, listId, folder){
+  const wrap = document.getElementById(listId);
+  if(!wrap) return;
+  wrap.querySelectorAll("[data-remove-image]").forEach(btn => {
+    btn.addEventListener("click", () => {
+      getPath(ed.item, basePath).splice(parseInt(btn.dataset.removeImage, 10), 1);
+      rerenderCurrentEditor();
+    });
+  });
+  const addBtn = wrap.querySelector("[data-add-image]");
+  const fileInput = document.createElement("input");
+  fileInput.type = "file"; fileInput.accept = "image/*"; fileInput.multiple = true; fileInput.style.display = "none";
+  addBtn.after(fileInput);
+  addBtn.addEventListener("click", () => fileInput.click());
+  fileInput.addEventListener("change", () => {
+    const list = getPath(ed.item, basePath);
+    Array.from(fileInput.files).forEach(file => {
+      const tempKey = "PENDING::" + uid();
+      ed.pendingUploads[tempKey] = { file, previewUrl: URL.createObjectURL(file) };
+      list.push(tempKey);
+    });
+    rerenderCurrentEditor();
+  });
+}
+
 /* 把 ed.item 裡所有指向 pendingUploads 的暫時 key，實際上傳到對應資料夾，換成正式路徑 */
 async function flushPendingUploads(ed, folder){
   const keys = Object.keys(ed.pendingUploads);
@@ -1099,9 +1144,16 @@ function siteEditorHtml(ed){
 
   // 章節（restore / detail / exhibit / digital）
   const hasCases = Array.isArray(item.cases);
+  const hasHero = "heroPhoto" in item;
   return `
     <div class="editor">
       <div class="editor-head"><button class="back-link" id="backBtn">← 回到主網站內容列表</button></div>
+      ${hasHero ? `
+        <div class="field-block">
+          <div class="label">頂部大圖</div>
+          ${coverDropHtml("heroPhoto", resolveSrc(ed.pendingUploads, item.heroPhoto))}
+        </div>
+      ` : ""}
       <div class="field-block">
         <div class="label">章節標題</div>
         ${lang5Html("title", item.title, "title_block")}
@@ -1109,6 +1161,15 @@ function siteEditorHtml(ed){
       <div class="field-block">
         <div class="label">論述文字</div>
         ${lang5Html("description", item.description, "desc_block")}
+      </div>
+      <div class="field-block">
+        <div class="label">輪播縮圖</div>
+        ${imageListHtml(ed, "thumbnails", "thumbnailsList")}
+        <div class="field-hint">網頁上會自動輪播這些照片</div>
+      </div>
+      <div class="field-block">
+        <div class="label">右側大照片</div>
+        ${coverDropHtml("mainPhoto", resolveSrc(ed.pendingUploads, item.mainPhoto))}
       </div>
       ${hasCases ? `
         <div class="field-block">
@@ -1167,21 +1228,28 @@ function renderSiteEditor(){
         rerenderCurrentEditor();
       });
     });
-  } else if(Array.isArray(ed.item.cases)){
-    ed.item.cases.forEach((c, i) => {
-      bindCoverDropEvents(ed, `cases.${i}.image`, "images/site");
-    });
-    app.querySelectorAll("[data-remove-case]").forEach(btn => {
-      btn.addEventListener("click", () => {
-        ed.item.cases.splice(parseInt(btn.dataset.removeCase, 10), 1);
+  } else {
+    // 章節（restore/detail/exhibit/digital）共通的三組照片
+    if("heroPhoto" in ed.item) bindCoverDropEvents(ed, "heroPhoto", "images/site");
+    bindCoverDropEvents(ed, "mainPhoto", "images/site");
+    bindImageList(ed, "thumbnails", "thumbnailsList", "images/site");
+
+    if(Array.isArray(ed.item.cases)){
+      ed.item.cases.forEach((c, i) => {
+        bindCoverDropEvents(ed, `cases.${i}.image`, "images/site");
+      });
+      app.querySelectorAll("[data-remove-case]").forEach(btn => {
+        btn.addEventListener("click", () => {
+          ed.item.cases.splice(parseInt(btn.dataset.removeCase, 10), 1);
+          rerenderCurrentEditor();
+        });
+      });
+      const addCaseBtn = document.getElementById("addCaseBtn");
+      if(addCaseBtn) addCaseBtn.addEventListener("click", () => {
+        ed.item.cases.push({ image: "", href: "", label: { "zh-Hant":"", "zh-Hans":"", en:"", ja:"", ko:"" } });
         rerenderCurrentEditor();
       });
-    });
-    const addCaseBtn = document.getElementById("addCaseBtn");
-    if(addCaseBtn) addCaseBtn.addEventListener("click", () => {
-      ed.item.cases.push({ image: "", href: "", label: { "zh-Hant":"", "zh-Hans":"", en:"", ja:"", ko:"" } });
-      rerenderCurrentEditor();
-    });
+    }
   }
 
   document.getElementById("saveBtn").addEventListener("click", () => saveSiteEditor(ed));
