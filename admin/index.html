@@ -551,7 +551,9 @@ function renderLogin(){
     <div class="wrap">
       <div class="login-screen">
         <h1>後台管理</h1>
-        <p>用邀請信裡設定好的帳號密碼登入，就能新增、編輯案例內容跟主網站的宣言／章節文字。</p>
+        <p>用 Google 帳號登入，就能新增、編輯案例內容跟主網站的宣言／章節文字（必須是已經被加進使用者清單的帳號）。</p>
+        <button class="btn primary" id="googleLoginBtn">使用 Google 帳號登入</button>
+        <p class="field-hint" style="margin-top:28px">也可以用 email／密碼登入：</p>
         <div class="field-block" style="width:280px;text-align:left">
           <label>Email</label>
           <input type="text" id="loginEmail" placeholder="you@example.com">
@@ -560,11 +562,14 @@ function renderLogin(){
           <label>密碼</label>
           <input type="password" id="loginPassword">
         </div>
-        <button class="btn primary" id="loginBtn">登入</button>
+        <button class="btn" id="loginBtn">登入</button>
         <button class="btn ghost" id="forgotBtn" style="font-size:12.5px">忘記密碼？</button>
       </div>
     </div>
   `;
+  document.getElementById("googleLoginBtn").addEventListener("click", () => {
+    location.href = `${IDENTITY_BASE}/authorize?provider=google`;
+  });
   document.getElementById("loginBtn").addEventListener("click", async () => {
     const email = document.getElementById("loginEmail").value.trim();
     const password = document.getElementById("loginPassword").value;
@@ -1401,6 +1406,15 @@ async function saveSiteEditor(ed){
    啟動
    ============================================================ */
 (async function init(){
+  // Google 登入走完 OAuth 流程後，GoTrue 會把使用者導回這個頁面，網址
+  // 帶著 #access_token=...&refresh_token=...（不是 invite/recovery 那種
+  // 一次性驗證碼，是直接可以用的登入 session），接住它、存起來即可
+  const oauthAccessToken = getHashParam("access_token");
+  const oauthRefreshToken = getHashParam("refresh_token");
+  if(oauthAccessToken){
+    saveSession({ access_token: oauthAccessToken, refresh_token: oauthRefreshToken });
+    history.replaceState(null, "", location.pathname);
+  }
   if(authToken){
     try{
       setLoading(true, "載入中…");
