@@ -467,6 +467,11 @@ button{font-family:inherit;}
 .drawing-cell .ph,
 .drawing-cell img{width:auto;height:100%;display:block;}
 
+/* 縮圖兩張一組的包裝：桌面版讓它「隱形」，子元素直接參與外層
+   .process-thumbs/.drawings-grid 的 flex-wrap 排列，跟沒有這層包裝
+   時完全一樣。手機版會在下面的 responsive 區塊覆寫成真的並排列 */
+.thumb-pair{display:contents;}
+
 /* ---------- lightbox ---------- */
 .lightbox{
   position:fixed;inset:0;
@@ -517,22 +522,32 @@ button{font-family:inherit;}
   .block--photos{grid-template-columns:1fr !important;}
 
   /* 手機版的施工過程/設計研究/圖面縮圖改成兩欄，直幅照片維持直的、
-     橫幅照片維持橫的、不裁切。用 CSS 多欄（columns）做成 masonry
-     排列，不是 grid 兩欄配對——grid 兩欄配對時「一排」的高度是那排
-     最高的那張決定，旁邊比較矮的照片下面就會留一大塊黑色空白（實測
-     真的看到這個狀況）。多欄排列每張圖各自往目前最短的欄位補上去，
-     不會硬配對，也就不會留空 */
+     橫幅照片維持橫的、不裁切。之前試過兩種做法都有問題：
+       1. grid 兩欄配對：一排的高度是那排最高的那張決定，旁邊較矮的
+          照片下面會留一大塊黑色空白。
+       2. CSS 多欄（columns）masonry：不留空了，但配對順序被打散
+          （直向填滿整個欄位再換下一欄），兩欄的照片頂部對不齊，
+          也不是原本資料裡「這兩張是一組」的順序。
+     這次改成在 render.js 裡把照片兩張兩張包成 .thumb-pair（見
+     buildThumbPairs()），手機版把每個 pair 變成一列左右並排、
+     頂部對齊（flex 預設 align-items:flex-start），維持原本配對
+     順序；每個 pair 各自獨立，不會像 grid 那樣把「空白」延伸到
+     其他排 */
   .process-thumbs,.drawings-grid{
-    display:block; /* 蓋掉桌面版的 display:flex——flex 容器完全不吃
-      columns 屬性，這是這次多欄排列一開始沒生效的原因 */
-    columns:2;
-    column-gap:10px;
+    display:flex;
+    flex-direction:column;
+    gap:10px;
+  }
+  .thumb-pair{
+    display:flex;
+    gap:10px;
+    align-items:flex-start;
   }
   .process-thumb,.drawing-cell{
-    break-inside:avoid;
-    width:100%;
+    flex:1 1 0;
+    min-width:0;
+    width:auto;
     height:auto;
-    margin-bottom:10px;
   }
   /* 真實照片：img 本身的高度依實際比例自動算，撐滿寬度就好 */
   .process-thumb img,.drawing-cell img{width:100%;height:auto;display:block;}

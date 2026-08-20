@@ -259,10 +259,31 @@
     L.marker([m.lat, m.lng], { icon: pinIcon }).addTo(leafletMap);
   }
 
-  // 「一段文字接一排小縮圖」是共用的敘事版型（固定高度、寬度依照片比例
-  // 自動排列），設計研究、施工過程都用同一套渲染邏輯，只是資料來源
-  // （哪個陣列）跟掛載的容器不同。
+  // 「一段文字接一排小縮圖」是共用的敘事版型（桌面版固定高度、寬度依
+  // 照片比例自動排列），設計研究、施工過程都用同一套渲染邏輯，只是
+  // 資料來源（哪個陣列）跟掛載的容器不同。
   const THUMB_RATIOS = [4 / 3, 3 / 4, 16 / 9, 1 / 1, 4 / 5, 3 / 2];
+
+  // 縮圖兩張兩張包成一個 .thumb-pair：桌面版靠 CSS 的
+  // display:contents 讓這層包裝「隱形」，維持原本 flex-wrap 依比例
+  // 排列的樣子；手機版則把每個 pair 變成一個左右並排、頂部對齊的列，
+  // 用陣列原本的順序配對，不會像純 CSS 多欄（masonry）那樣把配對
+  // 順序打散、造成兩欄看起來對不齊。
+  function buildThumbPairs(items, cellClass, onCellReady) {
+    const wrap = document.createDocumentFragment();
+    for (let i = 0; i < items.length; i += 2) {
+      const pair = document.createElement("div");
+      pair.className = "thumb-pair";
+      items.slice(i, i + 2).forEach((item, j) => {
+        const cell = document.createElement("div");
+        cell.className = cellClass;
+        onCellReady(cell, item, i + j);
+        pair.appendChild(cell);
+      });
+      wrap.appendChild(pair);
+    }
+    return wrap;
+  }
 
   function renderSteps(rootSelector, steps) {
     const root = $(rootSelector);
@@ -282,16 +303,13 @@
       if (step.photos && step.photos.length) {
         const row = document.createElement("div");
         row.className = "process-thumbs";
-        step.photos.forEach((item, i) => {
-          const cell = document.createElement("div");
-          cell.className = "process-thumb";
+        row.appendChild(buildThumbPairs(step.photos, "process-thumb", (cell, item, i) => {
           if (!item.src) {
             cell.style.aspectRatio = item.ratio || THUMB_RATIOS[thumbIdx++ % THUMB_RATIOS.length];
           }
           cell.appendChild(buildImage(item));
           cell.addEventListener("click", () => openLightbox(step.photos, i));
-          row.appendChild(cell);
-        });
+        }));
         stepEl.appendChild(row);
       }
 
@@ -312,14 +330,12 @@
   function renderDrawings() {
     const root = $("#drawings-grid");
     root.innerHTML = "";
-    (PROJECT.drawings || []).forEach((item, i) => {
-      const cell = document.createElement("div");
-      cell.className = "drawing-cell";
+    const drawings = PROJECT.drawings || [];
+    root.appendChild(buildThumbPairs(drawings, "drawing-cell", (cell, item, i) => {
       if (!item.src) cell.style.aspectRatio = item.ratio || 4 / 3;
       cell.appendChild(buildImage(item));
-      cell.addEventListener("click", () => openLightbox(PROJECT.drawings, i));
-      root.appendChild(cell);
-    });
+      cell.addEventListener("click", () => openLightbox(drawings, i));
+    }));
   }
 
   // 燈箱一次記住「目前這組照片」跟「目前是第幾張」，上一張／下一張
