@@ -1,0 +1,5 @@
+# 這個網站主要是 GitHub Pages 在發布正式網頁，Netlify 這邊只負責
+# Identity（登入）／Git Gateway（後台寫入）跟這裡的 serverless function
+# （後台裡的使用者管理）。不需要建置指令，直接發佈這個資料夾即可。
+[build]
+  functions = "netlify/functions"
