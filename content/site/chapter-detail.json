@@ -37,7 +37,21 @@
       }
     }
   ],
-  "heroPhoto": "",
-  "mainPhoto": "",
-  "thumbnails": []
+  "heroPhoto": "https://as-studio001.github.io/Internal-Pages/images/site/chapter02.jpg",
+  "mainPhoto": "https://as-studio001.github.io/Internal-Pages/images/site/detail-main.jpg",
+  "thumbnails": [
+    "https://as-studio001.github.io/Internal-Pages/images/site/detail-thumb-1.jpg",
+    "https://as-studio001.github.io/Internal-Pages/images/site/detail-thumb-2.jpg",
+    "https://as-studio001.github.io/Internal-Pages/images/site/detail-thumb-3.jpg",
+    "https://as-studio001.github.io/Internal-Pages/images/site/detail-thumb-4.jpg",
+    "https://as-studio001.github.io/Internal-Pages/images/site/detail-thumb-5.jpg",
+    "https://as-studio001.github.io/Internal-Pages/images/site/detail-thumb-6.jpg",
+    "https://as-studio001.github.io/Internal-Pages/images/site/detail-thumb-7.jpg",
+    "https://as-studio001.github.io/Internal-Pages/images/site/detail-thumb-8.jpg",
+    "https://as-studio001.github.io/Internal-Pages/images/site/detail-thumb-9.jpg",
+    "https://as-studio001.github.io/Internal-Pages/images/site/detail-thumb-10.jpg",
+    "https://as-studio001.github.io/Internal-Pages/images/site/detail-thumb-11.jpg",
+    "https://as-studio001.github.io/Internal-Pages/images/site/detail-thumb-12.jpg",
+    "https://as-studio001.github.io/Internal-Pages/images/site/detail-thumb-13.jpg"
+  ]
 }

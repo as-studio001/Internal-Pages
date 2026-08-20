@@ -48,7 +48,19 @@
       }
     }
   ],
-  "heroPhoto": "",
-  "mainPhoto": "",
-  "thumbnails": []
+  "heroPhoto": "https://as-studio001.github.io/Internal-Pages/images/site/chapter01.jpg",
+  "mainPhoto": "https://as-studio001.github.io/Internal-Pages/images/site/restore-main.jpg",
+  "thumbnails": [
+    "https://as-studio001.github.io/Internal-Pages/images/site/restore-thumb-1.jpg",
+    "https://as-studio001.github.io/Internal-Pages/images/site/restore-thumb-2.jpg",
+    "https://as-studio001.github.io/Internal-Pages/images/site/restore-thumb-3.jpg",
+    "https://as-studio001.github.io/Internal-Pages/images/site/restore-thumb-4.jpg",
+    "https://as-studio001.github.io/Internal-Pages/images/site/restore-thumb-5.jpg",
+    "https://as-studio001.github.io/Internal-Pages/images/site/restore-thumb-6.jpg",
+    "https://as-studio001.github.io/Internal-Pages/images/site/restore-thumb-7.jpg",
+    "https://as-studio001.github.io/Internal-Pages/images/site/restore-thumb-8.jpg",
+    "https://as-studio001.github.io/Internal-Pages/images/site/restore-thumb-9.jpg",
+    "https://as-studio001.github.io/Internal-Pages/images/site/restore-thumb-10.jpg",
+    "https://as-studio001.github.io/Internal-Pages/images/site/restore-thumb-11.jpg"
+  ]
 }
