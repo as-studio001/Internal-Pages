@@ -317,6 +317,18 @@ async function ghGetUser(){
   return res.json();
 }
 
+/* GitHub OAuth 本身不會檢查對方是不是這個 repo 的協作者——因為
+   Internal-Pages 是公開 repo，任何有 GitHub 帳號的人登入後都能讀到
+   內容（只是存檔會被擋下來）。這裡在登入當下就先問一次 GitHub「這個
+   帳號是不是協作者」，不是的話直接擋在外面，不讓對方看到任何案例
+   內容，而不是等存檔失敗才發現。 */
+async function ghCheckCollaborator(login){
+  const res = await fetch(`https://api.github.com/repos/${REPO_OWNER}/${REPO_NAME}/collaborators/${login}`, {
+    headers: { "Authorization": "token " + authToken },
+  });
+  return res.status === 204;
+}
+
 /* ============================================================
    GitHub API 小工具
    ============================================================ */
@@ -487,8 +499,16 @@ function renderLogin(){
       setLoading(true, "登入中…");
       const token = await login();
       authToken = token;
+      const user = await ghGetUser();
+      setLoading(true, "確認權限中…");
+      const allowed = await ghCheckCollaborator(user.login);
+      if(!allowed){
+        authToken = null;
+        toast("這個 GitHub 帳號沒有這個後台的編輯權限，請聯絡管理者加入", true);
+        return;
+      }
       localStorage.setItem("ip_gh_token", token);
-      state.user = await ghGetUser();
+      state.user = user;
       setLoading(true, "載入案例清單中…");
       await loadCaseList();
       render();
@@ -1263,7 +1283,10 @@ async function saveSiteEditor(ed){
   if(authToken){
     try{
       setLoading(true, "載入中…");
-      state.user = await ghGetUser();
+      const user = await ghGetUser();
+      const allowed = await ghCheckCollaborator(user.login);
+      if(!allowed) throw new Error("沒有權限");
+      state.user = user;
       await loadCaseList();
     }catch(err){
       authToken = null;
