@@ -486,6 +486,28 @@ button{font-family:inherit;}
   background:none;border:none;color:#fff;
   font-size:2rem;line-height:1;cursor:pointer;
 }
+.lightbox__nav{
+  position:absolute;
+  top:50%;
+  transform:translateY(-50%);
+  background:none;
+  border:none;
+  color:#fff;
+  font-size:3rem;
+  line-height:1;
+  padding:.5rem 1rem;
+  cursor:pointer;
+  opacity:.7;
+  transition:opacity .2s ease;
+}
+.lightbox__nav:hover{opacity:1;}
+.lightbox__nav--prev{left:1rem;}
+.lightbox__nav--next{right:1rem;}
+@media (max-width:900px){
+  .lightbox__nav{font-size:2.2rem;padding:.4rem .6rem;}
+  .lightbox__nav--prev{left:.25rem;}
+  .lightbox__nav--next{right:.25rem;}
+}
 
 /* ---------- responsive ---------- */
 @media (max-width:900px){
@@ -493,8 +515,24 @@ button{font-family:inherit;}
   .c-3,.c-4,.c-5,.c-6,.c-7,.c-8,.c-9,.c-10,.c-12{grid-column-start:1;grid-column-end:span 4;}
   .s-2,.s-3,.s-4,.s-5,.s-6,.s-7,.s-9{grid-column-start:1;}
   .block--photos{grid-template-columns:1fr !important;}
-  .process-thumb{height:90px;}
-  .drawing-cell{height:90px;}
+
+  /* 手機版的施工過程/設計研究/圖面縮圖改成兩欄網格（照
+     herzogdemeuron.com 手機版 Process 頁面的做法），但不強制裁成
+     正方形——直幅照片維持直的、橫幅照片維持橫的，寬度統一撐滿欄位、
+     高度依照片實際比例算，不裁切 */
+  .process-thumbs,.drawings-grid{
+    display:grid;
+    grid-template-columns:repeat(2,1fr);
+    gap:10px;
+    align-items:start;
+  }
+  .process-thumb,.drawing-cell{height:auto;}
+  /* 真實照片：img 本身的高度依實際比例自動算，撐滿寬度就好 */
+  .process-thumb img,.drawing-cell img{width:100%;height:auto;display:block;}
+  /* 示意色塊：本身沒有內容撐開高度，靠外層 cell 的 aspect-ratio
+     （render.js 依 THUMB_RATIOS 或 item.ratio 用行內樣式設定）撐開，
+     這裡只要填滿 cell 就好 */
+  .process-thumb .ph,.drawing-cell .ph{width:100%;height:100%;}
   .map-full__canvas{height:60vh;min-height:360px;}
   .map-full__info{right:var(--side);}
 

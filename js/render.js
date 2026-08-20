@@ -282,14 +282,14 @@
       if (step.photos && step.photos.length) {
         const row = document.createElement("div");
         row.className = "process-thumbs";
-        step.photos.forEach((item) => {
+        step.photos.forEach((item, i) => {
           const cell = document.createElement("div");
           cell.className = "process-thumb";
           if (!item.src) {
             cell.style.aspectRatio = item.ratio || THUMB_RATIOS[thumbIdx++ % THUMB_RATIOS.length];
           }
           cell.appendChild(buildImage(item));
-          cell.addEventListener("click", () => openLightbox(item));
+          cell.addEventListener("click", () => openLightbox(step.photos, i));
           row.appendChild(cell);
         });
         stepEl.appendChild(row);
@@ -312,18 +312,24 @@
   function renderDrawings() {
     const root = $("#drawings-grid");
     root.innerHTML = "";
-    (PROJECT.drawings || []).forEach((item) => {
+    (PROJECT.drawings || []).forEach((item, i) => {
       const cell = document.createElement("div");
       cell.className = "drawing-cell";
       if (!item.src) cell.style.aspectRatio = item.ratio || 4 / 3;
       cell.appendChild(buildImage(item));
-      cell.addEventListener("click", () => openLightbox(item));
+      cell.addEventListener("click", () => openLightbox(PROJECT.drawings, i));
       root.appendChild(cell);
     });
   }
 
-  function openLightbox(item) {
-    const lb = $("#lightbox");
+  // 燈箱一次記住「目前這組照片」跟「目前是第幾張」，上一張／下一張
+  // 只在同一組（同一個施工步驟、或同一份圖面清單）裡面切換，不會跳到
+  // 別的區塊去，而且頭尾相接（最後一張按下一張會回到第一張）
+  let lightboxItems = [];
+  let lightboxIndex = 0;
+
+  function showLightboxItem() {
+    const item = lightboxItems[lightboxIndex];
     const img = $("#lightbox-img");
     const cap = $("#lightbox-caption");
     if (item.src) {
@@ -334,14 +340,33 @@
       img.style.display = "none";
     }
     cap.textContent = item.caption || "";
-    lb.classList.add("open");
+  }
+
+  function openLightbox(items, index) {
+    lightboxItems = items;
+    lightboxIndex = index;
+    showLightboxItem();
+    $("#lightbox").classList.add("open");
+  }
+
+  function stepLightbox(delta) {
+    if (!lightboxItems.length) return;
+    lightboxIndex = (lightboxIndex + delta + lightboxItems.length) % lightboxItems.length;
+    showLightboxItem();
   }
 
   function bindLightboxClose() {
     const lb = $("#lightbox");
     $("#lightbox-close").addEventListener("click", () => lb.classList.remove("open"));
+    $("#lightbox-prev").addEventListener("click", (e) => { e.stopPropagation(); stepLightbox(-1); });
+    $("#lightbox-next").addEventListener("click", (e) => { e.stopPropagation(); stepLightbox(1); });
     lb.addEventListener("click", (e) => { if (e.target === lb) lb.classList.remove("open"); });
-    document.addEventListener("keydown", (e) => { if (e.key === "Escape") lb.classList.remove("open"); });
+    document.addEventListener("keydown", (e) => {
+      if (!lb.classList.contains("open")) return;
+      if (e.key === "Escape") lb.classList.remove("open");
+      if (e.key === "ArrowLeft") stepLightbox(-1);
+      if (e.key === "ArrowRight") stepLightbox(1);
+    });
   }
 
   function bindScrollReveal() {
