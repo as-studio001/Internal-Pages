@@ -264,25 +264,58 @@
   // 資料來源（哪個陣列）跟掛載的容器不同。
   const THUMB_RATIOS = [4 / 3, 3 / 4, 16 / 9, 1 / 1, 4 / 5, 3 / 2];
 
-  // 縮圖兩張兩張包成一個 .thumb-pair：桌面版靠 CSS 的
-  // display:contents 讓這層包裝「隱形」，維持原本 flex-wrap 依比例
-  // 排列的樣子；手機版則把每個 pair 變成一個左右並排、頂部對齊的列，
-  // 用陣列原本的順序配對，不會像純 CSS 多欄（masonry）那樣把配對
-  // 順序打散、造成兩欄看起來對不齊。
-  function buildThumbPairs(items, cellClass, onCellReady) {
-    const wrap = document.createDocumentFragment();
-    for (let i = 0; i < items.length; i += 2) {
-      const pair = document.createElement("div");
-      pair.className = "thumb-pair";
-      items.slice(i, i + 2).forEach((item, j) => {
-        const cell = document.createElement("div");
-        cell.className = cellClass;
-        onCellReady(cell, item, i + j);
-        pair.appendChild(cell);
-      });
-      wrap.appendChild(pair);
+  function isMobileLayout() {
+    return window.matchMedia && window.matchMedia("(max-width:900px)").matches;
+  }
+
+  // 手機版兩欄縮圖的大概欄寬：對應 style.css 的 --side:6vw 跟兩欄
+  // 之間 10px 的 gap，用來估算每張照片縮放後的高度
+  function estimateColumnWidth() {
+    const side = window.innerWidth * 0.06;
+    return (window.innerWidth - side * 2 - 10) / 2;
+  }
+
+  // 手機版縮圖排列：真的像 Pinterest 那樣，每張照片依序丟進「目前
+  // 累積高度比較矮」的那一欄（貪婪演算法），不是死板的兩張兩張配對
+  // ——配對順序好懂，但只要中間出現一張特別高或特別矮的照片，那一整排
+  // 還是會看起來卡卡的、對不齊。貪婪演算法看的是兩欄「目前實際的
+  // 高度」，兩欄的總高度會盡量接近，不會留下大塊空白，也不強求同一排
+  // 內誰跟誰對齊——這本來就是 masonry 排列的樣子，柱狀交錯是預期中的
+  // 視覺語言，不是排列錯誤。
+  //
+  // 桌面版完全不受影響：維持原本單排、依實際比例 flex-wrap 排列。
+  function renderThumbGroup(container, items, cellClass, onCellReady) {
+    container.innerHTML = "";
+    if (!items.length) return;
+
+    const makeCell = (item, i) => {
+      const cell = document.createElement("div");
+      cell.className = cellClass;
+      onCellReady(cell, item, i);
+      cell.addEventListener("click", () => openLightbox(items, i));
+      return cell;
+    };
+
+    if (!isMobileLayout()) {
+      items.forEach((item, i) => container.appendChild(makeCell(item, i)));
+      return;
     }
-    return wrap;
+
+    const colWidth = estimateColumnWidth();
+    const heights = [0, 0];
+    const cols = [document.createElement("div"), document.createElement("div")];
+    cols.forEach((c) => (c.className = "thumb-col"));
+    items.forEach((item, i) => {
+      const ratio = item.ratio || 4 / 3;
+      const estHeight = colWidth / ratio;
+      const shortIdx = heights[0] <= heights[1] ? 0 : 1;
+      cols[shortIdx].appendChild(makeCell(item, i));
+      heights[shortIdx] += estHeight + 10;
+    });
+    const masonry = document.createElement("div");
+    masonry.className = "thumb-masonry";
+    cols.forEach((c) => masonry.appendChild(c));
+    container.appendChild(masonry);
   }
 
   function renderSteps(rootSelector, steps) {
@@ -303,13 +336,12 @@
       if (step.photos && step.photos.length) {
         const row = document.createElement("div");
         row.className = "process-thumbs";
-        row.appendChild(buildThumbPairs(step.photos, "process-thumb", (cell, item, i) => {
+        renderThumbGroup(row, step.photos, "process-thumb", (cell, item) => {
           if (!item.src) {
             cell.style.aspectRatio = item.ratio || THUMB_RATIOS[thumbIdx++ % THUMB_RATIOS.length];
           }
           cell.appendChild(buildImage(item));
-          cell.addEventListener("click", () => openLightbox(step.photos, i));
-        }));
+        });
         stepEl.appendChild(row);
       }
 
@@ -329,13 +361,11 @@
   // 現場照片分開；用單純、等大的網格排列，不做錯落感。
   function renderDrawings() {
     const root = $("#drawings-grid");
-    root.innerHTML = "";
     const drawings = PROJECT.drawings || [];
-    root.appendChild(buildThumbPairs(drawings, "drawing-cell", (cell, item, i) => {
+    renderThumbGroup(root, drawings, "drawing-cell", (cell, item) => {
       if (!item.src) cell.style.aspectRatio = item.ratio || 4 / 3;
       cell.appendChild(buildImage(item));
-      cell.addEventListener("click", () => openLightbox(drawings, i));
-    }));
+    });
   }
 
   // 燈箱一次記住「目前這組照片」跟「目前是第幾張」，上一張／下一張
@@ -397,10 +427,22 @@
     $$(".block").forEach((b) => io.observe(b));
   }
 
+  // 設計研究／施工過程是「一段文字接一組照片」的陣列，量測比例時
+  // 要連著每個 step 的 photos 一起處理
+  async function withMeasuredSteps(steps) {
+    const list = steps || [];
+    const measured = await Promise.all(list.map((s) => withMeasuredRatios(s.photos)));
+    return list.map((s, i) => Object.assign({}, s, { photos: measured[i] }));
+  }
+
   async function renderAll(project) {
-    PROJECT = Object.assign({}, project, {
-      photos: await withMeasuredRatios(project.photos),
-    });
+    const [photos, designResearch, process, drawings] = await Promise.all([
+      withMeasuredRatios(project.photos),
+      withMeasuredSteps(project.designResearch),
+      withMeasuredSteps(project.process),
+      withMeasuredRatios(project.drawings),
+    ]);
+    PROJECT = Object.assign({}, project, { photos, designResearch, process, drawings });
     renderHead();
     renderHeroPhoto();
     renderContent();

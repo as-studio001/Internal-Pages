@@ -467,11 +467,6 @@ button{font-family:inherit;}
 .drawing-cell .ph,
 .drawing-cell img{width:auto;height:100%;display:block;}
 
-/* 縮圖兩張一組的包裝：桌面版讓它「隱形」，子元素直接參與外層
-   .process-thumbs/.drawings-grid 的 flex-wrap 排列，跟沒有這層包裝
-   時完全一樣。手機版會在下面的 responsive 區塊覆寫成真的並排列 */
-.thumb-pair{display:contents;}
-
 /* ---------- lightbox ---------- */
 .lightbox{
   position:fixed;inset:0;
@@ -521,34 +516,23 @@ button{font-family:inherit;}
   .s-2,.s-3,.s-4,.s-5,.s-6,.s-7,.s-9{grid-column-start:1;}
   .block--photos{grid-template-columns:1fr !important;}
 
-  /* 手機版的施工過程/設計研究/圖面縮圖改成兩欄，直幅照片維持直的、
-     橫幅照片維持橫的、不裁切。之前試過兩種做法都有問題：
+  /* 手機版的施工過程/設計研究/圖面縮圖改成真的 Pinterest 式 masonry：
+     render.js 的 renderThumbGroup() 在手機寬度時，會把每張照片依序
+     丟進「目前累積高度比較矮」的那一欄（貪婪演算法），輸出成
+     .thumb-masonry > 兩個 .thumb-col，這裡只需要負責兩欄並排的
+     樣式。之前試過的兩種做法都有明確問題：
        1. grid 兩欄配對：一排的高度是那排最高的那張決定，旁邊較矮的
           照片下面會留一大塊黑色空白。
-       2. CSS 多欄（columns）masonry：不留空了，但配對順序被打散
-          （直向填滿整個欄位再換下一欄），兩欄的照片頂部對不齊，
-          也不是原本資料裡「這兩張是一組」的順序。
-     這次改成在 render.js 裡把照片兩張兩張包成 .thumb-pair（見
-     buildThumbPairs()），手機版把每個 pair 變成一列左右並排、
-     頂部對齊（flex 預設 align-items:flex-start），維持原本配對
-     順序；每個 pair 各自獨立，不會像 grid 那樣把「空白」延伸到
-     其他排 */
-  .process-thumbs,.drawings-grid{
-    display:flex;
-    flex-direction:column;
-    gap:10px;
-  }
-  .thumb-pair{
-    display:flex;
-    gap:10px;
-    align-items:flex-start;
-  }
-  .process-thumb,.drawing-cell{
-    flex:1 1 0;
-    min-width:0;
-    width:auto;
-    height:auto;
-  }
+       2. CSS 多欄（columns）masonry：不留空了，但完全交給瀏覽器的
+          「先填滿整欄再換欄」規則，兩欄的照片頂部常常對不齊。
+       3. 手動兩張一組配對：對齊了，但只要配對到的兩張高度差很多，
+          一樣會在那一排留下明顯空白。
+     真正的貪婪演算法動態看兩欄「目前實際的高度」決定新照片要放哪一
+     欄，兩欄總高度會盡量接近、不留大塊空白，柱狀交錯是 masonry 排列
+     本來就有的樣子，不是排列錯誤 */
+  .thumb-masonry{display:flex;gap:10px;align-items:flex-start;width:100%;}
+  .thumb-col{flex:1 1 0;min-width:0;display:flex;flex-direction:column;gap:10px;}
+  .process-thumb,.drawing-cell{height:auto;}
   /* 真實照片：img 本身的高度依實際比例自動算，撐滿寬度就好 */
   .process-thumb img,.drawing-cell img{width:100%;height:auto;display:block;}
   /* 示意色塊：本身沒有內容撐開高度，靠外層 cell 的 aspect-ratio
