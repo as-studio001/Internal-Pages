@@ -925,11 +925,12 @@ function caseEditorHtml(ed){
         ${!ed.isNew ? `<button class="btn danger" id="deleteBtn">刪除這個案例</button>` : ""}
       </div>
 
-      <div class="field-block">
-        <label>網址代號（slug）</label>
-        <input type="text" id="f_slug" value="${esc(c.slug)}" placeholder="例如：laogu-fang" ${ed.isNew ? "" : "disabled"}>
-        <div class="field-hint">只能用英文小寫、數字、連字號，建立後不要再更改，否則舊連結會失效。</div>
-      </div>
+      ${!ed.isNew ? `
+        <div class="field-block">
+          <label>網址代號（系統自動產生，不能更改）</label>
+          <input type="text" id="f_slug" value="${esc(c.slug)}" disabled>
+        </div>
+      ` : ""}
 
       <div class="field-block">
         <div class="label">主視覺大圖</div>
@@ -1051,15 +1052,46 @@ function renderCaseEditor(){
   document.getElementById("saveBtn").addEventListener("click", () => saveCaseEditor(ed));
 }
 
+/* 新案例不用自己打網址代號（slug）——這是給網址跟照片資料夾用的內部
+   代號，一般使用者不需要理解這個概念，存檔時用案名自動翻成英文、轉成
+   網址格式，重複的話自動加編號 */
+async function generateUniqueSlug(title){
+  let base = "";
+  try{
+    const url = "https://translate.googleapis.com/translate_a/single?client=gtx&sl=zh-TW&tl=en&dt=t&q=" + encodeURIComponent(title);
+    const r = await fetch(url);
+    const j = await r.json();
+    base = (j[0] || []).map((seg) => seg[0]).join("");
+  }catch(e){ /* 翻譯失敗就退回用「case」開頭的編號 */ }
+  base = base.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "");
+  if(!base) base = "case";
+  const existing = new Set((state.cases || []).map((c) => c.slug));
+  let slug = base;
+  let i = 2;
+  while(existing.has(slug)){
+    slug = `${base}-${i}`;
+    i++;
+  }
+  return slug;
+}
+
 async function saveCaseEditor(ed){
-  const slugInput = document.getElementById("f_slug");
-  const slug = slugInput.value.trim();
-  if(!/^[a-z0-9]+(-[a-z0-9]+)*$/.test(slug)){
-    toast("網址代號只能用小寫英文字母、數字、連字號", true);
-    return;
+  if(!ed.item.title){ toast("請至少填寫案名", true); return; }
+
+  let slug;
+  if(ed.isNew){
+    try{
+      setLoading(true, "產生案例編號中…");
+      slug = await generateUniqueSlug(ed.item.title);
+    }catch(err){
+      toast("建立案例失敗：" + err.message, true);
+      setLoading(false);
+      return;
+    }
+  } else {
+    slug = document.getElementById("f_slug").value.trim();
   }
   ed.item.slug = slug;
-  if(!ed.item.title){ toast("請至少填寫案名", true); return; }
 
   const selectedChapters = Array.from(app.querySelectorAll("[data-add-to-chapter]:checked")).map((el) => el.dataset.addToChapter);
   const originalChapters = ed.linkedChapters || [];
