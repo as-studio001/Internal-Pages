@@ -594,10 +594,18 @@
     // 「新增」按鈕：讓全新案例（內文段落、照片、設計研究／施工過程、
     // 圖面都還是空的）也能整個從這個即時預覽直接開始建立內容，不用
     // 先跑去下面的清單新增第一筆之後才看得到東西可以點。
+    // #content 是 CSS Grid（12 欄），直接把按鈕塞進去會被當成一般格子
+    // 自動分配寬度，擠成又窄又高的長條——包一層 c-12（跟其他區塊一樣
+    // 佔滿整排）才會正常，裡面再用 flex 排這兩顆按鈕。
     const contentRoot = $("#content");
     if (contentRoot) {
-      contentRoot.appendChild(makeAddButton("新增段落", () => postCmsEdit({ field: "paragraph-add" })));
-      contentRoot.appendChild(makeAddButton("新增照片", () => postCmsEdit({ field: "photo-add" })));
+      const addRow = document.createElement("div");
+      addRow.className = "block c-12";
+      addRow.style.display = "flex";
+      addRow.style.gap = "8px";
+      addRow.appendChild(makeAddButton("新增段落", () => postCmsEdit({ field: "paragraph-add" })));
+      addRow.appendChild(makeAddButton("新增照片", () => postCmsEdit({ field: "photo-add" })));
+      contentRoot.appendChild(addRow);
     }
     const researchRoot = $("#research-steps");
     if (researchRoot) {
