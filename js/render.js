@@ -728,6 +728,8 @@
   function focusSection(key) {
     const header = document.querySelector(".site-header");
     if (header) header.style.display = "none";
+    const footer = document.querySelector(".site-footer");
+    if (footer) footer.style.display = "none";
     const keep = FOCUS_SELECTORS[key] || [];
     $$("main > *").forEach((el) => {
       el.style.display = keep.some((sel) => el.matches(sel)) ? "" : "none";
