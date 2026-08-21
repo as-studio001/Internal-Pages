@@ -263,7 +263,7 @@ input,textarea,select{ font-family:inherit; font-size:14px; }
 // session，而且建立好之後會把 hash 清掉，如果我們自己判斷「這是不是
 // 邀請信連結」的邏輯是等 createClient 呼叫完才去讀 location.hash，常常
 // 會讀到已經被清空的網址，導致邀請信點進來直接跳過設密碼、直接登入。
-const AUTH_LINK_TYPE = (/type=(invite|recovery)/.exec(location.hash) || [])[1] || null;
+let AUTH_LINK_TYPE = (/type=(invite|recovery)/.exec(location.hash) || [])[1] || null;
 
 const REPO_OWNER = "as-studio001";
 const REPO_NAME = "Internal-Pages";
@@ -561,8 +561,11 @@ function renderSetPassword(){
       if(error) throw error;
       const { data: sessionData } = await sb.auth.getSession();
       authSession = data.session || sessionData.session;
-      if(!authSession){ toast("設定成功，請重新登入", false); history.replaceState(null, "", location.pathname); render(); return; }
+      // 密碼真的設完了，這個 flag 的任務結束——不清掉的話 render() 會
+      // 一直誤判「這還是邀請信連結」，卡在設定密碼畫面出不去。
+      AUTH_LINK_TYPE = null;
       history.replaceState(null, "", location.pathname);
+      if(!authSession){ toast("設定成功，請重新登入", false); render(); return; }
       state.user = { email: authSession.user.email };
       setLoading(true, "載入案例清單中…");
       await loadCaseList();
