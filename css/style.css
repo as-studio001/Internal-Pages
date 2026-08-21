@@ -247,18 +247,10 @@ button{font-family:inherit;}
   transition:opacity .2s;
 }
 .site-footer__social a:hover{opacity:.7;}
-.site-footer__admin{
-  max-width:1200px;
-  margin:32px auto 0;
-  padding-top:24px;
-  border-top:1px solid oklch(0.22 0 0);
-}
-.site-footer__admin a{
-  font-size:12px;
-  color:oklch(0.45 0 0);
-  transition:opacity .2s;
-}
-.site-footer__admin a:hover{opacity:.7;}
+/* 齒輪（後台管理）跟社群圖示放在同一排，但顏色壓低一點，跟真正對外的
+   社群連結有點區隔——這是給管理者用的入口，不是訪客會想點的東西 */
+.site-footer__admin-link{background-color:transparent !important;color:oklch(0.4 0 0) !important;}
+.site-footer__admin-link:hover{opacity:.7;color:oklch(0.7 0 0) !important;}
 
 /* ---------- page head：純文字，不疊圖 ---------- */
 .page-head{padding-top:2.5rem;padding-bottom:3rem;row-gap:1rem;}
