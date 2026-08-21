@@ -10,6 +10,10 @@
 
   let PROJECT = null;
   let leafletMap = null;
+  // 後台預覽（?preview=1）時開啟：讓標題、內文段落可以直接點下去打字，
+  // 讓主視覺／內文照片可以直接點擊更換——後台編輯畫面看到的就是這個
+  // render.js 真正產生的頁面，所見即所得，不是另外做一份長得像的介面。
+  let EDITABLE = false;
 
   /**
    * 建立一張圖片。
@@ -143,11 +147,12 @@
 
   // 文字永遠固定在同一個欄位（c-8 s-5），不論前後接的是哪種照片排列都
   // 不會跳動。照片的錯落感完全跟文字位置脫鉤，各自獨立成一整排。
-  function renderTextBlock(root, body) {
+  function renderTextBlock(root, body, index) {
     const el = document.createElement("div");
     el.classList.add("block", "block--text", "c-8", "s-5");
     const p = document.createElement("p");
     p.textContent = body;
+    if (index != null) p.dataset.paragraphIndex = String(index);
     el.appendChild(p);
     root.appendChild(el);
   }
@@ -176,6 +181,7 @@
 
     chunk.forEach((it) => {
       const img = buildImage(it);
+      if (it._i != null) img.dataset.photoIndex = String(it._i);
       if (el.classList.contains("block--photos--mixed")) {
         img.style.aspectRatio = String(it.ratio || 4 / 3);
       }
@@ -188,6 +194,7 @@
     const el = document.createElement("div");
     el.classList.add("block", "block--solo", "c-12");
     const img = buildImage(photo);
+    if (photo._i != null) img.dataset.photoIndex = String(photo._i);
     img.style.aspectRatio = String(photo.ratio || 16 / 9);
     el.appendChild(img);
     root.appendChild(el);
@@ -197,7 +204,11 @@
     const root = $("#content");
     root.innerHTML = "";
     const paragraphs = PROJECT.paragraphs || [];
-    const chunks = makePhotoChunks(PROJECT.photos || []);
+    // 幫每張照片標上它在原始 photos 陣列裡的位置（_i），分組演算法只是
+    // 把陣列切成連續的小段、不會重排順序，所以可以安全地在切之前先標
+    // 好，後台點擊某張照片要更換時才知道對應到 PROJECT.photos 的哪一筆
+    const taggedPhotos = (PROJECT.photos || []).map((p, i) => Object.assign({}, p, { _i: i }));
+    const chunks = makePhotoChunks(taggedPhotos);
 
     // 照片組平均分散在整段文字裡，每個 chunk 依比例算出「該接在第幾段
     // 文字之後」，段落多、照片少時也不會失衡。
@@ -211,7 +222,7 @@
     };
 
     paragraphs.forEach((body, i) => {
-      renderTextBlock(root, body);
+      renderTextBlock(root, body, i);
       while (chunkPos < chunks.length && insertAfter[chunkPos] === i + 1) {
         insertChunk(chunks[chunkPos++]);
       }
@@ -451,6 +462,86 @@
     renderProcess();
     renderDrawings();
     bindScrollReveal();
+    if (EDITABLE) enableEditing();
+  }
+
+  // ============================================================
+  // 後台即時編輯：點文字直接改文字、點照片直接換照片，操作的就是這個
+  // render.js 真正渲染出來的頁面本身，不是另外做一個像的介面。文字用
+  // contenteditable 直接改；照片是靜態 <img>，沒辦法「直接改」，點下去
+  // 改成回報給後台（父視窗）「使用者想換這張圖」，由後台負責挑檔案、
+  // 上傳，再把新的一份內容整個重新 post 回來、重畫一次頁面。
+  // ============================================================
+  function postCmsEdit(payload) {
+    if (window.parent) window.parent.postMessage(Object.assign({ type: "cms-edit" }, payload), "*");
+  }
+
+  function makeTextEditable(el, onCommit) {
+    if (!el) return;
+    // #hero-title/#lede-meta 是 index.html 裡本來就存在的固定元素，每次
+    // 編輯觸發重新整個 renderAll() 時不會被重新建立，只是換內容——如果
+    // 每次都重新綁一次事件，監聽器會一直疊加。用這個標記確保只綁一次。
+    if (el.dataset.cmsBound) return;
+    el.dataset.cmsBound = "1";
+    el.contentEditable = "true";
+    el.classList.add("cms-editable-text");
+    let last = el.textContent;
+    el.addEventListener("blur", () => {
+      const val = el.textContent;
+      if (val !== last) {
+        last = val;
+        onCommit(val);
+      }
+    });
+    el.addEventListener("keydown", (e) => {
+      if (e.key === "Enter" && el.id) {
+        // 單行欄位（標題、副標）按 Enter 直接算打完，不要真的換行
+        e.preventDefault();
+        el.blur();
+      }
+    });
+  }
+
+  function makePhotoClickable(el, onReplace) {
+    if (!el) return;
+    el.classList.add("cms-editable-photo");
+    el.title = "點擊更換照片";
+    el.addEventListener("click", (e) => {
+      e.preventDefault();
+      onReplace();
+    });
+  }
+
+  function injectEditableStyles() {
+    if ($("#cms-editable-styles")) return;
+    const style = document.createElement("style");
+    style.id = "cms-editable-styles";
+    style.textContent = `
+      .cms-editable-text{ outline:2px dashed transparent; outline-offset:2px; border-radius:2px; transition:outline-color .15s ease; cursor:text; }
+      .cms-editable-text:hover{ outline-color:rgba(90,150,255,0.55); }
+      .cms-editable-text:focus{ outline:2px solid #4d8dff; }
+      .cms-editable-photo{ cursor:pointer; transition:filter .15s ease, outline-color .15s ease; outline:2px dashed transparent; outline-offset:-2px; }
+      .cms-editable-photo:hover{ filter:brightness(0.72); outline-color:rgba(90,150,255,0.85); }
+    `;
+    document.head.appendChild(style);
+  }
+
+  function enableEditing() {
+    injectEditableStyles();
+
+    makeTextEditable($("#hero-title"), (val) => postCmsEdit({ field: "title", value: val }));
+    makeTextEditable($("#lede-meta"), (val) => postCmsEdit({ field: "ledeMeta", value: val }));
+
+    $$("[data-paragraph-index]").forEach((p) => {
+      makeTextEditable(p, (val) => postCmsEdit({ field: "paragraph", index: Number(p.dataset.paragraphIndex), value: val }));
+    });
+
+    const heroPhotoEl = $("#hero-photo img") || $("#hero-photo .ph");
+    makePhotoClickable(heroPhotoEl, () => postCmsEdit({ field: "hero-replace" }));
+
+    $$("#content [data-photo-index]").forEach((img) => {
+      makePhotoClickable(img, () => postCmsEdit({ field: "photo-replace", index: Number(img.dataset.photoIndex) }));
+    });
   }
 
   async function loadCase(slug) {
@@ -468,6 +559,7 @@
   // 後台編輯畫面用 postMessage 送過來的即時內容，每次編輯都重新渲染，
   // 讓後台看到的預覽跟真正上線後的頁面完全一致（同一套 render.js/CSS）。
   function initPreviewMode() {
+    EDITABLE = true;
     // 後台預覽時，設計研究／施工過程／圖面預設直接展開，編輯者才不用
     // 每次存檔、切換欄位都要手動點一次「+」才看得到內容有沒有跑版
     const toggle = $("#detail-toggle");
