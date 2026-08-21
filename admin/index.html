@@ -99,15 +99,16 @@ input,textarea,select{ font-family:inherit; font-size:14px; }
 }
 .field-hint{ font-size:12px; color:var(--muted); margin-top:6px; line-height:1.6; }
 
-.advanced-block{ margin-bottom:26px; border:1px solid var(--line); border-radius:8px; padding:4px 18px; background:#fff; }
-.advanced-block summary{
-  cursor:pointer; padding:14px 0; font-family:var(--f-heading); font-weight:700; font-size:13px;
-  letter-spacing:.02em; color:var(--muted); list-style:none;
+.section-tabs{ display:flex; gap:6px; flex-wrap:wrap; margin:18px 0 20px; border-bottom:1px solid var(--line); padding-bottom:0; }
+.section-tab{
+  padding:9px 16px; border:none; background:none; color:var(--muted); font-size:13.5px; font-weight:600;
+  cursor:pointer; border-bottom:2px solid transparent; margin-bottom:-1px;
 }
-.advanced-block summary::-webkit-details-marker{ display:none; }
-.advanced-block summary::before{ content:"▸ "; }
-.advanced-block[open] summary::before{ content:"▾ "; }
-.advanced-block[open] summary{ color:var(--ink); border-bottom:1px solid var(--line); margin-bottom:20px; }
+.section-tab:hover{ color:var(--ink); }
+.section-tab.active{ color:var(--ink); border-bottom-color:var(--ink); }
+.section-panel{ display:none; }
+.section-panel.active{ display:block; }
+.section-panel-hint{ font-size:12.5px; color:var(--muted); font-style:italic; }
 .field-block input[type=text], .field-block input[type=number], .field-block textarea{
   width:100%; padding:10px 12px; border:1px solid var(--line); border-radius:5px;
   background:#fff; color:var(--ink); resize:vertical;
@@ -934,8 +935,17 @@ function bindStepsFor(ed, basePath, containerId, folder){
   });
 }
 
+const CASE_SECTIONS = [
+  { key: "title", label: "標題與副標", scrollTo: "#hero-tag" },
+  { key: "hero", label: "大圖", scrollTo: "#hero-photo" },
+  { key: "content", label: "內容", scrollTo: "#content" },
+  { key: "detail", label: "More in Detail", scrollTo: ".detail-section" },
+  { key: "map", label: "位置", scrollTo: ".map-full" },
+];
+
 function caseEditorHtml(ed){
   const c = ed.item;
+  const active = ed.activeSection || CASE_SECTIONS[0].key;
   return `
     <div class="editor">
       <div class="editor-head">
@@ -953,54 +963,40 @@ function caseEditorHtml(ed){
       <div class="field-block">
         <div class="label">案例內容（直接在下面點文字修改文字、點照片更換照片，跟真正的網站看起來一樣）</div>
         <iframe id="caseLivePreview" src="../index.html?preview=1" style="width:100%;height:82vh;min-height:640px;border:1px solid var(--line);border-radius:8px;background:#0a0a0a;"></iframe>
-        <div class="field-hint">預覽裡有<strong>藍色虛線框</strong>的文字（標題、段落…）都可以直接點下去打字修改；照片外框也是藍色虛線，點下去可以換照片。上面也有「+ 新增段落」「+ 新增照片」等按鈕，全新案例也能直接在這裡開始建立內容。刪除段落或照片、或想用清單的方式編輯，也可以用下面對應的清單。</div>
+        <div class="field-hint">預覽裡有<strong>藍色虛線框</strong>的文字（標題、段落…）都可以直接點下去打字修改；照片外框也是藍色虛線，點下去可以換照片。上面也有「+ 新增段落」「+ 新增照片」等按鈕，全新案例也能直接在這裡開始建立內容。</div>
       </div>
 
-      <div class="field-block">
-        <label>分類標籤（選填）</label>
-        <input type="text" data-path="tag" value="${esc(c.tag || "")}">
+      <div class="section-tabs">
+        ${CASE_SECTIONS.map((s) => `
+          <button type="button" class="section-tab ${s.key === active ? "active" : ""}" data-section-tab="${s.key}">${s.label}</button>
+        `).join("")}
       </div>
 
-      <div class="field-block">
-        <div class="label">顯示在主網站章節（選填）</div>
-        <div class="chapter-picker">
-          ${CASE_CARD_CHAPTERS.map((ch) => `
-            <label>
-              <input type="checkbox" data-add-to-chapter="${ch.name}" ${(ed.linkedChapters || []).includes(ch.name) ? "checked" : ""}>
-              ${ch.label}
-            </label>
-          `).join("")}
+      <div class="section-panel ${active === "title" ? "active" : ""}" data-panel="title">
+        <div class="field-block">
+          <label>分類標籤（選填）</label>
+          <input type="text" data-path="tag" value="${esc(c.tag || "")}">
         </div>
-        <div class="field-hint">勾選後，存檔時會自動把這個案例（用主視覺大圖、案名、這個案例的網址）加進該章節主網站上的案例卡片列表，不用再另外去「主網站內容」手動加</div>
+        <div class="section-panel-hint">案名跟副標（地點／年份／類型）直接在上方預覽裡點文字修改即可。</div>
       </div>
 
-      <div class="field-block">
-        <div class="label">基地位置</div>
-        <div class="two-col">
-          <div>
-            <label>地址</label>
-            <input type="text" data-path="map.address" value="${esc(c.map.address || "")}">
+      <div class="section-panel ${active === "hero" ? "active" : ""}" data-panel="hero">
+        <div class="field-block">
+          <div class="label">顯示在主網站章節（選填）</div>
+          <div class="chapter-picker">
+            ${CASE_CARD_CHAPTERS.map((ch) => `
+              <label>
+                <input type="checkbox" data-add-to-chapter="${ch.name}" ${(ed.linkedChapters || []).includes(ch.name) ? "checked" : ""}>
+                ${ch.label}
+              </label>
+            `).join("")}
           </div>
-          <div>
-            <label>地圖縮放層級（15~19）</label>
-            <input type="number" data-path="map.zoom" data-numeric="1" value="${c.map.zoom != null ? c.map.zoom : 17}">
-          </div>
+          <div class="field-hint">勾選後，存檔時會自動把這個案例（用主視覺大圖、案名、這個案例的網址）加進該章節主網站上的案例卡片列表，不用再另外去「主網站內容」手動加</div>
         </div>
-        <div class="two-col" style="margin-top:12px">
-          <div>
-            <label>緯度 lat</label>
-            <input type="text" data-path="map.lat" data-numeric="1" value="${c.map.lat != null ? c.map.lat : ""}">
-          </div>
-          <div>
-            <label>經度 lng</label>
-            <input type="text" data-path="map.lng" data-numeric="1" value="${c.map.lng != null ? c.map.lng : ""}">
-          </div>
-        </div>
+        <div class="section-panel-hint">大圖本身直接在上方預覽裡點照片換掉即可。</div>
       </div>
 
-      <details class="advanced-block">
-        <summary>進階：清單模式編輯（刪除／排序段落、照片、設計研究、施工過程、圖面）</summary>
-
+      <div class="section-panel ${active === "content" ? "active" : ""}" data-panel="content">
         <div class="field-block">
           <div class="label">內文段落</div>
           <textarea id="paragraphsText" style="min-height:320px">${esc((c.paragraphs || []).join("\n\n"))}</textarea>
@@ -1012,7 +1008,9 @@ function caseEditorHtml(ed){
           ${photoListHtml(ed, "photos", "photosList")}
           <div class="field-hint">依順序排列，系統會依每張照片的實際比例自動決定並排或全幅顯示，不需要手動排版</div>
         </div>
+      </div>
 
+      <div class="section-panel ${active === "detail" ? "active" : ""}" data-panel="detail">
         <div class="field-block">
           <div class="label">設計研究</div>
           <div id="designResearchList">${stepsHtml(ed, "designResearch", "新增一段設計研究")}</div>
@@ -1027,7 +1025,33 @@ function caseEditorHtml(ed){
           <div class="label">圖面</div>
           ${photoListHtml(ed, "drawings", "drawingsList")}
         </div>
-      </details>
+      </div>
+
+      <div class="section-panel ${active === "map" ? "active" : ""}" data-panel="map">
+        <div class="field-block">
+          <div class="label">基地位置</div>
+          <div class="two-col">
+            <div>
+              <label>地址</label>
+              <input type="text" data-path="map.address" value="${esc(c.map.address || "")}">
+            </div>
+            <div>
+              <label>地圖縮放層級（15~19）</label>
+              <input type="number" data-path="map.zoom" data-numeric="1" value="${c.map.zoom != null ? c.map.zoom : 17}">
+            </div>
+          </div>
+          <div class="two-col" style="margin-top:12px">
+            <div>
+              <label>緯度 lat</label>
+              <input type="text" data-path="map.lat" data-numeric="1" value="${c.map.lat != null ? c.map.lat : ""}">
+            </div>
+            <div>
+              <label>經度 lng</label>
+              <input type="text" data-path="map.lng" data-numeric="1" value="${c.map.lng != null ? c.map.lng : ""}">
+            </div>
+          </div>
+        </div>
+      </div>
 
       <div class="save-bar">
         <span class="save-status" id="saveStatus"></span>
@@ -1190,7 +1214,24 @@ function renderCaseEditor(){
   bindPathInputs(ed, app);
 
   const caseFrame = document.getElementById("caseLivePreview");
-  if(caseFrame) caseFrame.addEventListener("load", () => postCaseProjectToIframe(ed));
+  if(caseFrame) caseFrame.addEventListener("load", () => {
+    postCaseProjectToIframe(ed);
+    const section = CASE_SECTIONS.find((s) => s.key === (ed.activeSection || CASE_SECTIONS[0].key));
+    if(section) caseFrame.contentWindow.postMessage({ type: "cms-scroll-to", selector: section.scrollTo }, "*");
+  });
+
+  app.querySelectorAll("[data-section-tab]").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      const key = btn.dataset.sectionTab;
+      ed.activeSection = key;
+      app.querySelectorAll("[data-section-tab]").forEach((b) => b.classList.toggle("active", b.dataset.sectionTab === key));
+      app.querySelectorAll("[data-panel]").forEach((p) => p.classList.toggle("active", p.dataset.panel === key));
+      const section = CASE_SECTIONS.find((s) => s.key === key);
+      if(section && caseFrame && caseFrame.contentWindow){
+        caseFrame.contentWindow.postMessage({ type: "cms-scroll-to", selector: section.scrollTo }, "*");
+      }
+    });
+  });
 
   document.getElementById("paragraphsText").addEventListener("input", (e) => {
     ed.item.paragraphs = e.target.value

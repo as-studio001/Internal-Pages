@@ -662,8 +662,18 @@
       panel.hidden = false;
     }
     window.addEventListener("message", (e) => {
-      if (!e.data || e.data.type !== "cms-preview") return;
-      renderAll(e.data.project);
+      if (!e.data) return;
+      if (e.data.type === "cms-preview") {
+        renderAll(e.data.project);
+        return;
+      }
+      // 後台的分區頁籤（標題／大圖／內容／More in Detail／位置）點下去時，
+      // 讓同一份預覽自動捲到對應區塊，不用使用者自己在長頁面裡找位置。
+      if (e.data.type === "cms-scroll-to") {
+        const el = document.querySelector(e.data.selector);
+        if (el) el.scrollIntoView({ behavior: "smooth", block: "start" });
+        return;
+      }
     });
     if (window.parent) window.parent.postMessage({ type: "cms-preview-ready" }, "*");
   }
