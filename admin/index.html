@@ -197,6 +197,15 @@ input,textarea,select{ font-family:inherit; font-size:14px; }
 .case-card-editor{ border:1px solid var(--line); border-radius:8px; padding:16px; margin-bottom:16px; background:#fff; }
 .case-card-editor-head{ display:flex; justify-content:space-between; align-items:center; margin-bottom:12px; }
 
+.photo-layout-groups{ display:flex; flex-direction:column; gap:10px; }
+.photo-layout-row{
+  display:flex; flex-wrap:wrap; align-items:center; gap:14px; padding:10px 14px;
+  border:1px solid var(--line); border-radius:6px; background:#fff; font-size:13px;
+}
+.photo-layout-row .step-label{ font-weight:700; color:var(--muted); font-size:12px; letter-spacing:.02em; }
+.photo-layout-row label{ display:flex; align-items:center; gap:6px; color:var(--muted); }
+.photo-layout-row select{ padding:5px 8px; border:1px solid var(--line); border-radius:5px; background:#fff; color:var(--ink); }
+
 .empty-note{ color:var(--muted); font-size:13px; font-style:italic; }
 .chapter-picker{ display:flex; flex-wrap:wrap; gap:10px; }
 .chapter-picker label{
@@ -1006,7 +1015,11 @@ function caseEditorHtml(ed){
         <div class="field-block">
           <div class="label">內文照片</div>
           ${photoListHtml(ed, "photos", "photosList")}
-          <div class="field-hint">依順序排列，系統會依每張照片的實際比例自動決定並排或全幅顯示，不需要手動排版</div>
+          <div class="field-hint">依順序排列，上傳後系統會先自動排出一版（決定要並排還是全幅、要接在哪段文字後面），下面「照片排版」可以再微調</div>
+        </div>
+
+        <div class="field-block" id="photoLayoutBlock">
+          ${photoLayoutHtml(ed)}
         </div>
       </div>
 
@@ -1070,10 +1083,28 @@ function caseEditorHtml(ed){
    再把整份內容重新 po 回 iframe 重畫一次。
    ============================================================ */
 window.addEventListener("message", (e) => {
-  if(!e.data || e.data.type !== "cms-edit") return;
+  if(!e.data) return;
   const ed = state.editingCase;
   if(!ed) return;
-  handleCaseEdit(ed, e.data);
+  if(e.data.type === "cms-edit"){
+    handleCaseEdit(ed, e.data);
+    return;
+  }
+  if(e.data.type === "cms-rendered"){
+    // 預覽真的重畫完（照片比例都量測好了）才適合去要自動排版，不然拿到
+    // 的分組會是用舊照片比例算出來的
+    if(ed.pendingAutoLayoutRequest){
+      ed.pendingAutoLayoutRequest = false;
+      const iframe = document.getElementById("caseLivePreview");
+      if(iframe && iframe.contentWindow) iframe.contentWindow.postMessage({ type: "cms-compute-auto-layout" }, "*");
+    }
+    return;
+  }
+  if(e.data.type === "cms-auto-layout"){
+    ed.item.photoLayout = e.data.layout;
+    refreshPhotoLayoutBlock(ed);
+    return;
+  }
 });
 
 function postCaseProjectToIframe(ed){
@@ -1103,6 +1134,109 @@ function resolveCaseForPreview(item, pendingUploads){
 function syncCompactThumb(containerId, photoIndex, newSrc){
   const img = document.querySelector(`#${containerId} [data-photo-index="${photoIndex}"] .thumb img`);
   if(img) img.src = newSrc;
+}
+
+/* ============================================================
+   照片排版：預設完全自動（跟以前一樣，系統依照片比例決定並排/全幅、
+   平均分散在文字裡），使用者不用管。只有想微調時才進來調——「這組
+   照片要接在第幾段文字後面」「兩張並排時左右比例怎麼分」，其餘（單張
+   全幅、多張直式照片並排…）維持自動判斷，不用使用者操心。
+   ============================================================ */
+function getValidPhotoLayout(ed){
+  const layout = ed.item.photoLayout;
+  const photos = ed.item.photos || [];
+  if(!Array.isArray(layout) || layout.length === 0) return null;
+  const seen = new Set();
+  for(const g of layout){
+    if(!Array.isArray(g.photos) || g.photos.length === 0) return null;
+    for(const i of g.photos){
+      if(typeof i !== "number" || i < 0 || i >= photos.length || seen.has(i)) return null;
+      seen.add(i);
+    }
+  }
+  return seen.size === photos.length ? layout : null;
+}
+
+/* 照片排版還沒產生過、或因為照片張數變了而失效時，跟 iframe 要一份
+   自動排版當起點（要等 iframe 那份照片比例真的量測完才能算，所以先
+   立 flag，等 cms-rendered 回報再送 cms-compute-auto-layout） */
+function ensurePhotoLayout(ed){
+  if((ed.item.photos || []).length < 2) return;
+  if(getValidPhotoLayout(ed)) return;
+  ed.pendingAutoLayoutRequest = true;
+  postCaseProjectToIframe(ed);
+}
+
+const PAIR_RATIO_LABELS = ["左大右小", "右大左小", "接近對半"];
+
+function photoLayoutHtml(ed){
+  const photos = ed.item.photos || [];
+  const paragraphs = ed.item.paragraphs || [];
+  if(photos.length < 2){
+    return `<div class="label">照片排版</div><div class="field-hint">目前少於 2 張照片，不需要排版設定，系統會自動全幅顯示。</div>`;
+  }
+  const layout = getValidPhotoLayout(ed);
+  if(!layout){
+    return `
+      <div class="label">照片排版</div>
+      <div class="field-hint">正在產生自動排版…完成後可以在這裡微調每組照片要接在哪段文字後面、並排比例怎麼分。</div>
+    `;
+  }
+  return `
+    <div class="label">照片排版（已自動產生，可微調）</div>
+    <div class="photo-layout-groups">
+      ${layout.map((g, gi) => `
+        <div class="photo-layout-row" data-layout-group="${gi}">
+          <span class="step-label">第 ${g.photos.map((i) => i + 1).join("、")} 張</span>
+          <label>接在
+            <select data-layout-after="${gi}">
+              <option value="0" ${g.afterParagraph === 0 ? "selected" : ""}>最前面</option>
+              ${paragraphs.map((_, pi) => `<option value="${pi + 1}" ${g.afterParagraph === pi + 1 ? "selected" : ""}>第 ${pi + 1} 段文字後</option>`).join("")}
+            </select>
+          </label>
+          ${g.pairRatio != null ? `
+            <label>並排比例
+              <select data-layout-ratio="${gi}">
+                ${PAIR_RATIO_LABELS.map((label, i) => `<option value="${i}" ${g.pairRatio === i ? "selected" : ""}>${label}</option>`).join("")}
+              </select>
+            </label>
+          ` : ""}
+        </div>
+      `).join("")}
+    </div>
+    <div class="field-hint">單張全幅、多張直式照片並排等版型系統會自動判斷，這裡只能調整並排比例跟插入位置</div>
+    <button type="button" class="btn" id="resetPhotoLayoutBtn" style="margin-top:10px">還原成自動排版</button>
+  `;
+}
+
+function bindPhotoLayoutControls(ed){
+  const block = document.getElementById("photoLayoutBlock");
+  if(!block) return;
+  block.querySelectorAll("[data-layout-after]").forEach((sel) => {
+    sel.addEventListener("change", () => {
+      ed.item.photoLayout[Number(sel.dataset.layoutAfter)].afterParagraph = Number(sel.value);
+      postCaseProjectToIframe(ed);
+    });
+  });
+  block.querySelectorAll("[data-layout-ratio]").forEach((sel) => {
+    sel.addEventListener("change", () => {
+      ed.item.photoLayout[Number(sel.dataset.layoutRatio)].pairRatio = Number(sel.value);
+      postCaseProjectToIframe(ed);
+    });
+  });
+  const resetBtn = document.getElementById("resetPhotoLayoutBtn");
+  if(resetBtn) resetBtn.addEventListener("click", () => {
+    delete ed.item.photoLayout;
+    refreshPhotoLayoutBlock(ed);
+    ensurePhotoLayout(ed);
+  });
+}
+
+function refreshPhotoLayoutBlock(ed){
+  const block = document.getElementById("photoLayoutBlock");
+  if(!block) return;
+  block.innerHTML = photoLayoutHtml(ed);
+  bindPhotoLayoutControls(ed);
 }
 
 function pickImageFile(cb){
@@ -1239,6 +1373,7 @@ function renderCaseEditor(){
       .map((s) => s.trim())
       .filter(Boolean);
     postCaseProjectToIframe(ed);
+    refreshPhotoLayoutBlock(ed); // 段落數變了，「接在第幾段後」的選項要跟著更新
   });
 
   const folder = () => `images/${ed.item.slug || "tmp"}`;
@@ -1246,6 +1381,9 @@ function renderCaseEditor(){
   bindPhotoList(ed, "drawings", "drawingsList", folder());
   bindStepsFor(ed, "designResearch", "designResearchList", folder());
   bindStepsFor(ed, "process", "processList", folder());
+
+  bindPhotoLayoutControls(ed);
+  ensurePhotoLayout(ed);
 
   document.getElementById("saveBtn").addEventListener("click", () => saveCaseEditor(ed));
 }

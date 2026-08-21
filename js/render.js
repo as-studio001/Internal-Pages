@@ -157,7 +157,7 @@
     root.appendChild(el);
   }
 
-  function renderPhotoRow(root, chunk, ratioState) {
+  function renderPhotoRow(root, chunk, ratioState, ratioOverride) {
     const el = document.createElement("div");
     el.classList.add("block", "block--photos", "c-12");
 
@@ -169,10 +169,18 @@
       el.classList.add("block--photos--portrait");
       el.style.gridTemplateColumns = chunk.map(() => "1fr").join(" ");
     } else if (allNonPortrait && chunk.length === 2) {
-      let idx = ratioState.next % PAIR_RATIOS.length;
-      if (idx === ratioState.last) idx = (idx + 1) % PAIR_RATIOS.length;
-      ratioState.last = idx;
-      ratioState.next++;
+      // ratioOverride：後台「照片排版」裡使用者手動選的並排比例（0~2，
+      // 對應 PAIR_RATIOS 的索引）；沒有的話（自動排版模式）照原本邏輯
+      // 依序輪替，同一組不連續選到一樣的比例。
+      let idx;
+      if (ratioOverride != null && PAIR_RATIOS[ratioOverride]) {
+        idx = ratioOverride;
+      } else {
+        idx = ratioState.next % PAIR_RATIOS.length;
+        if (idx === ratioState.last) idx = (idx + 1) % PAIR_RATIOS.length;
+        ratioState.last = idx;
+        ratioState.next++;
+      }
       el.style.gridTemplateColumns = PAIR_RATIOS[idx].map((r) => r + "fr").join(" ");
     } else {
       el.classList.add("block--photos--mixed");
@@ -200,6 +208,22 @@
     root.appendChild(el);
   }
 
+  // 檢查後台存的「照片排版」是否還跟現在的照片陣列吻合（張數變了、或
+  // 陣列本身有問題就視為失效），失效就整組回退成全自動排版，不會讓
+  // 頁面壞掉或漏顯示照片。
+  function validPhotoLayout(layout, photoCount) {
+    if (!Array.isArray(layout) || layout.length === 0) return null;
+    const seen = new Set();
+    for (const g of layout) {
+      if (!Array.isArray(g.photos) || g.photos.length === 0) return null;
+      for (const i of g.photos) {
+        if (typeof i !== "number" || i < 0 || i >= photoCount || seen.has(i)) return null;
+        seen.add(i);
+      }
+    }
+    return seen.size === photoCount ? layout : null;
+  }
+
   function renderContent() {
     const root = $("#content");
     root.innerHTML = "";
@@ -208,26 +232,66 @@
     // 把陣列切成連續的小段、不會重排順序，所以可以安全地在切之前先標
     // 好，後台點擊某張照片要更換時才知道對應到 PROJECT.photos 的哪一筆
     const taggedPhotos = (PROJECT.photos || []).map((p, i) => Object.assign({}, p, { _i: i }));
-    const chunks = makePhotoChunks(taggedPhotos);
 
-    // 照片組平均分散在整段文字裡，每個 chunk 依比例算出「該接在第幾段
-    // 文字之後」，段落多、照片少時也不會失衡。
-    const insertAfter = chunks.map((_, i) => Math.round(((i + 1) * paragraphs.length) / (chunks.length + 1)));
+    // 後台「照片排版」讓使用者微調過的話（PROJECT.photoLayout），直接
+    // 照這份清單分組＋插入位置＋並排比例；沒有（或已經跟照片對不上）
+    // 就照舊完全自動分組，兩種案例都用同一套渲染，不影響既有案例。
+    const manualLayout = validPhotoLayout(PROJECT.photoLayout, taggedPhotos.length);
+    const chunks = manualLayout
+      ? manualLayout.map((g) => g.photos.map((i) => taggedPhotos[i]))
+      : makePhotoChunks(taggedPhotos);
+    const insertAfter = manualLayout
+      ? manualLayout.map((g) => g.afterParagraph)
+      : chunks.map((_, i) => Math.round(((i + 1) * paragraphs.length) / (chunks.length + 1)));
+    const ratioOverrides = manualLayout ? manualLayout.map((g) => g.pairRatio) : chunks.map(() => undefined);
 
     const ratioState = { next: 0, last: -1 };
     let chunkPos = 0;
-    const insertChunk = (chunk) => {
+    const insertChunk = (chunk, override) => {
       if (chunk.length === 1) renderSoloContained(root, chunk[0]);
-      else renderPhotoRow(root, chunk, ratioState);
+      else renderPhotoRow(root, chunk, ratioState, override);
     };
 
+    // 插在「第 0 段之後」＝最前面，先處理掉，其餘照原順序跟著段落跑。
+    while (chunkPos < chunks.length && insertAfter[chunkPos] === 0) {
+      insertChunk(chunks[chunkPos], ratioOverrides[chunkPos]);
+      chunkPos++;
+    }
     paragraphs.forEach((body, i) => {
       renderTextBlock(root, body, i);
       while (chunkPos < chunks.length && insertAfter[chunkPos] === i + 1) {
-        insertChunk(chunks[chunkPos++]);
+        insertChunk(chunks[chunkPos], ratioOverrides[chunkPos]);
+        chunkPos++;
       }
     });
-    while (chunkPos < chunks.length) insertChunk(chunks[chunkPos++]);
+    while (chunkPos < chunks.length) {
+      insertChunk(chunks[chunkPos], ratioOverrides[chunkPos]);
+      chunkPos++;
+    }
+  }
+
+  // 後台「產生自動排版」用：跑一次跟 renderContent 全自動模式一樣的分組
+  // /插入位置/並排比例演算法，但不畫出來，而是回傳一份使用者可以微調
+  // 的清單（存進 PROJECT.photoLayout 就會變成手動排版）。
+  function computeAutoPhotoLayout() {
+    const paragraphs = PROJECT.paragraphs || [];
+    const taggedPhotos = (PROJECT.photos || []).map((p, i) => Object.assign({}, p, { _i: i }));
+    const chunks = makePhotoChunks(taggedPhotos);
+    const insertAfter = chunks.map((_, i) => Math.round(((i + 1) * paragraphs.length) / (chunks.length + 1)));
+    const ratioState = { next: 0, last: -1 };
+    return chunks.map((chunk, i) => {
+      const group = { photos: chunk.map((p) => p._i), afterParagraph: insertAfter[i] };
+      const orientations = chunk.map(orientationOf);
+      const allNonPortrait = orientations.every((o) => o !== "portrait");
+      if (allNonPortrait && chunk.length === 2) {
+        let idx = ratioState.next % PAIR_RATIOS.length;
+        if (idx === ratioState.last) idx = (idx + 1) % PAIR_RATIOS.length;
+        ratioState.last = idx;
+        ratioState.next++;
+        group.pairRatio = idx;
+      }
+      return group;
+    });
   }
 
   function formatCoords(lat, lng) {
@@ -664,7 +728,12 @@
     window.addEventListener("message", (e) => {
       if (!e.data) return;
       if (e.data.type === "cms-preview") {
-        renderAll(e.data.project);
+        // renderAll 是 async（要等照片量測完實際比例），排版是不是要自動
+        // 產生要等這次重畫真的完成、PROJECT 已經是最新的才能算，所以完成
+        // 後才回報 cms-rendered，讓後台知道現在可以來要一份自動排版。
+        renderAll(e.data.project).then(() => {
+          if (window.parent) window.parent.postMessage({ type: "cms-rendered" }, "*");
+        });
         return;
       }
       // 後台的分區頁籤（標題／大圖／內容／More in Detail／位置）點下去時，
@@ -672,6 +741,12 @@
       if (e.data.type === "cms-scroll-to") {
         const el = document.querySelector(e.data.selector);
         if (el) el.scrollIntoView({ behavior: "smooth", block: "start" });
+        return;
+      }
+      // 後台「照片排版」還沒產生過（或已失效）時，來要一份自動排版當
+      // 起點，讓使用者接著微調，而不是從零手動分組。
+      if (e.data.type === "cms-compute-auto-layout") {
+        if (window.parent) window.parent.postMessage({ type: "cms-auto-layout", layout: computeAutoPhotoLayout() }, "*");
         return;
       }
     });
