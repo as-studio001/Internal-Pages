@@ -58,6 +58,11 @@ input,textarea,select{ font-family:inherit; font-size:14px; }
 }
 .login-screen h1{ font-size:24px; }
 .login-screen p{ color:var(--muted); max-width:360px; font-size:14px; line-height:1.7; }
+.login-screen input{
+  width:260px; padding:10px 12px; border:1px solid var(--line); border-radius:5px;
+  background:#fff; color:var(--ink); font-size:14px;
+}
+.login-screen input:focus{ outline:none; border-color:var(--ink); }
 
 .tab-nav{ display:flex; gap:6px; margin-bottom:28px; border-bottom:1px solid var(--line); }
 .tab-nav button{
@@ -248,6 +253,7 @@ input,textarea,select{ font-family:inherit; font-size:14px; }
 <div id="toast"></div>
 <div id="app"></div>
 
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
 <script>
 /* ============================================================
    設定
@@ -255,13 +261,25 @@ input,textarea,select{ font-family:inherit; font-size:14px; }
 const REPO_OWNER = "as-studio001";
 const REPO_NAME = "Internal-Pages";
 const REPO_BRANCH = "main";
-// 登入改回 GitHub 帳號登入——Netlify Identity 的 email／密碼那套一直
-// 卡在各種驗證問題，這套沿用 anassembly-studio 已經在用、驗證過可以動
-// 的 GitHub OAuth 中繼站。要新增editor，去這個 repo 的 GitHub
-// Settings → Collaborators 加對方的 GitHub 帳號即可，不用再管 Netlify。
-const AUTH_ENDPOINT = "https://sunny-kangaroo-3eb599.netlify.app/.netlify/functions/auth";
 const RAW_BASE = `https://raw.githubusercontent.com/${REPO_OWNER}/${REPO_NAME}/${REPO_BRANCH}/`;
-const API_BASE = `https://api.github.com/repos/${REPO_OWNER}/${REPO_NAME}`;
+
+// 登入改成 email／密碼（Supabase），不用個人 GitHub 帳號——後台自己
+// 「使用者管理」分頁就能寄邀請信、移除權限，不用再去 GitHub 網站設定
+// Collaborators。實際寫入 GitHub 的動作也改成呼叫下面 FUNCTIONS_BASE
+// 這個小後端服務（用同一組服務帳號 token 代為執行），因為登入的人
+// 不再有自己的 GitHub 帳號可以直接寫。
+// SUPABASE_URL / SUPABASE_ANON_KEY 是公開用的（Supabase 官方設計上
+// anon key 本來就會放在前端程式碼裡，不是密鑰），FUNCTIONS_BASE 是
+// 放這些 function 的 Netlify 站網址。三個都要換成實際的值才能用。
+const SUPABASE_URL = "REPLACE_WITH_SUPABASE_PROJECT_URL";
+const SUPABASE_ANON_KEY = "REPLACE_WITH_SUPABASE_ANON_KEY";
+const FUNCTIONS_BASE = "REPLACE_WITH_NETLIFY_FUNCTIONS_BASE"; // 例：https://xxx.netlify.app/.netlify/functions
+
+// 設定還沒填真正的值之前（SUPABASE_URL 還是預留字串）不要讓
+// createClient 直接丟例外炸掉整支 script，不然連「尚未設定」的提示都
+// 顯示不出來，畫面會整個空白。
+const SETUP_INCOMPLETE = /^REPLACE_WITH_/.test(SUPABASE_URL) || /^REPLACE_WITH_/.test(SUPABASE_ANON_KEY) || /^REPLACE_WITH_/.test(FUNCTIONS_BASE);
+const sb = SETUP_INCOMPLETE ? null : supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
 function rawUrl(path){
   if(!path) return "";
@@ -293,129 +311,66 @@ function setLoading(on, text){
 }
 
 /* ============================================================
-   Auth（GitHub OAuth，跟 Decap CMS 原本用的 postMessage 協定相同）
+   Auth（Supabase email／密碼；後台自己的「使用者管理」分頁寄邀請信）
    ============================================================ */
-let authToken = localStorage.getItem("ip_gh_token") || null;
+let authSession = null;
 
-function login(){
-  return new Promise((resolve, reject) => {
-    const w = 600, h = 700;
-    const left = (screen.width - w) / 2, top = (screen.height - h) / 2;
-    const popup = window.open(AUTH_ENDPOINT, "github-oauth", `width=${w},height=${h},left=${left},top=${top}`);
-    if(!popup){ reject(new Error("彈出視窗被瀏覽器擋掉了，請允許彈出視窗後再試一次")); return; }
-
-    function handshake(e){
-      if(e.data === "authorizing:github"){
-        window.removeEventListener("message", handshake);
-        window.addEventListener("message", onResult);
-        popup.postMessage(e.data, e.origin);
-      }
-    }
-    function onResult(e){
-      if(typeof e.data !== "string") return;
-      if(e.data.indexOf("authorization:github:success:") === 0){
-        window.removeEventListener("message", onResult);
-        try{
-          const body = JSON.parse(e.data.slice("authorization:github:success:".length));
-          resolve(body.token);
-        }catch(err){ reject(err); }
-      } else if(e.data.indexOf("authorization:github:error:") === 0){
-        window.removeEventListener("message", onResult);
-        try{
-          const body = JSON.parse(e.data.slice("authorization:github:error:".length));
-          reject(new Error(body.message || "登入失敗"));
-        }catch(err){ reject(new Error("登入失敗")); }
-      }
-    }
-    window.addEventListener("message", handshake);
+if(sb){
+  sb.auth.onAuthStateChange((_event, session) => {
+    authSession = session;
   });
 }
 
+function isInviteOrRecoveryLink(){
+  return /type=(invite|recovery)/.test(location.hash);
+}
+
+async function callFunction(name, payload){
+  const res = await fetch(`${FUNCTIONS_BASE}/${name}`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "Authorization": "Bearer " + (authSession ? authSession.access_token : ""),
+    },
+    body: JSON.stringify(payload || {}),
+  });
+  let data = {};
+  try{ data = await res.json(); }catch(e){}
+  if(!res.ok) throw new Error(data.error || (res.status + " " + res.statusText));
+  return data;
+}
+
 function logout(){
-  authToken = null;
-  localStorage.removeItem("ip_gh_token");
+  sb.auth.signOut();
+  authSession = null;
   state.user = null;
   render();
 }
 
-async function ghGetUser(){
-  const res = await fetch("https://api.github.com/user", { headers: { "Authorization": "token " + authToken } });
-  if(!res.ok) throw new Error("無法讀取使用者資訊");
-  return res.json();
-}
-
-/* GitHub OAuth 本身不會檢查對方是不是這個 repo 的協作者——因為
-   Internal-Pages 是公開 repo，任何有 GitHub 帳號的人登入後都能讀到
-   內容（只是存檔會被擋下來）。這裡在登入當下就先問一次 GitHub「這個
-   帳號是不是協作者」，不是的話直接擋在外面，不讓對方看到任何案例
-   內容，而不是等存檔失敗才發現。 */
-async function ghCheckCollaborator(login){
-  const res = await fetch(`https://api.github.com/repos/${REPO_OWNER}/${REPO_NAME}/collaborators/${login}`, {
-    headers: { "Authorization": "token " + authToken },
-  });
-  return res.status === 204;
-}
-
 /* ============================================================
-   GitHub API 小工具
+   GitHub 寫入——透過 Netlify function 代為執行（登入的人沒有自己的
+   GitHub 帳號/權限，統一用同一組藏在後端的服務帳號 token）
    ============================================================ */
-async function ghFetch(path, opts, _retried){
-  opts = opts || {};
-  opts.headers = Object.assign({
-    "Authorization": "token " + authToken,
-    "Accept": "application/vnd.github+json",
-  }, opts.headers || {});
-  const res = await fetch(API_BASE + path, opts);
-  if(res.status === 401){
-    logout();
-    throw new Error("登入已失效，請重新登入");
-  }
-  if(!res.ok){
-    let msg = res.status + " " + res.statusText;
-    try{ const j = await res.json(); if(j.message) msg = j.message; }catch(e){}
-    throw new Error(msg);
-  }
-  return res;
-}
-
 function utf8ToBase64(str){
   return btoa(unescape(encodeURIComponent(str)));
 }
 
 async function ghGetFile(path){
-  const res = await ghFetch(`/contents/${path.split("/").map(encodeURIComponent).join("/")}?ref=${REPO_BRANCH}&_=${Date.now()}`);
-  const data = await res.json();
+  const data = await callFunction("github-proxy", { action: "getFile", path });
   const content = decodeURIComponent(escape(atob(data.content.replace(/\n/g, ""))));
   return { sha: data.sha, content, json: JSON.parse(content) };
 }
 
 async function ghListDir(path){
-  try{
-    const res = await ghFetch(`/contents/${path}?ref=${REPO_BRANCH}&_=${Date.now()}`);
-    return res.json();
-  }catch(err){
-    if(String(err.message).indexOf("Not Found") !== -1) return [];
-    throw err;
-  }
+  return callFunction("github-proxy", { action: "listDir", path });
 }
 
 async function ghPutFile(path, base64Content, message, sha){
-  const body = { message, content: base64Content, branch: REPO_BRANCH };
-  if(sha) body.sha = sha;
-  const res = await ghFetch(`/contents/${path.split("/").map(encodeURIComponent).join("/")}`, {
-    method: "PUT",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(body),
-  });
-  return res.json();
+  return callFunction("github-proxy", { action: "putFile", path, content: base64Content, message, sha });
 }
 
 async function ghDeleteFile(path, message, sha){
-  return ghFetch(`/contents/${path.split("/").map(encodeURIComponent).join("/")}`, {
-    method: "DELETE",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ message, sha, branch: REPO_BRANCH }),
-  });
+  return callFunction("github-proxy", { action: "deleteFile", path, message, sha });
 }
 
 function readFileAsBase64(file){
@@ -434,17 +389,10 @@ function sanitizeFilename(name){
 /* 上傳一張照片到指定資料夾（案例照片放 images/<slug>/，主網站案例卡片
    放 images/site/），檔名衝突就自動加時間戳記，回傳最終路徑 */
 async function uploadAsset(file, folder){
-  let name = sanitizeFilename(file.name);
-  const path = `${folder}/${name}`;
+  const filename = sanitizeFilename(file.name);
   const b64 = await readFileAsBase64(file);
-  try{
-    await ghPutFile(path, b64, `Upload ${name} via admin`);
-    return path;
-  }catch(err){
-    const altPath = `${folder}/${Date.now()}-${name}`;
-    await ghPutFile(altPath, b64, `Upload ${name} via admin`);
-    return altPath;
-  }
+  const data = await callFunction("github-proxy", { action: "uploadAsset", folder, filename, content: b64 });
+  return data.path;
 }
 
 /* ============================================================
@@ -469,7 +417,8 @@ function setPath(obj, path, value){
    ============================================================ */
 const state = {
   user: null,
-  tab: "cases", // cases | site
+  users: null, // [{id, email, created_at, last_sign_in_at, invited}]
+  tab: "cases", // cases | site | users
   cases: null, // [{slug, title, ledeMeta, tag, hero}]
   editingCase: null, // { slug, item, sha, isNew, pendingUploads }
   siteMeta: [
@@ -510,7 +459,22 @@ async function loadCaseList(){
 const app = document.getElementById("app");
 
 function render(){
-  if(!authToken || !state.user){
+  if(SETUP_INCOMPLETE){
+    app.innerHTML = `
+      <div class="wrap">
+        <div class="login-screen">
+          <h1>後台尚未設定完成</h1>
+          <p>需要先設定 Supabase 專案跟寫入 GitHub 用的後端服務，請聯絡管理者完成設定。</p>
+        </div>
+      </div>
+    `;
+    return;
+  }
+  if(isInviteOrRecoveryLink()){
+    renderSetPassword();
+    return;
+  }
+  if(!authSession || !state.user){
     renderLogin();
     return;
   }
@@ -524,31 +488,65 @@ function renderLogin(){
     <div class="wrap">
       <div class="login-screen">
         <h1>後台管理</h1>
-        <p>用你的 GitHub 帳號登入，就能新增、編輯案例內容跟主網站的宣言／章節文字。要新增編輯者，去這個 repo 的 GitHub Settings → Collaborators 加對方的帳號即可。</p>
-        <button class="btn primary" id="loginBtn">使用 GitHub 帳號登入</button>
+        <p>用 email 跟密碼登入。要讓新的人可以進來，登入後到「使用者管理」分頁輸入對方 email 發送邀請信即可，不用申請 GitHub 帳號。</p>
+        <input type="email" id="loginEmail" placeholder="email" autocomplete="username">
+        <input type="password" id="loginPassword" placeholder="密碼" autocomplete="current-password">
+        <button class="btn primary" id="loginBtn">登入</button>
       </div>
     </div>
   `;
   document.getElementById("loginBtn").addEventListener("click", async () => {
+    const email = document.getElementById("loginEmail").value.trim();
+    const password = document.getElementById("loginPassword").value;
+    if(!email || !password){ toast("請輸入 email 跟密碼", true); return; }
     try{
       setLoading(true, "登入中…");
-      const token = await login();
-      authToken = token;
-      const user = await ghGetUser();
-      setLoading(true, "確認權限中…");
-      const allowed = await ghCheckCollaborator(user.login);
-      if(!allowed){
-        authToken = null;
-        toast("這個 GitHub 帳號沒有這個後台的編輯權限，請聯絡管理者加入", true);
-        return;
-      }
-      localStorage.setItem("ip_gh_token", token);
-      state.user = user;
+      const { data, error } = await sb.auth.signInWithPassword({ email, password });
+      if(error) throw error;
+      authSession = data.session;
+      state.user = { email: data.user.email };
       setLoading(true, "載入案例清單中…");
       await loadCaseList();
       render();
     }catch(err){
       toast(err.message || "登入失敗", true);
+    }finally{
+      setLoading(false);
+    }
+  });
+}
+
+/* 第一次點邀請信連結、或點了「忘記密碼」連結時，Supabase 會帶著
+   type=invite / type=recovery 的網址跳回這個頁面——不管哪一種都先強制
+   設一次密碼才能繼續，設完就跟一般登入一樣進到後台。 */
+function renderSetPassword(){
+  app.innerHTML = `
+    <div class="wrap">
+      <div class="login-screen">
+        <h1>設定密碼</h1>
+        <p>請先設定密碼，之後就用 email + 這組密碼登入後台。</p>
+        <input type="password" id="newPassword" placeholder="設定密碼（至少 6 個字）" autocomplete="new-password">
+        <button class="btn primary" id="setPasswordBtn">設定密碼並進入後台</button>
+      </div>
+    </div>
+  `;
+  document.getElementById("setPasswordBtn").addEventListener("click", async () => {
+    const password = document.getElementById("newPassword").value;
+    if(!password || password.length < 6){ toast("密碼至少要 6 個字", true); return; }
+    try{
+      setLoading(true, "設定密碼中…");
+      const { data, error } = await sb.auth.updateUser({ password });
+      if(error) throw error;
+      const { data: sessionData } = await sb.auth.getSession();
+      authSession = data.session || sessionData.session;
+      if(!authSession){ toast("設定成功，請重新登入", false); history.replaceState(null, "", location.pathname); render(); return; }
+      history.replaceState(null, "", location.pathname);
+      state.user = { email: authSession.user.email };
+      setLoading(true, "載入案例清單中…");
+      await loadCaseList();
+      render();
+    }catch(err){
+      toast(err.message || "設定密碼失敗", true);
     }finally{
       setLoading(false);
     }
@@ -561,8 +559,7 @@ function renderTopBar(){
       <div class="wrap">
         <div class="site-title">後台管理<a href="../" target="_blank">↗ 查看網站</a></div>
         <div class="user-box">
-          <img src="${esc(state.user.avatar_url)}" alt="">
-          <span>${esc(state.user.login)}</span>
+          <span>${esc(state.user.email)}</span>
           <button class="btn ghost" id="logoutBtn">登出</button>
         </div>
       </div>
@@ -577,6 +574,7 @@ function renderList(){
       <div class="tab-nav">
         <button data-tab="cases" class="${state.tab === "cases" ? "active" : ""}">建築案例</button>
         <button data-tab="site" class="${state.tab === "site" ? "active" : ""}">主網站內容</button>
+        <button data-tab="users" class="${state.tab === "users" ? "active" : ""}">使用者管理</button>
       </div>
       <div id="tabContent"></div>
     </div>
@@ -591,8 +589,83 @@ function renderList(){
 function renderTabContent(){
   const el = document.getElementById("tabContent");
   if(state.tab === "cases"){ el.innerHTML = casesListHtml(); bindListEvents(); return; }
+  if(state.tab === "users"){ el.innerHTML = usersListHtml(); bindUsersEvents(); return; }
   el.innerHTML = siteListHtml();
   bindListEvents();
+}
+
+/* ============================================================
+   使用者管理：後台自己寄邀請信、移除權限，不用去 GitHub 設定
+   Collaborators
+   ============================================================ */
+async function loadUsers(){
+  const data = await callFunction("list-users", {});
+  state.users = data.users;
+}
+
+function usersListHtml(){
+  if(state.users == null) return `<div class="empty-note">載入中…</div>`;
+  return `
+    <div class="field-block">
+      <div class="label">邀請新使用者</div>
+      <div style="display:flex;gap:10px;max-width:420px">
+        <input type="email" id="inviteEmail" placeholder="email" style="flex:1">
+        <button class="btn primary" id="inviteBtn">發送邀請</button>
+      </div>
+      <div class="field-hint">對方會收到一封邀請信，點連結設定密碼後就能登入這個後台。</div>
+    </div>
+    <div class="field-block">
+      <div class="label">目前有權限的人</div>
+      ${state.users.length === 0 ? `<div class="empty-note">目前沒有使用者</div>` : `
+        <div class="photo-layout-groups">
+          ${state.users.map((u) => `
+            <div class="photo-layout-row">
+              <span>${esc(u.email)}</span>
+              ${u.invited ? `<span class="field-hint" style="margin:0">（尚未接受邀請）</span>` : ""}
+              <button type="button" class="row-remove-btn" data-remove-user="${esc(u.id)}" title="移除">×</button>
+            </div>
+          `).join("")}
+        </div>
+      `}
+    </div>
+  `;
+}
+
+function bindUsersEvents(){
+  if(state.users == null){
+    loadUsers().then(renderTabContent).catch((err) => toast(err.message || "載入使用者失敗", true));
+    return;
+  }
+  document.getElementById("inviteBtn").addEventListener("click", async () => {
+    const email = document.getElementById("inviteEmail").value.trim();
+    if(!email){ toast("請輸入 email", true); return; }
+    try{
+      setLoading(true, "發送邀請中…");
+      await callFunction("invite-user", { email });
+      toast("邀請信已發送");
+      state.users = null;
+      renderTabContent();
+    }catch(err){
+      toast(err.message || "發送邀請失敗", true);
+    }finally{
+      setLoading(false);
+    }
+  });
+  app.querySelectorAll("[data-remove-user]").forEach((btn) => {
+    btn.addEventListener("click", async () => {
+      if(!confirm("確定要移除這個使用者的權限嗎？")) return;
+      try{
+        setLoading(true, "移除中…");
+        await callFunction("remove-user", { userId: btn.dataset.removeUser });
+        state.users = null;
+        renderTabContent();
+      }catch(err){
+        toast(err.message || "移除失敗", true);
+      }finally{
+        setLoading(false);
+      }
+    });
+  });
 }
 
 function addCardHtml(label){
@@ -1756,17 +1829,21 @@ async function saveSiteEditor(ed){
    啟動
    ============================================================ */
 (async function init(){
-  if(authToken){
+  if(SETUP_INCOMPLETE){ render(); return; }
+
+  // 帶著邀請信/忘記密碼連結進來時，Supabase 用網址 hash 帶 token，
+  // 客戶端套件會自動讀取並建立好 session——這裡先確認一次再繼續，
+  // render() 裡的 isInviteOrRecoveryLink() 判斷會決定要不要先強制設密碼。
+  const { data } = await sb.auth.getSession();
+  authSession = data.session;
+
+  if(authSession && !isInviteOrRecoveryLink()){
     try{
       setLoading(true, "載入中…");
-      const user = await ghGetUser();
-      const allowed = await ghCheckCollaborator(user.login);
-      if(!allowed) throw new Error("沒有權限");
-      state.user = user;
+      state.user = { email: authSession.user.email };
       await loadCaseList();
     }catch(err){
-      authToken = null;
-      localStorage.removeItem("ip_gh_token");
+      toast(err.message || "載入失敗", true);
     }finally{
       setLoading(false);
     }
