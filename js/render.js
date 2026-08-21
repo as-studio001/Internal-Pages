@@ -548,6 +548,14 @@
       .cms-editable-text:focus{ outline:2px solid #4d8dff; background:rgba(90,150,255,0.16); }
       .cms-editable-photo{ cursor:pointer; transition:filter .15s ease, outline-color .15s ease; outline:2px dashed rgba(90,150,255,0.4); outline-offset:-2px; }
       .cms-editable-photo:hover{ filter:brightness(0.72); outline-color:rgba(90,150,255,0.85); }
+      /* 空白的灰底佔位圖（還沒有照片）光靠虛線框不夠明顯，容易讓人
+         看不出來這塊是可以點的——直接疊字說明「點擊上傳照片」。 */
+      .ph.cms-editable-photo::after{
+        content:"點擊上傳照片"; position:absolute; inset:0; display:flex;
+        align-items:center; justify-content:center; text-align:center;
+        font-size:13px; font-weight:600; color:rgba(20,20,20,0.55);
+        background:rgba(255,255,255,0.15); pointer-events:none;
+      }
       .cms-add-btn{
         display:inline-block; margin:16px 8px 16px 0; padding:10px 18px; border-radius:6px;
         border:1.5px dashed rgba(90,150,255,0.6); background:rgba(90,150,255,0.08); color:#4d8dff;
