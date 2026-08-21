@@ -295,7 +295,7 @@
   // 視覺語言，不是排列錯誤。
   //
   // 桌面版完全不受影響：維持原本單排、依實際比例 flex-wrap 排列。
-  function renderThumbGroup(container, items, cellClass, onCellReady) {
+  function renderThumbGroup(container, items, cellClass, onCellReady, groupMeta) {
     container.innerHTML = "";
     if (!items.length) return;
 
@@ -303,7 +303,23 @@
       const cell = document.createElement("div");
       cell.className = cellClass;
       onCellReady(cell, item, i);
-      cell.addEventListener("click", () => openLightbox(items, i));
+      // 後台編輯模式下，點縮圖是「換照片」，不是開燈箱——兩件事互斥，
+      // 用同一顆縮圖做哪一個由 EDITABLE 決定，不會兩個行為疊在一起。
+      if (EDITABLE && groupMeta) {
+        cell.classList.add("cms-editable-photo");
+        cell.title = "點擊更換照片";
+        cell.addEventListener("click", (e) => {
+          e.preventDefault();
+          postCmsEdit({
+            field: "step-photo-replace",
+            kind: groupMeta.kind,
+            stepIndex: groupMeta.stepIndex,
+            photoIndex: i,
+          });
+        });
+      } else {
+        cell.addEventListener("click", () => openLightbox(items, i));
+      }
       return cell;
     };
 
@@ -329,11 +345,11 @@
     container.appendChild(masonry);
   }
 
-  function renderSteps(rootSelector, steps) {
+  function renderSteps(rootSelector, steps, kind) {
     const root = $(rootSelector);
     root.innerHTML = "";
     let thumbIdx = 0;
-    (steps || []).forEach((step) => {
+    (steps || []).forEach((step, stepIndex) => {
       const stepEl = document.createElement("div");
       stepEl.className = "process-step";
 
@@ -341,6 +357,8 @@
         const p = document.createElement("p");
         p.className = "process-step__text";
         p.textContent = step.body;
+        p.dataset.stepKind = kind;
+        p.dataset.stepIndex = String(stepIndex);
         stepEl.appendChild(p);
       }
 
@@ -352,7 +370,7 @@
             cell.style.aspectRatio = item.ratio || THUMB_RATIOS[thumbIdx++ % THUMB_RATIOS.length];
           }
           cell.appendChild(buildImage(item));
-        });
+        }, { kind, stepIndex });
         stepEl.appendChild(row);
       }
 
@@ -361,11 +379,11 @@
   }
 
   function renderResearch() {
-    renderSteps("#research-steps", PROJECT.designResearch);
+    renderSteps("#research-steps", PROJECT.designResearch, "designResearch");
   }
 
   function renderProcess() {
-    renderSteps("#process-steps", PROJECT.process);
+    renderSteps("#process-steps", PROJECT.process, "process");
   }
 
   // 圖面（平面圖／剖面圖／立面圖等技術圖說）獨立收納一區，跟施工過程的
@@ -376,7 +394,7 @@
     renderThumbGroup(root, drawings, "drawing-cell", (cell, item) => {
       if (!item.src) cell.style.aspectRatio = item.ratio || 4 / 3;
       cell.appendChild(buildImage(item));
-    });
+    }, { kind: "drawings" });
   }
 
   // 燈箱一次記住「目前這組照片」跟「目前是第幾張」，上一張／下一張
@@ -541,6 +559,14 @@
 
     $$("#content [data-photo-index]").forEach((img) => {
       makePhotoClickable(img, () => postCmsEdit({ field: "photo-replace", index: Number(img.dataset.photoIndex) }));
+    });
+
+    // 設計研究／施工過程的每一段文字說明；縮圖（含圖面）的點擊換照片
+    // 行為已經在 renderThumbGroup 裡依 EDITABLE 直接處理，這裡不用重複做
+    $$("[data-step-kind]").forEach((p) => {
+      makeTextEditable(p, (val) =>
+        postCmsEdit({ field: "step-body", kind: p.dataset.stepKind, stepIndex: Number(p.dataset.stepIndex), value: val })
+      );
     });
   }
 

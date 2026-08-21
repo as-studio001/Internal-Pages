@@ -935,7 +935,7 @@ function caseEditorHtml(ed){
       <div class="field-block">
         <div class="label">案例內容（直接在下面點文字修改文字、點照片更換照片，跟真正的網站看起來一樣）</div>
         <iframe id="caseLivePreview" src="../index.html?preview=1" style="width:100%;height:82vh;min-height:640px;border:1px solid var(--line);border-radius:8px;background:#0a0a0a;"></iframe>
-        <div class="field-hint">主視覺、案名、副標、內文段落文字、內文照片都可以直接在上面點擊修改。新增／刪除段落或照片，請用下面「內文段落」「內文照片」的清單。</div>
+        <div class="field-hint">主視覺、案名、副標、內文段落文字、內文照片，以及往下捲動看到的設計研究／施工過程文字說明、圖面，都可以直接在上面點擊修改。新增／刪除段落或照片，請用下面對應的清單。</div>
       </div>
 
       <div class="field-block">
@@ -1042,6 +1042,12 @@ function resolveCaseForPreview(item, pendingUploads){
   const resolve = (v) => (pendingUploads[v] ? pendingUploads[v].previewUrl : v);
   clone.hero = resolve(clone.hero);
   (clone.photos || []).forEach((p) => { p.src = resolve(p.src); });
+  (clone.drawings || []).forEach((p) => { p.src = resolve(p.src); });
+  ["designResearch", "process"].forEach((kind) => {
+    (clone[kind] || []).forEach((step) => {
+      (step.photos || []).forEach((p) => { p.src = resolve(p.src); });
+    });
+  });
   return clone;
 }
 
@@ -1077,6 +1083,22 @@ function handleCaseEdit(ed, data){
       const key = "PENDING::" + uid();
       ed.pendingUploads[key] = { file, previewUrl: URL.createObjectURL(file) };
       ed.item.photos[data.index].src = key;
+      postCaseProjectToIframe(ed);
+    });
+    return;
+  }
+  if(data.field === "step-body"){
+    ed.item[data.kind][data.stepIndex].body = data.value;
+    const ta = app.querySelector(`[data-path="${data.kind}.${data.stepIndex}.body"]`);
+    if(ta) ta.value = data.value;
+    return;
+  }
+  if(data.field === "step-photo-replace"){
+    pickImageFile((file) => {
+      const key = "PENDING::" + uid();
+      ed.pendingUploads[key] = { file, previewUrl: URL.createObjectURL(file) };
+      if(data.kind === "drawings") ed.item.drawings[data.photoIndex].src = key;
+      else ed.item[data.kind][data.stepIndex].photos[data.photoIndex].src = key;
       postCaseProjectToIframe(ed);
     });
     return;
