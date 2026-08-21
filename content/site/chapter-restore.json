@@ -46,6 +46,13 @@
         "ja": "原型構造事務所",
         "ko": "원형구조사무소"
       }
+    },
+    {
+      "image": "https://as-studio001.github.io/Internal-Pages/images/test/IMG_6582.jpg",
+      "href": "https://as-studio001.github.io/Internal-Pages/?case=test",
+      "label": {
+        "zh-Hant": "test"
+      }
     }
   ],
   "heroPhoto": "https://as-studio001.github.io/Internal-Pages/images/site/chapter01.jpg",
