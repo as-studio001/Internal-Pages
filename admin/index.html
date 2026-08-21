@@ -258,6 +258,13 @@ input,textarea,select{ font-family:inherit; font-size:14px; }
 /* ============================================================
    設定
    ============================================================ */
+// 一定要在 supabase.createClient() 之前就先讀走網址上的 type=invite／
+// type=recovery——supabase-js 自己也會偵測同一段網址 hash 來建立
+// session，而且建立好之後會把 hash 清掉，如果我們自己判斷「這是不是
+// 邀請信連結」的邏輯是等 createClient 呼叫完才去讀 location.hash，常常
+// 會讀到已經被清空的網址，導致邀請信點進來直接跳過設密碼、直接登入。
+const AUTH_LINK_TYPE = (/type=(invite|recovery)/.exec(location.hash) || [])[1] || null;
+
 const REPO_OWNER = "as-studio001";
 const REPO_NAME = "Internal-Pages";
 const REPO_BRANCH = "main";
@@ -322,7 +329,7 @@ if(sb){
 }
 
 function isInviteOrRecoveryLink(){
-  return /type=(invite|recovery)/.test(location.hash);
+  return !!AUTH_LINK_TYPE;
 }
 
 async function callFunction(name, payload){
@@ -492,9 +499,24 @@ function renderLogin(){
         <input type="email" id="loginEmail" placeholder="email" autocomplete="username">
         <input type="password" id="loginPassword" placeholder="密碼" autocomplete="current-password">
         <button class="btn primary" id="loginBtn">登入</button>
+        <button type="button" class="back-link" id="forgotPasswordBtn">忘記密碼？</button>
       </div>
     </div>
   `;
+  document.getElementById("forgotPasswordBtn").addEventListener("click", async () => {
+    const email = document.getElementById("loginEmail").value.trim();
+    if(!email){ toast("請先在上面填 email，再點忘記密碼", true); return; }
+    try{
+      setLoading(true, "寄送重設密碼信中…");
+      const { error } = await sb.auth.resetPasswordForEmail(email, { redirectTo: location.origin + location.pathname });
+      if(error) throw error;
+      toast("重設密碼信已寄出，請到信箱點連結設定新密碼");
+    }catch(err){
+      toast(err.message || "寄送失敗", true);
+    }finally{
+      setLoading(false);
+    }
+  });
   document.getElementById("loginBtn").addEventListener("click", async () => {
     const email = document.getElementById("loginEmail").value.trim();
     const password = document.getElementById("loginPassword").value;
