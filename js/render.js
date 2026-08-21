@@ -535,10 +535,18 @@
     const style = document.createElement("style");
     style.id = "cms-editable-styles";
     style.textContent = `
-      .cms-editable-text{ outline:2px dashed transparent; outline-offset:2px; border-radius:2px; transition:outline-color .15s ease; cursor:text; }
-      .cms-editable-text:hover{ outline-color:rgba(90,150,255,0.55); }
-      .cms-editable-text:focus{ outline:2px solid #4d8dff; }
-      .cms-editable-photo{ cursor:pointer; transition:filter .15s ease, outline-color .15s ease; outline:2px dashed transparent; outline-offset:-2px; }
+      /* 文字框隨時（不用等 hover）就用淺藍色虛線框＋淡藍底標出「這裡可以
+         點下去打字」，不用 hover 也看得出來；hover／focus 時加深顏色，
+         正在打字時邊框變實線更明顯。（不用浮動標籤文字——怕在頁面最上面
+         的標題那種位置會被頭部裁到，純用邊框＋底色比較不會有位置風險）*/
+      .cms-editable-text{
+        outline:1.5px dashed rgba(90,150,255,0.5); outline-offset:4px;
+        background:rgba(90,150,255,0.06); border-radius:2px; cursor:text;
+        transition:outline-color .15s ease, background-color .15s ease;
+      }
+      .cms-editable-text:hover{ outline-color:rgba(90,150,255,0.85); background:rgba(90,150,255,0.12); }
+      .cms-editable-text:focus{ outline:2px solid #4d8dff; background:rgba(90,150,255,0.16); }
+      .cms-editable-photo{ cursor:pointer; transition:filter .15s ease, outline-color .15s ease; outline:2px dashed rgba(90,150,255,0.4); outline-offset:-2px; }
       .cms-editable-photo:hover{ filter:brightness(0.72); outline-color:rgba(90,150,255,0.85); }
       .cms-add-btn{
         display:inline-block; margin:16px 8px 16px 0; padding:10px 18px; border-radius:6px;
