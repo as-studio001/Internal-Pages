@@ -540,8 +540,30 @@
       .cms-editable-text:focus{ outline:2px solid #4d8dff; }
       .cms-editable-photo{ cursor:pointer; transition:filter .15s ease, outline-color .15s ease; outline:2px dashed transparent; outline-offset:-2px; }
       .cms-editable-photo:hover{ filter:brightness(0.72); outline-color:rgba(90,150,255,0.85); }
+      .cms-add-btn{
+        display:inline-block; margin:16px 8px 16px 0; padding:10px 18px; border-radius:6px;
+        border:1.5px dashed rgba(90,150,255,0.6); background:rgba(90,150,255,0.08); color:#4d8dff;
+        font-size:13px; font-weight:600; cursor:pointer; font-family:inherit;
+      }
+      .cms-add-btn:hover{ background:rgba(90,150,255,0.18); }
     `;
     document.head.appendChild(style);
+  }
+
+  // 「新增」類的按鈕（新增段落、新增照片、新增圖面…）——這些是全新內容，
+  // 沒有既有元素可以點，所以在對應區塊最後面直接放一顆按鈕，點下去就
+  // 跟後台編輯畫面下方清單的「新增」按鈕做一樣的事：選檔案／插入空白
+  // 段落，讓「從零開始新增一個案例」也能完全在這個即時預覽裡完成。
+  function makeAddButton(label, onClick) {
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = "cms-add-btn";
+    btn.textContent = "+ " + label;
+    btn.addEventListener("click", (e) => {
+      e.preventDefault();
+      onClick();
+    });
+    return btn;
   }
 
   function enableEditing() {
@@ -568,6 +590,27 @@
         postCmsEdit({ field: "step-body", kind: p.dataset.stepKind, stepIndex: Number(p.dataset.stepIndex), value: val })
       );
     });
+
+    // 「新增」按鈕：讓全新案例（內文段落、照片、設計研究／施工過程、
+    // 圖面都還是空的）也能整個從這個即時預覽直接開始建立內容，不用
+    // 先跑去下面的清單新增第一筆之後才看得到東西可以點。
+    const contentRoot = $("#content");
+    if (contentRoot) {
+      contentRoot.appendChild(makeAddButton("新增段落", () => postCmsEdit({ field: "paragraph-add" })));
+      contentRoot.appendChild(makeAddButton("新增照片", () => postCmsEdit({ field: "photo-add" })));
+    }
+    const researchRoot = $("#research-steps");
+    if (researchRoot) {
+      researchRoot.appendChild(makeAddButton("新增一段設計研究", () => postCmsEdit({ field: "step-add", kind: "designResearch" })));
+    }
+    const processRoot = $("#process-steps");
+    if (processRoot) {
+      processRoot.appendChild(makeAddButton("新增一段施工過程", () => postCmsEdit({ field: "step-add", kind: "process" })));
+    }
+    const drawingsRoot = $("#drawings-grid");
+    if (drawingsRoot) {
+      drawingsRoot.appendChild(makeAddButton("新增圖面", () => postCmsEdit({ field: "drawing-add" })));
+    }
   }
 
   async function loadCase(slug) {
