@@ -179,13 +179,13 @@ input,textarea,select{ font-family:inherit; font-size:14px; }
 .case-card-editor-head{ display:flex; justify-content:space-between; align-items:center; margin-bottom:12px; }
 
 .empty-note{ color:var(--muted); font-size:13px; font-style:italic; }
-.invite-row{ display:flex; gap:10px; margin-bottom:24px; max-width:420px; }
-.invite-row input{ flex:1; padding:9px 12px; border:1px solid var(--line); border-radius:5px; }
-.user-list{ border:1px solid var(--line); border-radius:8px; overflow:hidden; background:#fff; }
-.user-row{ display:flex; align-items:center; justify-content:space-between; padding:12px 16px; border-bottom:1px solid var(--line); }
-.user-row:last-child{ border-bottom:none; }
-.user-row .email{ font-size:14px; }
-.user-row .status{ font-size:12px; color:var(--muted); margin-left:8px; }
+.chapter-picker{ display:flex; flex-wrap:wrap; gap:10px; }
+.chapter-picker label{
+  display:flex; align-items:center; gap:8px; padding:8px 14px; border:1px solid var(--line);
+  border-radius:20px; font-size:13.5px; background:#fff; cursor:pointer;
+}
+.chapter-picker label:has(input:checked){ border-color:var(--ink); background:rgba(32,31,29,0.05); font-weight:600; }
+.chapter-picker input{ margin:0; }
 
 .save-bar{
   position:sticky; bottom:0; margin-top:32px; padding:16px 0; background:var(--paper);
@@ -454,6 +454,14 @@ const state = {
   ],
   editingSite: null, // { meta, item, sha, pendingUploads }
 };
+
+// 只有這三個章節的案例卡片是簡單的「照片＋連結＋標題」格式，可以自動
+// 產生；原型展覽的卡片有相簿彈窗效果，結構不同，不開放自動加入。
+const CASE_CARD_CHAPTERS = [
+  { name: "chapter-restore", label: "原型修復", file: "content/site/chapter-restore.json" },
+  { name: "chapter-detail", label: "原型細部", file: "content/site/chapter-detail.json" },
+  { name: "chapter-digital", label: "原型數位", file: "content/site/chapter-digital.json" },
+];
 
 async function loadCaseList(){
   const entries = await ghListDir("content/projects");
@@ -926,6 +934,19 @@ function caseEditorHtml(ed){
       </div>
 
       <div class="field-block">
+        <div class="label">顯示在主網站章節（選填）</div>
+        <div class="chapter-picker">
+          ${CASE_CARD_CHAPTERS.map((ch) => `
+            <label>
+              <input type="checkbox" data-add-to-chapter="${ch.name}">
+              ${ch.label}
+            </label>
+          `).join("")}
+        </div>
+        <div class="field-hint">勾選後，存檔時會自動把這個案例（用主視覺大圖、案名、這個案例的網址）加進該章節主網站上的案例卡片列表，不用再另外去「主網站內容」手動加</div>
+      </div>
+
+      <div class="field-block">
         <div class="label">內文段落</div>
         <textarea id="paragraphsText" style="min-height:320px">${esc((c.paragraphs || []).join("\n\n"))}</textarea>
         <div class="field-hint">直接打字就好，一整段連續打，段落之間空一行即可——存檔時會自動依空行拆成段落，跟下面的內文照片自動交錯排版</div>
@@ -1021,11 +1042,27 @@ async function saveCaseEditor(ed){
   ed.item.slug = slug;
   if(!ed.item.title){ toast("請至少填寫案名", true); return; }
 
+  const selectedChapters = Array.from(app.querySelectorAll("[data-add-to-chapter]:checked")).map((el) => el.dataset.addToChapter);
+
   try{
     setLoading(true, "儲存中…");
     await flushPendingUploads(ed, `images/${slug}`);
     const json = JSON.stringify(ed.item, null, 2) + "\n";
     await ghPutFile(`content/projects/${slug}.json`, utf8ToBase64(json), `Update case ${slug} via admin`, ed.sha);
+
+    if(selectedChapters.length){
+      setLoading(true, "加入主網站章節中…");
+      const card = {
+        image: `https://as-studio001.github.io/Internal-Pages/${ed.item.hero}`,
+        href: `https://as-studio001.github.io/Internal-Pages/?case=${slug}`,
+        label: { "zh-Hant": ed.item.title },
+      };
+      for(const chName of selectedChapters){
+        const meta = CASE_CARD_CHAPTERS.find((c) => c.name === chName);
+        if(meta) await addCaseCardToChapter(meta, card);
+      }
+    }
+
     toast("已發布，網站幾分鐘內會更新");
     setLoading(true, "重新載入清單中…");
     await loadCaseList();
@@ -1035,6 +1072,17 @@ async function saveCaseEditor(ed){
   }finally{
     setLoading(false);
   }
+}
+
+/* 把一張案例卡片加進某個章節的 cases 清單（存在相同連結就跳過，避免
+   重複存檔時一直疊加同一張卡片） */
+async function addCaseCardToChapter(meta, card){
+  const { json, sha } = await ghGetFile(meta.file);
+  json.cases = json.cases || [];
+  if(json.cases.some((c) => c.href === card.href)) return;
+  json.cases.push(card);
+  const body = JSON.stringify(json, null, 2) + "\n";
+  await ghPutFile(meta.file, utf8ToBase64(body), `Add case card via admin`, sha);
 }
 
 async function deleteCurrentCase(){
