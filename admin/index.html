@@ -944,10 +944,10 @@ function bindStepsFor(ed, basePath, containerId, folder){
 }
 
 const CASE_PREVIEW_BLOCKS = [
-  { key: "hero", scrollTo: "#hero-tag" },
-  { key: "content", scrollTo: "#content" },
-  { key: "detail", scrollTo: ".detail-section" },
-  { key: "map", scrollTo: ".map-full" },
+  { key: "hero" },
+  { key: "content" },
+  { key: "detail" },
+  { key: "map" },
 ];
 
 function caseEditorHtml(ed){
@@ -1095,12 +1095,24 @@ window.addEventListener("message", (e) => {
       ed.pendingAutoLayoutRequest = false;
       contentFrame.contentWindow.postMessage({ type: "cms-compute-auto-layout" }, "*");
     }
-    // 每個分區各自的 iframe 只在自己第一次重畫完之後捲到自己負責的區塊
+    // 每個分區各自的 iframe 只在自己第一次重畫完之後把不相關的部分藏起來
+    // （之後的重畫不用再藏一次，藏起來的狀態本來就會一直維持著）
     CASE_PREVIEW_BLOCKS.forEach((block) => {
       const frame = document.getElementById("preview_" + block.key);
-      if(frame && e.source === frame.contentWindow && !ed._previewScrolled[block.key]){
-        ed._previewScrolled[block.key] = true;
-        frame.contentWindow.postMessage({ type: "cms-scroll-to", selector: block.scrollTo }, "*");
+      if(frame && e.source === frame.contentWindow && !ed._previewFocused[block.key]){
+        ed._previewFocused[block.key] = true;
+        frame.contentWindow.postMessage({ type: "cms-focus-section", key: block.key }, "*");
+      }
+    });
+    return;
+  }
+  if(e.data.type === "cms-content-height"){
+    // 裁切完之後把 iframe 的框高貼著剩下的內容調整，不要留一大截空白，
+    // 之後內容變動（多打一段文字之類）也會再收到一次、跟著重新調整
+    CASE_PREVIEW_BLOCKS.forEach((block) => {
+      const frame = document.getElementById("preview_" + block.key);
+      if(frame && e.source === frame.contentWindow){
+        frame.style.height = Math.max(120, e.data.height) + "px";
       }
     });
     return;
@@ -1357,8 +1369,9 @@ function renderCaseEditor(){
   // iframe 自己第一次」渲染完後捲到自己負責的區塊——不用使用者自己找，
   // 之後使用者在裡面手動滾動看別的部分也不會被強制拉回去。
   // 每次整頁重畫（開啟編輯器、或新增段落/照片這類會整個重畫的操作）都是
-  //全新的 4 個 iframe，捲到定位的狀態要重置，不然新 iframe 永遠不會捲
-  ed._previewScrolled = {};
+  // 全新的 4 個 iframe，「已經裁切過」的狀態要重置，不然新 iframe 永遠
+  // 不會裁切、會整頁露出來
+  ed._previewFocused = {};
   CASE_PREVIEW_BLOCKS.forEach((block) => {
     const frame = document.getElementById("preview_" + block.key);
     if(!frame) return;

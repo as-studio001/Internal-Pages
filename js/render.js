@@ -712,6 +712,40 @@
     $("#lede-meta").textContent = "";
   }
 
+  // 後台四個分區各自的 iframe 只需要顯示自己那一塊：把最上面共用的導覽列
+  // （漢堡選單／語言切換，不是這裡在編輯的東西）跟 <main> 裡其他不相關的
+  // 區塊都藏起來，讓每個 iframe 看起來就是「只截了需要編輯的那部分」，
+  // 而不是整個網頁只是捲到某個位置、旁邊還露出一截別的區塊。
+  const FOCUS_SELECTORS = {
+    hero: [".page-head", ".hero-photo"],
+    content: ["#content"],
+    detail: [".detail-section"],
+    map: [".map-full"],
+  };
+
+  let focused = false;
+
+  function focusSection(key) {
+    const header = document.querySelector(".site-header");
+    if (header) header.style.display = "none";
+    const keep = FOCUS_SELECTORS[key] || [];
+    $$("main > *").forEach((el) => {
+      el.style.display = keep.some((sel) => el.matches(sel)) ? "" : "none";
+    });
+    window.scrollTo(0, 0);
+    focused = true;
+    reportContentHeight();
+  }
+
+  // 裁切之後，iframe 的外框高度也要跟著只剩下的那一小塊內容調整，不然
+  // 後台那邊還是留著一個很高的框、裡面卻只有一小塊東西、大半是空白。
+  // 之後每次編輯內容變動（例如多打一段文字）高度也可能跟著變，所以
+  // 每次重畫完都回報一次，讓後台把 iframe 高度貼著內容調整。
+  function reportContentHeight() {
+    if (!focused || !window.parent) return;
+    window.parent.postMessage({ type: "cms-content-height", height: document.documentElement.scrollHeight }, "*");
+  }
+
   // CMS 即時預覽模式：網址帶 ?preview=1 時，不去抓 JSON 檔案，改成監聽
   // 後台編輯畫面用 postMessage 送過來的即時內容，每次編輯都重新渲染，
   // 讓後台看到的預覽跟真正上線後的頁面完全一致（同一套 render.js/CSS）。
@@ -733,14 +767,15 @@
         // 後才回報 cms-rendered，讓後台知道現在可以來要一份自動排版。
         renderAll(e.data.project).then(() => {
           if (window.parent) window.parent.postMessage({ type: "cms-rendered" }, "*");
+          reportContentHeight();
         });
         return;
       }
-      // 後台的分區頁籤（標題／大圖／內容／More in Detail／位置）點下去時，
-      // 讓同一份預覽自動捲到對應區塊，不用使用者自己在長頁面裡找位置。
-      if (e.data.type === "cms-scroll-to") {
-        const el = document.querySelector(e.data.selector);
-        if (el) el.scrollIntoView({ behavior: "smooth", block: "start" });
+      // 後台一個分區一個 iframe，每個只需要顯示自己負責的那一塊——把頁首
+      // 導覽列跟其他不相關的區塊都藏起來，不要整頁都在，只留使用者真正
+      // 要編輯的部分。
+      if (e.data.type === "cms-focus-section") {
+        focusSection(e.data.key);
         return;
       }
       // 後台「照片排版」還沒產生過（或已失效）時，來要一份自動排版當
