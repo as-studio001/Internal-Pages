@@ -653,10 +653,29 @@ function blankCase(){
 }
 
 function openCaseEditor(item, sha, isNew){
-  state.editingCase = { item, sha, isNew, pendingUploads: {} };
+  state.editingCase = { item, sha, isNew, pendingUploads: {}, linkedChapters: [] };
   render();
+  if(!isNew && item.slug) loadLinkedChapters(item.slug);
 }
 function closeCaseEditor(){ state.editingCase = null; render(); }
+
+/* 打開一個既有案例時，順便去問三個章節的 JSON 裡有沒有已經連結這個
+   案例的卡片，讓「顯示在主網站章節」的勾選框正確反映現況（而不是每次
+   打開都預設全部沒勾），這樣移除章節連結也可以直接在這裡做 */
+async function loadLinkedChapters(slug){
+  const href = `https://as-studio001.github.io/Internal-Pages/?case=${slug}`;
+  const found = [];
+  for(const meta of CASE_CARD_CHAPTERS){
+    try{
+      const { json } = await ghGetFile(meta.file);
+      if((json.cases || []).some((c) => c.href === href)) found.push(meta.name);
+    }catch(e){ /* 忽略單一章節讀取失敗，不擋住整個編輯畫面 */ }
+  }
+  if(state.editingCase && state.editingCase.item.slug === slug){
+    state.editingCase.linkedChapters = found;
+    if(!state.editingCase.isNew) rerenderCurrentEditor();
+  }
+}
 
 function openSiteEditor(meta, item, sha){
   state.editingSite = { meta, item, sha, pendingUploads: {} };
@@ -938,7 +957,7 @@ function caseEditorHtml(ed){
         <div class="chapter-picker">
           ${CASE_CARD_CHAPTERS.map((ch) => `
             <label>
-              <input type="checkbox" data-add-to-chapter="${ch.name}">
+              <input type="checkbox" data-add-to-chapter="${ch.name}" ${(ed.linkedChapters || []).includes(ch.name) ? "checked" : ""}>
               ${ch.label}
             </label>
           `).join("")}
@@ -1043,6 +1062,9 @@ async function saveCaseEditor(ed){
   if(!ed.item.title){ toast("請至少填寫案名", true); return; }
 
   const selectedChapters = Array.from(app.querySelectorAll("[data-add-to-chapter]:checked")).map((el) => el.dataset.addToChapter);
+  const originalChapters = ed.linkedChapters || [];
+  const toAdd = selectedChapters.filter((c) => !originalChapters.includes(c));
+  const toRemove = originalChapters.filter((c) => !selectedChapters.includes(c));
 
   try{
     setLoading(true, "儲存中…");
@@ -1050,16 +1072,21 @@ async function saveCaseEditor(ed){
     const json = JSON.stringify(ed.item, null, 2) + "\n";
     await ghPutFile(`content/projects/${slug}.json`, utf8ToBase64(json), `Update case ${slug} via admin`, ed.sha);
 
-    if(selectedChapters.length){
-      setLoading(true, "加入主網站章節中…");
+    if(toAdd.length || toRemove.length){
+      setLoading(true, "同步主網站章節中…");
+      const href = `https://as-studio001.github.io/Internal-Pages/?case=${slug}`;
       const card = {
         image: `https://as-studio001.github.io/Internal-Pages/${ed.item.hero}`,
-        href: `https://as-studio001.github.io/Internal-Pages/?case=${slug}`,
+        href,
         label: { "zh-Hant": ed.item.title },
       };
-      for(const chName of selectedChapters){
+      for(const chName of toAdd){
         const meta = CASE_CARD_CHAPTERS.find((c) => c.name === chName);
         if(meta) await addCaseCardToChapter(meta, card);
+      }
+      for(const chName of toRemove){
+        const meta = CASE_CARD_CHAPTERS.find((c) => c.name === chName);
+        if(meta) await removeCaseCardFromChapter(meta, href);
       }
     }
 
@@ -1083,6 +1110,19 @@ async function addCaseCardToChapter(meta, card){
   json.cases.push(card);
   const body = JSON.stringify(json, null, 2) + "\n";
   await ghPutFile(meta.file, utf8ToBase64(body), `Add case card via admin`, sha);
+}
+
+/* 取消勾選某個章節時，把對應的卡片從那個章節移除——這樣「顯示在主網站
+   章節」這排勾選框就是雙向的：勾上會加、取消勾選會移除，不用再跑去
+   「主網站內容」手動刪 */
+async function removeCaseCardFromChapter(meta, href){
+  const { json, sha } = await ghGetFile(meta.file);
+  const cases = json.cases || [];
+  const next = cases.filter((c) => c.href !== href);
+  if(next.length === cases.length) return;
+  json.cases = next;
+  const body = JSON.stringify(json, null, 2) + "\n";
+  await ghPutFile(meta.file, utf8ToBase64(body), `Remove case card via admin`, sha);
 }
 
 async function deleteCurrentCase(){
