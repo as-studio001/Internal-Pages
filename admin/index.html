@@ -925,26 +925,17 @@ function caseEditorHtml(ed){
         ${!ed.isNew ? `<button class="btn danger" id="deleteBtn">刪除這個案例</button>` : ""}
       </div>
 
-      <div class="field-block">
-        <label>網址代號（slug）</label>
-        <input type="text" id="f_slug" value="${esc(c.slug)}" placeholder="例如：laogu-fang" ${ed.isNew ? "" : "disabled"}>
-        <div class="field-hint">只能用英文小寫、數字、連字號，建立後不要再更改，否則舊連結會失效。</div>
-      </div>
+      ${!ed.isNew ? `
+        <div class="field-block">
+          <label>網址代號（系統自動產生，不能更改）</label>
+          <input type="text" id="f_slug" value="${esc(c.slug)}" disabled>
+        </div>
+      ` : ""}
 
       <div class="field-block">
-        <div class="label">主視覺大圖</div>
-        ${coverDropHtml("hero", resolveSrc(ed.pendingUploads, c.hero))}
-      </div>
-
-      <div class="field-block two-col">
-        <div>
-          <label>案名</label>
-          <input type="text" data-path="title" value="${esc(c.title)}">
-        </div>
-        <div>
-          <label>副標（地點／年份／類型）</label>
-          <input type="text" data-path="ledeMeta" value="${esc(c.ledeMeta)}" placeholder="台南市 / 台灣 / 2025 / 展覽空間">
-        </div>
+        <div class="label">案例內容（直接在下面點文字修改文字、點照片更換照片，跟真正的網站看起來一樣）</div>
+        <iframe id="caseLivePreview" src="../index.html?preview=1" style="width:100%;height:82vh;min-height:640px;border:1px solid var(--line);border-radius:8px;background:#0a0a0a;"></iframe>
+        <div class="field-hint">主視覺、案名、副標、內文段落文字、內文照片都可以直接在上面點擊修改。新增／刪除段落或照片，請用下面「內文段落」「內文照片」的清單。</div>
       </div>
 
       <div class="field-block">
@@ -1024,6 +1015,74 @@ function caseEditorHtml(ed){
   `;
 }
 
+/* ============================================================
+   案例即時預覽的編輯（點文字改文字、點照片換照片）——iframe 裡真的
+   在跑 index.html + render.js，跟真正上線的頁面是同一套渲染邏輯，
+   不是另外做一份長得像的介面。文字用 contenteditable 直接改，改完
+   iframe 內部自己就會顯示新文字，不需要通知後台重畫；照片沒辦法
+   「直接改」，點下去會回報給這裡，由後台負責挑檔案、暫存預覽網址，
+   再把整份內容重新 po 回 iframe 重畫一次。
+   ============================================================ */
+window.addEventListener("message", (e) => {
+  if(!e.data || e.data.type !== "cms-edit") return;
+  const ed = state.editingCase;
+  if(!ed) return;
+  handleCaseEdit(ed, e.data);
+});
+
+function postCaseProjectToIframe(ed){
+  const iframe = document.getElementById("caseLivePreview");
+  if(!iframe || !iframe.contentWindow) return;
+  const data = resolveCaseForPreview(ed.item, ed.pendingUploads);
+  iframe.contentWindow.postMessage({ type: "cms-preview", project: data }, "*");
+}
+
+function resolveCaseForPreview(item, pendingUploads){
+  const clone = JSON.parse(JSON.stringify(item));
+  const resolve = (v) => (pendingUploads[v] ? pendingUploads[v].previewUrl : v);
+  clone.hero = resolve(clone.hero);
+  (clone.photos || []).forEach((p) => { p.src = resolve(p.src); });
+  return clone;
+}
+
+function pickImageFile(cb){
+  const input = document.createElement("input");
+  input.type = "file";
+  input.accept = "image/*";
+  input.addEventListener("change", () => { if(input.files[0]) cb(input.files[0]); });
+  input.click();
+}
+
+function handleCaseEdit(ed, data){
+  if(data.field === "title"){ ed.item.title = data.value; return; }
+  if(data.field === "ledeMeta"){ ed.item.ledeMeta = data.value; return; }
+  if(data.field === "paragraph"){
+    ed.item.paragraphs = ed.item.paragraphs || [];
+    ed.item.paragraphs[data.index] = data.value;
+    const ta = document.getElementById("paragraphsText");
+    if(ta) ta.value = ed.item.paragraphs.join("\n\n");
+    return;
+  }
+  if(data.field === "hero-replace"){
+    pickImageFile((file) => {
+      const key = "PENDING::" + uid();
+      ed.pendingUploads[key] = { file, previewUrl: URL.createObjectURL(file) };
+      ed.item.hero = key;
+      postCaseProjectToIframe(ed);
+    });
+    return;
+  }
+  if(data.field === "photo-replace"){
+    pickImageFile((file) => {
+      const key = "PENDING::" + uid();
+      ed.pendingUploads[key] = { file, previewUrl: URL.createObjectURL(file) };
+      ed.item.photos[data.index].src = key;
+      postCaseProjectToIframe(ed);
+    });
+    return;
+  }
+}
+
 function renderCaseEditor(){
   const ed = state.editingCase;
   app.innerHTML = `${renderTopBar()}<div class="wrap">${caseEditorHtml(ed)}</div>`;
@@ -1033,13 +1092,16 @@ function renderCaseEditor(){
   if(deleteBtn) deleteBtn.addEventListener("click", deleteCurrentCase);
 
   bindPathInputs(ed, app);
-  bindCoverDropEvents(ed, "hero", `images/${ed.item.slug || "tmp"}`);
+
+  const caseFrame = document.getElementById("caseLivePreview");
+  if(caseFrame) caseFrame.addEventListener("load", () => postCaseProjectToIframe(ed));
 
   document.getElementById("paragraphsText").addEventListener("input", (e) => {
     ed.item.paragraphs = e.target.value
       .split(/\n\s*\n/)
       .map((s) => s.trim())
       .filter(Boolean);
+    postCaseProjectToIframe(ed);
   });
 
   const folder = () => `images/${ed.item.slug || "tmp"}`;
@@ -1051,15 +1113,46 @@ function renderCaseEditor(){
   document.getElementById("saveBtn").addEventListener("click", () => saveCaseEditor(ed));
 }
 
+/* 新案例不用自己打網址代號（slug）——這是給網址跟照片資料夾用的內部
+   代號，一般使用者不需要理解這個概念，存檔時用案名自動翻成英文、轉成
+   網址格式，重複的話自動加編號 */
+async function generateUniqueSlug(title){
+  let base = "";
+  try{
+    const url = "https://translate.googleapis.com/translate_a/single?client=gtx&sl=zh-TW&tl=en&dt=t&q=" + encodeURIComponent(title);
+    const r = await fetch(url);
+    const j = await r.json();
+    base = (j[0] || []).map((seg) => seg[0]).join("");
+  }catch(e){ /* 翻譯失敗就退回用「case」開頭的編號 */ }
+  base = base.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "");
+  if(!base) base = "case";
+  const existing = new Set((state.cases || []).map((c) => c.slug));
+  let slug = base;
+  let i = 2;
+  while(existing.has(slug)){
+    slug = `${base}-${i}`;
+    i++;
+  }
+  return slug;
+}
+
 async function saveCaseEditor(ed){
-  const slugInput = document.getElementById("f_slug");
-  const slug = slugInput.value.trim();
-  if(!/^[a-z0-9]+(-[a-z0-9]+)*$/.test(slug)){
-    toast("網址代號只能用小寫英文字母、數字、連字號", true);
-    return;
+  if(!ed.item.title){ toast("請至少填寫案名", true); return; }
+
+  let slug;
+  if(ed.isNew){
+    try{
+      setLoading(true, "產生案例編號中…");
+      slug = await generateUniqueSlug(ed.item.title);
+    }catch(err){
+      toast("建立案例失敗：" + err.message, true);
+      setLoading(false);
+      return;
+    }
+  } else {
+    slug = document.getElementById("f_slug").value.trim();
   }
   ed.item.slug = slug;
-  if(!ed.item.title){ toast("請至少填寫案名", true); return; }
 
   const selectedChapters = Array.from(app.querySelectorAll("[data-add-to-chapter]:checked")).map((el) => el.dataset.addToChapter);
   const originalChapters = ed.linkedChapters || [];
