@@ -395,18 +395,30 @@ function utf8ToBase64(str){
   return btoa(unescape(encodeURIComponent(str)));
 }
 
-async function ghGetFile(path){
-  const data = await callFunction("github-proxy", { action: "getFile", path });
+// repo 是選填的白名單參數（見 github-proxy.js 的 ALLOWED_REPOS）：不帶就
+// 維持寫 Internal-Pages（原本的行為），只有「新增子頁面」順便建立
+// asstudiowebsite 那邊的 .dc.html 骨架時才會帶 "asstudiowebsite"。
+async function ghGetFile(path, repo){
+  const data = await callFunction("github-proxy", { action: "getFile", path, repo });
   const content = decodeURIComponent(escape(atob(data.content.replace(/\n/g, ""))));
   return { sha: data.sha, content, json: JSON.parse(content) };
+}
+
+// 跟 ghGetFile 一樣，只是不假設檔案內容是 JSON——用來讀 .dc.html 這種原始
+// 檔案（例如「新增子頁面」要抓現成的 .dc.html 樣板來源檔時），硬要塞進
+// ghGetFile 的 JSON.parse 會直接噴錯。
+async function ghGetFileRaw(path, repo){
+  const data = await callFunction("github-proxy", { action: "getFile", path, repo });
+  const content = decodeURIComponent(escape(atob(data.content.replace(/\n/g, ""))));
+  return { sha: data.sha, content };
 }
 
 async function ghListDir(path){
   return callFunction("github-proxy", { action: "listDir", path });
 }
 
-async function ghPutFile(path, base64Content, message, sha){
-  return callFunction("github-proxy", { action: "putFile", path, content: base64Content, message, sha });
+async function ghPutFile(path, base64Content, message, sha, repo){
+  return callFunction("github-proxy", { action: "putFile", path, content: base64Content, message, sha, repo });
 }
 
 async function ghDeleteFile(path, message, sha){
@@ -2294,8 +2306,8 @@ function subpageEditorHtml(ed){
   const page = SUBPAGE_PAGES[ed.slug];
   const previewUrl = page ? `${SUBPAGE_SITE_BASE}/${encodeURIComponent(page.file)}` : null;
   const noPreviewHint = ed.isNew
-    ? `<div class="field-hint">這是還沒發布過的新子頁面，還沒有對應的網頁程式碼可以預覽——請先在左邊填好內容並「儲存並發布」，之後再請人（或請 Claude）依這份內容建立對應的 .dc.html 頁面、部署上線，才會有預覽畫面。</div>`
-    : `<div class="field-hint">找不到這個子頁面對應的檔名（SUBPAGE_PAGES 沒有這筆），沒辦法開啟預覽。</div>`;
+    ? `<div class="field-hint">這是還沒發布過的新子頁面，還沒有對應的網頁程式碼可以預覽——請先在左邊填好內容並「儲存並發布」，存檔時會自動在 asstudiowebsite 建立對應的 .dc.html 頁面，之後再回來就會有預覽畫面。</div>`
+    : `<div class="field-hint">找不到這個子頁面對應的檔名（SUBPAGE_PAGES 沒有這筆對照）。如果這是剛新增、第一次存檔的子頁面，asstudiowebsite 上其實已經自動建立好對應的 .dc.html 了，只是這裡的 SUBPAGE_PAGES 對照表還要手動補一筆（slug → 檔名）才能開啟預覽，不影響網站本身已經上線。</div>`;
   return `
     <div class="editor">
       <div class="editor-head">
@@ -2360,10 +2372,76 @@ function renderSubpageEditor(){
   document.getElementById("saveSubpageBtn").addEventListener("click", () => saveSubpageEditor(ed));
 }
 
+// 新子頁面的「.dc.html 程式碼骨架」不在這裡另外維護一份複本，而是直接向
+// asstudiowebsite 要一份「原型原點」目前實際部署的原始檔當樣板——它是 4 頁
+// 裡資料格式最單純的一頁（沒有原型方法那種 subtitle/introImage 額外邏輯），
+// 只換掉頁名／抓資料網址／退回內容三個地方，其餘（頁首頁尾、動畫、所有段落
+// 類型的排版與互動邏輯）原封不動沿用。這樣以後共用樣板本身如果有改進，新建
+// 的子頁面會自動吃到最新版，不用在後台這邊另外維護一份重複的八百行複本。
+// 得獎清單（award-list）那個高度客製化的捲動/大圖預覽元件不在這份樣板裡，
+// 如果新子頁面之後需要放得獎清單，那段程式碼還是要另外手動移植過去。
+const SUBPAGE_DC_TEMPLATE_SOURCE_FILE = "原型原點.dc.html";
+const SUBPAGE_DC_TEMPLATE_SOURCE_SLUG = "origin";
+
+const BLANK_SUBPAGE_FALLBACK_SECTIONS_LITERAL = `[
+    { "id": "sc-section-gallery", "type": "gallery-slider", "items": [] },
+    { "id": "sc-section-1", "type": "heading", "text": "" },
+    { "id": "sc-section-1-body", "type": "body", "text": "" },
+    { "id": "sc-section-2", "type": "heading", "text": "" },
+    { "id": "sc-section-2-body", "type": "body", "text": "" },
+    { "id": "sc-section-3", "type": "heading", "text": "" },
+    { "id": "sc-section-3-body", "type": "body", "text": "" }
+  ]`;
+
+// 把樣板來源檔裡「原型原點」專屬的三個地方換成新頁面的值：頁名、抓資料
+// 網址（origin.json → <slug>.json）、退回內容（換成跟後台新建子頁面時
+// 一樣的空白骨架）。每一步都先確認樣板裡真的找得到預期的樣式，找不到就
+// 丟出明確的錯誤，不會在樣板檔案格式以後被改掉時，靜默產生一份壞掉的頁面。
+function generateSubpageDcHtml(templateSource, title, slug){
+  let html = templateSource;
+
+  const titleRe = /pageTitle = '[^']*';/;
+  if(!titleRe.test(html)) throw new Error("樣板來源檔找不到 pageTitle 設定，可能樣板檔案格式已變更");
+  html = html.replace(titleRe, `pageTitle = ${JSON.stringify(title)};`);
+
+  const fetchUrlNeedle = `content/subpages/${SUBPAGE_DC_TEMPLATE_SOURCE_SLUG}.json`;
+  if(!html.includes(fetchUrlNeedle)) throw new Error("樣板來源檔找不到抓取資料的網址，可能樣板檔案格式已變更");
+  html = html.split(fetchUrlNeedle).join(`content/subpages/${slug}.json`);
+
+  const fallbackRe = /_fallbackSections = \[[\s\S]*?\n  \];\n\n  scrollToSection\(id\)/;
+  if(!fallbackRe.test(html)) throw new Error("樣板來源檔找不到退回內容區塊，可能樣板檔案格式已變更");
+  html = html.replace(fallbackRe, `_fallbackSections = ${BLANK_SUBPAGE_FALLBACK_SECTIONS_LITERAL};\n\n  scrollToSection(id)`);
+
+  return html;
+}
+
+// 存檔前先確認 asstudiowebsite 沒有同名檔案，避免標題剛好跟既有頁面撞名時
+// 被覆蓋掉（就算漏檢查，GitHub API 本身在 sha 沒帶的情況下對已存在的檔案
+// 也會拒絕寫入，這裡只是為了給一個看得懂的錯誤訊息，不是唯一的防線）。
+async function assertSubpageFilenameAvailable(filename){
+  let exists = false;
+  try{
+    await ghGetFileRaw(filename, "asstudiowebsite");
+    exists = true;
+  }catch(e){ /* 抓不到檔案（通常是 404）代表檔名還沒被用過，是正常情況 */ }
+  if(exists) throw new Error(`asstudiowebsite 已經有同名的「${filename}」，換個標題再試一次，避免覆蓋掉既有頁面`);
+}
+
+async function createSubpageDcHtmlFile(title, slug){
+  if(/[\/\\?#%]/.test(title)) throw new Error("標題不能包含 / \\ ? # % 這些符號，會被當成網址檔名的一部分");
+  const filename = `${title}.dc.html`;
+  await assertSubpageFilenameAvailable(filename);
+  const { content: templateSource } = await ghGetFileRaw(SUBPAGE_DC_TEMPLATE_SOURCE_FILE, "asstudiowebsite");
+  const html = generateSubpageDcHtml(templateSource, title, slug);
+  await ghPutFile(filename, utf8ToBase64(html), `Add new subpage ${filename} via admin`, null, "asstudiowebsite");
+}
+
 async function saveSubpageEditor(ed){
   if(!ed.item.title){ toast("請至少填寫標題", true); return; }
 
-  if(ed.isNew){
+  const isNewSubpage = ed.isNew;
+
+  if(isNewSubpage){
     try{
       setLoading(true, "產生子頁面代號中…");
       ed.slug = await generateUniqueSlug(ed.item.title, (state.subpages || []).map((s) => s.slug), "page");
@@ -2379,10 +2457,16 @@ async function saveSubpageEditor(ed){
     await flushPendingUploads(ed, `${SUBPAGE_ASSET_PREFIX}${ed.slug}`);
     absolutizeSubpageAssetPaths(ed.item);
     const json = JSON.stringify(ed.item, null, 2) + "\n";
-    const res = await ghPutFile(`content/subpages/${ed.slug}.json`, utf8ToBase64(json), `${ed.isNew ? "Add" : "Update"} subpage ${ed.slug} via admin`, ed.sha);
+    const res = await ghPutFile(`content/subpages/${ed.slug}.json`, utf8ToBase64(json), `${isNewSubpage ? "Add" : "Update"} subpage ${ed.slug} via admin`, ed.sha);
     ed.sha = res.content.sha;
+
+    if(isNewSubpage){
+      setLoading(true, "在 asstudiowebsite 建立頁面程式碼中…");
+      await createSubpageDcHtmlFile(ed.item.title, ed.slug);
+    }
+
     ed.isNew = false;
-    toast("已發布，網站幾分鐘內會更新");
+    toast(isNewSubpage ? "已建立新子頁面，網站幾分鐘內會上線" : "已發布，網站幾分鐘內會更新");
     state.subpages = null; // 下次回到清單時重新讀取，標題可能變了
     rerenderCurrentEditor(); // 新頁面存檔後 slug 才確定，重畫一次讓右側預覽區塊的提示文字跟著更新
   }catch(err){
