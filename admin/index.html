@@ -2317,7 +2317,7 @@ function subpageEditorHtml(ed){
   const previewUrl = page ? `${SUBPAGE_SITE_BASE}/${encodeURIComponent(page.file)}` : null;
   const noPreviewHint = ed.isNew
     ? `<div class="field-hint">這是還沒發布過的新子頁面，還沒有對應的網頁程式碼可以預覽——請先在左邊填好內容並「儲存並發布」，存檔時會自動在 asstudiowebsite 建立對應的 .dc.html 頁面，之後再回來就會有預覽畫面。</div>`
-    : `<div class="field-hint">找不到這個子頁面對應的檔名（SUBPAGE_PAGES 沒有這筆對照）。如果這是剛新增、第一次存檔的子頁面，asstudiowebsite 上其實已經自動建立好對應的 .dc.html 了，只是這裡的 SUBPAGE_PAGES 對照表還要手動補一筆（slug → 檔名）才能開啟預覽，不影響網站本身已經上線。</div>`;
+    : `<div class="field-hint">找不到這個子頁面對應的檔名（SUBPAGE_PAGES 沒有這筆對照）。如果這是剛新增、第一次存檔的子頁面：可能是存檔當時 asstudiowebsite 那邊已經自動建立好 .dc.html 了、只是這裡的 SUBPAGE_PAGES 對照表還要手動補一筆才能開啟預覽；也可能是當時建立 .dc.html 那個步驟本身就失敗了（存檔按鈕按下去之後有沒有跳出「儲存失敗」的紅色提示可以回想一下）。不確定的話，直接去 asstudiowebsite 這個 repo 看有沒有多出一個同名的 .dc.html 檔案最準。</div>`;
   return `
     <div class="editor">
       <div class="editor-head">
