@@ -27,7 +27,7 @@
     },
     {
       "image": "https://as-studio001.github.io/Internal-Pages/images/site/case-restore-woodyard.jpg",
-      "href": "https://www.mashup.com.tw/as%20studio/?page=product_shop&p_id=582351",
+      "href": "https://as-studio001.github.io/Internal-Pages/?case=chiayi-experimental-woodyard",
       "label": {
         "zh-Hant": "嘉義實驗木場",
         "zh-Hans": "嘉义实验木场",
@@ -45,20 +45,6 @@
         "en": "AS Studio Office",
         "ja": "原型構造事務所",
         "ko": "원형구조사무소"
-      }
-    },
-    {
-      "image": "https://as-studio001.github.io/Internal-Pages/images/test/IMG_6582.jpg",
-      "href": "https://as-studio001.github.io/Internal-Pages/?case=test",
-      "label": {
-        "zh-Hant": "test"
-      }
-    },
-    {
-      "image": "https://as-studio001.github.io/Internal-Pages/",
-      "href": "https://as-studio001.github.io/Internal-Pages/?case=chiayi-experimental-woodyard",
-      "label": {
-        "zh-Hant": "嘉義實驗木場"
       }
     }
   ],
