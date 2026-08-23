@@ -1,58 +1,37 @@
 {
   "title": "原型教學",
-  "galleryItems": [
-    { "num": "01", "zh": "實習", "en": "Internship", "target": "sc-section-internship", "photo": "uploads/實習.jpg", "textOverride": "#ffffff" },
-    { "num": "02", "zh": "美感教育", "en": "Aesthetic Education", "target": "sc-section-aesthetic", "photo": "uploads/美感教育.jpg", "textOverride": "#ffffff" },
-    { "num": "03", "zh": "大學教學", "en": "University Teaching", "target": "sc-section-university", "photo": "uploads/大學教學.jpg", "textOverride": "#ffffff" },
-    { "num": "04", "zh": "教學文化", "en": "Teaching Culture", "target": "sc-section-teaching-culture", "photo": "uploads/教學文化.jpg", "textOverride": "#ffffff" },
-    { "num": "05", "zh": "設計方法", "en": "Design Methodology", "target": "sc-section-method", "photo": "uploads/設計方法.png", "textOverride": "#ffffff" }
-  ],
   "sections": [
     {
-      "id": "sc-section-internship",
-      "blocks": [
-        { "type": "heading", "text": "實習" },
-        { "type": "body", "text": "原型相信，真正的設計教育不只發生在課堂，而發生於真實的工作之中。讓實習者從設計思考、專業協作到現場實踐，理解一個想法如何成為作品，將設計教學與實務經驗合而為一，在做中學、在實踐中建立自己的判斷。" },
-        { "type": "photos", "layout": "grid", "images": [
-          "uploads/實習集/實習01.jpg",
-          "uploads/實習集/實習02.jpg",
-          "uploads/實習集/實習03.jpg",
-          "uploads/實習集/實習04.jpg",
-          "uploads/實習集/實習05.jpg"
-        ] }
+      "id": "sc-section-gallery",
+      "type": "gallery-slider",
+      "items": [
+        { "num": "01", "zh": "實習", "en": "Internship", "target": "sc-section-internship", "photo": "uploads/實習.jpg", "textOverride": "#ffffff" },
+        { "num": "02", "zh": "美感教育", "en": "Aesthetic Education", "target": "sc-section-aesthetic", "photo": "uploads/美感教育.jpg", "textOverride": "#ffffff" },
+        { "num": "03", "zh": "大學教學", "en": "University Teaching", "target": "sc-section-university", "photo": "uploads/大學教學.jpg", "textOverride": "#ffffff" },
+        { "num": "04", "zh": "教學文化", "en": "Teaching Culture", "target": "sc-section-teaching-culture", "photo": "uploads/教學文化.jpg", "textOverride": "#ffffff" },
+        { "num": "05", "zh": "設計方法", "en": "Design Methodology", "target": "sc-section-method", "photo": "uploads/設計方法.png", "textOverride": "#ffffff" }
       ]
     },
-    {
-      "id": "sc-section-aesthetic",
-      "blocks": [
-        { "type": "heading", "text": "美感教育" },
-        { "type": "body", "text": "結構不只是支撐建築的技術，更是建築美感的來源。我們致力於讓結構被看見、被理解，從尺度、比例、材料到受力邏輯，將專業轉化為大眾能理解的建築語言，重新建立人與建築結構之間的美學關係。" }
-      ]
-    },
-    {
-      "id": "sc-section-university",
-      "blocks": [
-        { "type": "heading", "text": "大學教學" },
-        { "type": "body", "text": "原型將大學視為思想交流與方法養成的場所。除了建築與結構的專業知識，更重視設計理念、邏輯與方法的傳遞，引導學生理解設計如何從問題出發、經由思考形成，並在建築與結構的整合中建立屬於自己的設計觀。" }
-      ]
-    },
-    {
-      "id": "sc-section-method",
-      "blocks": [
-        { "type": "heading", "text": "設計方法" },
-        { "type": "body", "text": "原型以「建築與結構合而為一」為核心，從結構、材料、構造與空間出發，以邏輯建立設計，而非以形式覆蓋問題。我們相信好的設計不是複雜化，而是在理解事物本質後，以最清晰的方法讓建築自然形成。" },
-        { "type": "photos", "layout": "stack", "images": [
-          "uploads/構法草圖01.png",
-          "uploads/構法草圖02.png"
-        ] }
-      ]
-    },
-    {
-      "id": "sc-section-teaching-culture",
-      "blocks": [
-        { "type": "heading", "text": "教學文化" },
-        { "type": "body", "text": "教育是原型文化的本體，也是原型持續前進的方式。我們從職場、實習到學校成為相互連結的學習場域，透過實務傳承、思想交流與共同實踐，延續原型對建築與結構的初心，讓每一代人都重新理解原型的原點，並創造下一個原型。" }
-      ]
-    }
+    { "id": "sc-section-internship", "type": "heading", "text": "實習" },
+    { "id": "sc-section-internship-body", "type": "body", "text": "原型相信，真正的設計教育不只發生在課堂，而發生於真實的工作之中。讓實習者從設計思考、專業協作到現場實踐，理解一個想法如何成為作品，將設計教學與實務經驗合而為一，在做中學、在實踐中建立自己的判斷。" },
+    { "id": "sc-section-internship-photos", "type": "photos", "layout": "grid", "images": [
+      "uploads/實習集/實習01.jpg",
+      "uploads/實習集/實習02.jpg",
+      "uploads/實習集/實習03.jpg",
+      "uploads/實習集/實習04.jpg",
+      "uploads/實習集/實習05.jpg"
+    ] },
+    { "id": "sc-section-aesthetic", "type": "heading", "text": "美感教育" },
+    { "id": "sc-section-aesthetic-body", "type": "body", "text": "結構不只是支撐建築的技術，更是建築美感的來源。我們致力於讓結構被看見、被理解，從尺度、比例、材料到受力邏輯，將專業轉化為大眾能理解的建築語言，重新建立人與建築結構之間的美學關係。" },
+    { "id": "sc-section-university", "type": "heading", "text": "大學教學" },
+    { "id": "sc-section-university-body", "type": "body", "text": "原型將大學視為思想交流與方法養成的場所。除了建築與結構的專業知識，更重視設計理念、邏輯與方法的傳遞，引導學生理解設計如何從問題出發、經由思考形成，並在建築與結構的整合中建立屬於自己的設計觀。" },
+    { "id": "sc-section-method", "type": "heading", "text": "設計方法" },
+    { "id": "sc-section-method-body", "type": "body", "text": "原型以「建築與結構合而為一」為核心，從結構、材料、構造與空間出發，以邏輯建立設計，而非以形式覆蓋問題。我們相信好的設計不是複雜化，而是在理解事物本質後，以最清晰的方法讓建築自然形成。" },
+    { "id": "sc-section-method-photos", "type": "photos", "layout": "stack", "images": [
+      "uploads/構法草圖01.png",
+      "uploads/構法草圖02.png"
+    ] },
+    { "id": "sc-section-teaching-culture", "type": "heading", "text": "教學文化" },
+    { "id": "sc-section-teaching-culture-body", "type": "body", "text": "教育是原型文化的本體，也是原型持續前進的方式。我們從職場、實習到學校成為相互連結的學習場域，透過實務傳承、思想交流與共同實踐，延續原型對建築與結構的初心，讓每一代人都重新理解原型的原點，並創造下一個原型。" }
   ]
 }
