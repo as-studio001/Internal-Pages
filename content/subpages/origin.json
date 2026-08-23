@@ -1,0 +1,118 @@
+{
+  "title": "原型原點",
+  "galleryItems": [
+    { "num": "01", "zh": "SDG", "en": "StructuralDesignGroup", "photo": "uploads/渡邊邦夫.jpg", "textOverride": "#ffffff", "target": "sc-section-origin" },
+    { "num": "02", "zh": "1992海之博物館", "en": "", "photo": "uploads/海之博物館.jpg", "textOverride": "#ffffff", "target": "sc-section-sea-museum-card" },
+    { "num": "03", "zh": "1996東京國際", "en": "", "photo": "uploads/東京國際會議中心.jpg", "textOverride": "#ffffff", "target": "sc-section-tokyo-forum-card" },
+    { "num": "04", "zh": "2002橫濱大棧橋", "en": "", "photo": "uploads/橫濱大棧橋.jpg", "textOverride": "#ffffff", "target": "sc-section-yokohama-pier-card" },
+    { "num": "05", "zh": "原型三時期", "en": "", "photo": "uploads/02.jpg", "textOverride": "#ffffff", "target": "sc-section-three-periods" }
+  ],
+  "sections": [
+    {
+      "id": "sc-section-origin",
+      "blocks": [
+        { "type": "heading", "text": "原點：SDG 與原型結構的對話" },
+        { "type": "body", "text": "在建築與結構之間，存在一個被不斷追問的起點——那個尚未被命名的「原點」。它是材料被發現的瞬間、力被感知的方向，也是建築思考的源頭。SDG（構造設計集團）正是在這樣的原點上，重新定義了「結構」的意義，讓構造成為設計的核心語言，也啟發了台灣原型結構的誕生。" }
+      ]
+    },
+    {
+      "id": "sc-section-sdg-spirit",
+      "blocks": [
+        { "type": "heading", "text": "SDG 的精神：結構即設計" },
+        { "type": "body", "text": "在 SDG 的實踐中，設計與結構從不分離。渡邊邦夫強調：「沒有什麼材料不能被設計，沒有什麼構造不能被想像。」他要求設計師以建築師的眼光提問，讓力學成為理解形體的語言。結構因此不再隱身，而以線條與力的節奏，參與空間的生成，成為建築詩學的一部分。" }
+      ]
+    },
+    {
+      "id": "sc-section-from-sdg",
+      "blocks": [
+        { "type": "heading", "text": "從 SDG 到原型結構" },
+        { "type": "body", "text": "回到台灣後，陳冠帆將這份精神化為實踐，創立「原型結構工程顧問有限公司」，主張結構與建築本為一體。他將 SDG 的自由思維延伸至竹構與木構研究，讓材料成為思考的起點，而非形式的裝飾。SDG 對原型結構最深遠的影響，正是在於讓結構回到設計的原點，讓材料回到自然的秩序。" }
+      ]
+    },
+    {
+      "id": "sc-section-sea-museum-card",
+      "blocks": [
+        { "type": "case-card", "title": "海之博物館", "photos": ["uploads/海之博物館.jpg", "uploads/海之博物館.jpg", "uploads/海之博物館.jpg"],
+          "specZh": "建築類型 / 博物館\n項目狀態 / 已完工（1992 年竣工）\n構造系統 / 層壓木桁架＋鋼筋混凝土\n基地位置 / 日本三重縣鳥羽市\n攝影 / Satoru Mishima\n合作團隊 /\n建築設計｜內藤廣（Hiroshi Naitō）\n結構設計｜構造設計集團 SDG（渡邊邦夫 Kunio Watanabe）",
+          "specEn": "" }
+      ]
+    },
+    {
+      "id": "sc-section-sea-museum",
+      "blocks": [
+        { "type": "heading", "text": "海之博物館" },
+        { "type": "body", "text": "海之民博物館由建築師內藤廣設計，結構設計由渡邊邦夫率領的構造設計集團（SDG）負責，1992 年於三重縣鳥羽市完工。建築以 18.5 公尺寬的層壓木桁架屋頂為核心，結合木構與鋼筋混凝土複合結構，形成溫潤而堅實的展覽空間。中央天窗引入自然光，映照海洋文物，使空間充滿光影流動的節奏。起伏的屋頂呼應海浪的韻律，蜿蜒的動線如潮汐般引導參觀者在空間中移動。博物館收藏木船、海女器具與漁具，展現人與海的共生歷史。此案以結構詩學與材料誠實著稱，既是文化的容器，也是海岸線上一座靜謐的地景建築。" }
+      ]
+    },
+    {
+      "id": "sc-section-tokyo-forum-card",
+      "blocks": [
+        { "type": "case-card", "title": "東京國際會議中心", "photos": ["uploads/東京國際會議中心.jpg", "uploads/東京國際會議中心.jpg", "uploads/東京國際會議中心.jpg"],
+          "specZh": "建築類型 / 會議與文化中心\n項目狀態 / 已完工（1996 年竣工，1997 年開幕）\n構造系統 / 鋼結構 + 鋼骨玻璃結構\n基地位置 / 日本東京都千代田區丸之內地區\n攝影 / Kawasumi Architectural Photography\n合作團隊 /\n建築設計｜Rafael Viñoly Architects\n結構設計｜Structural Design Group (SDG) / 渡邊邦夫（Kunio Watanabe）",
+          "specEn": "" }
+      ]
+    },
+    {
+      "id": "sc-section-tokyo-forum",
+      "blocks": [
+        { "type": "heading", "text": "東京國際會議中心" },
+        { "type": "body", "text": "東京國際論壇於 1996 年竣工、1997 年開幕，位於東京丸之內地區，是一座融合會議、展演與公共活動的文化地標。由 Rafael Viñoly Architects 設計，結構設計由構造設計集團（SDG）的渡邊邦夫負責，展現建築與工程的精準協奏。其核心為標誌性的玻璃大廳，形似船艙，橫跨約 230 公尺，兩側以高達 60 公尺的鋼索懸吊玻璃牆支撐於優雅的鋼拱之間。大廳作為整體動線的中樞，串連多座表演廳、會議室與展覽空間，透過橋梁與坡道交織出流動的公共體驗。外立面以花崗岩包覆，構築城市邊界；內部則以透明結構引光入室。白日如晶體般透亮，夜晚化為東京天際線上的光之艦。二十多年來，論壇舉辦數千場活動、迎接數以百萬計訪客，成為城市開放精神與建築美學的象徵。2024 年，該建築榮獲美國建築師學會（AIA）「二十五年獎」，肯定其持續的設計價值與文化影響力。" }
+      ]
+    },
+    {
+      "id": "sc-section-yokohama-pier-card",
+      "blocks": [
+        { "type": "case-card", "title": "橫濱大棧橋", "photos": ["uploads/橫濱大棧橋.jpg", "uploads/橫濱大棧橋.jpg", "uploads/橫濱大棧橋.jpg"],
+          "specZh": "建築類型 / 海運客運碼頭\n項目狀態 / 已完工（2002 年竣工）\n構造系統 / 鋼構＋鋼筋混凝土複合結構，採折板與箱型梁系統形成無柱大跨空間\n基地位置 / 日本神奈川縣橫濱市中區\n攝影 / Satoru Mishima / FOA\n合作團隊 /\n建築設計｜Foreign Office Architects (FOA)\n結構設計｜構造設計集團 SDG（渡邊邦夫 Kunio Watanabe）",
+          "specEn": "" }
+      ]
+    },
+    {
+      "id": "sc-section-yokohama-pier",
+      "blocks": [
+        { "type": "heading", "text": "橫濱大棧橋" },
+        { "type": "body", "text": "橫濱國際客運碼頭於 2002 年完工，由 Foreign Office Architects（FOA） 設計，構造設計集團（SDG） 的 渡邊邦夫 負責結構設計。此案以「流動的地景」取代傳統碼頭，將建築、結構與都市動線融合為連續的公共地形。總樓地板面積約 48,000 平方公尺，屋頂以起伏的折板形態延展成海邊步道，使城市與港灣之間無縫銜接。下方的鋼構與鋼筋混凝土複合折板系統形成無柱大跨空間，容納旅客候船廳與多功能展演區。其結構形式以折板與箱型梁協同受力，使屋頂既為結構亦為表皮，最小化支撐，展現連續與運動的張力。設計將公共步行層與功能層整合，將基礎設施轉化為可親近的市民平台。橫濱大棧橋以其創新的建築與結構語彙，成為日本城市濱水設計的里程碑與象徵。" }
+      ]
+    },
+    {
+      "id": "sc-section-three-periods",
+      "blocks": [
+        { "type": "timeline-horizontal", "items": [
+          { "period": "一人", "event": "我", "desc": "SDG 學成歸國" },
+          { "period": "原型結構", "event": "我們", "desc": "成立以設計為導向的設計公司" },
+          { "period": "原型結構+原型建築", "event": "不同的我們", "desc": "實現建築+結構為一體的理念" }
+        ] }
+      ]
+    },
+    {
+      "id": "sc-section-timeline",
+      "blocks": [
+        { "type": "heading", "text": "大事記" },
+        { "type": "timeline-vertical", "items": [
+          { "year": "2005", "title": "建築的起點", "desc": "成大建築研究所結構組畢" },
+          { "year": "2006", "title": "進入日本結構設計", "desc": "SDG 構造設計集團（2006~2011）" },
+          { "year": "2007", "title": "學習日本建築結構思維", "desc": "學習根本且深度的結構設計脈絡" },
+          { "year": "2008", "title": "結構開始介入建築創作", "desc": "韓國國際競圖" },
+          { "year": "2009", "title": "大型公共建築實踐", "desc": "日月潭向山遊客中心" },
+          { "year": "2010", "title": "國際工程實戰", "desc": "上海世博中國船舶館" },
+          { "year": "2011", "title": "返台，開始自己的路", "desc": "返台成立個人工作體系（原型結構雛形）" },
+          { "year": "2012", "title": "結構成為建築設計的一部分", "desc": "新營服務區公廁" },
+          { "year": "2013", "title": "原型結構誕生", "desc": "原型結構工程顧問有限公司" },
+          { "year": "2014", "title": "結構走進公共藝術", "desc": "X-SITE《邊緣地景》" },
+          { "year": "2015", "title": "木構回應城市文化", "desc": "嘉義美術館" },
+          { "year": "2016", "title": "輕盈的結構成為可能", "desc": "X-SITE《浮光之間》" },
+          { "year": "2017", "title": "從結構與教育並進", "desc": "華德福實驗分校" },
+          { "year": "2018", "title": "結構獲得建築界認可", "desc": "ENISHI 緣民宿" },
+          { "year": "2019", "title": "大跨度橋梁的整合實踐", "desc": "故宮南院景觀橋" },
+          { "year": "2020", "title": "木構成為原型核心", "desc": "左鎮化石館、德光教會" },
+          { "year": "2021", "title": "從作品走向研究與策展", "desc": "構竹林鐵策展規劃" },
+          { "year": "2022", "title": "從結構走向建築", "desc": "原型建築有限公司成立" },
+          { "year": "2023", "title": "從結構開啟的建築設計", "desc": "嘉義實驗木場" },
+          { "year": "2024", "title": "材料研究走向實體實驗", "desc": "竹結構系列" },
+          { "year": "2025", "title": "開始打造自己的建築", "desc": "原型1號宅" },
+          { "year": "2026", "title": "從公司走向原型系統", "desc": "留白計畫" }
+        ] }
+      ]
+    }
+  ]
+}

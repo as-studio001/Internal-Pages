@@ -1,0 +1,34 @@
+{
+  "title": "原型獲獎",
+  "galleryItems": [
+    { "num": "01", "zh": "舊屋力競賽", "en": "2025", "photo": "uploads/原型獲獎/舊屋力.png", "textOverride": "#ffffff" },
+    { "num": "02", "zh": "ADA新銳建築獎", "en": "2018、2021", "photo": "uploads/原型獲獎/ADA.jpg", "textOverride": "#ffffff" },
+    { "num": "03", "zh": "台灣建築獎", "en": "2015、2017", "photo": "uploads/原型獲獎/台灣建築獎.jpg", "textOverride": "#ffffff" },
+    { "num": "04", "zh": "德國IF設計獎", "en": "2023", "photo": "uploads/原型獲獎/IF設計獎.jpg", "textOverride": "#ffffff" },
+    { "num": "05", "zh": "競圖", "en": "", "photo": "uploads/原型獲獎/競圖.jpg", "textOverride": "#ffffff" },
+    { "num": "06", "zh": "X-SITE", "en": "2015、2016、2020、2021、2023", "photo": "uploads/原型獲獎/X-SITE.jpg", "textOverride": "#ffffff" }
+  ],
+  "sections": [
+    {
+      "id": "sc-section-recognition",
+      "blocks": [
+        { "type": "heading", "text": "獲獎是對方法的肯定" },
+        { "type": "body", "text": "每一項獎項的背後，都是對設計方法與態度的回應。從構築的實驗精神到細節的精準掌握，我們相信「獲獎」並非終點，而是對思考深度與執行力的再確認。" }
+      ]
+    },
+    {
+      "id": "sc-section-dialogue-world",
+      "blocks": [
+        { "type": "heading", "text": "以作品對話世界" },
+        { "type": "body", "text": "原型結構的作品多次榮獲國內外獎項，包括 ADA 新銳建築獎、金點設計獎 與 iF 設計獎。這些肯定代表建築不僅是形式的創新，更是理念與社會價值的連結。每一件作品皆以清晰的結構語言與人文關懷，持續在世界舞台上發聲。" }
+      ]
+    },
+    {
+      "id": "sc-section-return-origin",
+      "blocks": [
+        { "type": "heading", "text": "從榮譽回到原點" },
+        { "type": "body", "text": "對我們而言，榮譽的意義在於回望過程。每一次被看見，都是一次重新出發——讓團隊持續檢視建築的初衷，回到材料、結構與時間的對話，從實踐中再發現創作的起點。" }
+      ]
+    }
+  ]
+}
