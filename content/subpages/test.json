@@ -9,7 +9,7 @@
           "num": "01",
           "zh": "測試",
           "en": "test",
-          "target": "",
+          "target": "sc-section-custom-1787505738209-gm2d7em",
           "photo": "https://as-studio001.github.io/Internal-Pages/images/subpages/test/螢幕擷取畫面_2026-08-20_173829.png",
           "textOverride": "#ffffff"
         }
@@ -18,32 +18,12 @@
     {
       "id": "sc-section-custom-1787505738209-s5himhi",
       "type": "heading",
-      "text": ""
+      "text": "測試"
     },
     {
       "id": "sc-section-custom-1787505738209-gm2d7em",
       "type": "body",
-      "text": ""
-    },
-    {
-      "id": "sc-section-custom-1787505738209-py95n8b",
-      "type": "heading",
-      "text": ""
-    },
-    {
-      "id": "sc-section-custom-1787505738209-7skzcye",
-      "type": "body",
-      "text": ""
-    },
-    {
-      "id": "sc-section-custom-1787505738209-u9eh3dl",
-      "type": "heading",
-      "text": ""
-    },
-    {
-      "id": "sc-section-custom-1787505738209-rd4fpdi",
-      "type": "body",
-      "text": ""
+      "text": "測試測試"
     }
   ]
 }
