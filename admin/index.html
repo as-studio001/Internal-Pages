@@ -470,7 +470,7 @@ const state = {
   ],
   editingSite: null, // { meta, item, sha, pendingUploads }
   subpages: null, // [{slug, title}]
-  editingSubpage: null, // { slug, item, sha, pendingUploads }
+  editingSubpage: null, // { slug, item, sha, isNew, pendingUploads }
 };
 
 // 子頁面（原型教學／原型原點／原型結構／原型獲獎／原型方法）實際部署在
@@ -762,9 +762,10 @@ function bindUsersEvents(){
   });
 }
 
-function addCardHtml(label){
+function addCardHtml(label, attr){
+  attr = attr || "data-add";
   return `
-    <button class="add-card" data-add="1">
+    <button class="add-card" ${attr}="1">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
       <span>${label}</span>
     </button>
@@ -799,10 +800,26 @@ function siteListHtml(){
   return `<div class="item-grid">${cards}</div>`;
 }
 
-// 子頁面（原型教學等）目前是固定的一批頁面（見 SUBPAGE_PAGES），不像
-// 「案例」開放使用者自己新增，所以沒有 addCardHtml——之後每做完一頁，
-// 手動在 content/subpages 底下加一份 JSON、SUBPAGE_PAGES 補一筆，這裡
-// 就會自動列出來。
+// 子頁面（原型教學等）新增一筆只會先在「後台」repo 的 content/subpages/
+// 底下產生一份新的 JSON，並不會自動生出對應的 asstudiowebsite .dc.html
+// 頁面——那份頁面程式碼要另外請人（或 Claude）依樣板寫好、部署、並在
+// SUBPAGE_PAGES 補一筆對照，右側預覽在那之前都會顯示「找不到對應頁面」，
+// 這是預期中的過渡狀態，不是錯誤。
+function blankSubpage(){
+  return {
+    title: "",
+    sections: [
+      { id: "sc-section-gallery", type: "gallery-slider", items: [] },
+      blankSection("heading"),
+      blankSection("body"),
+      blankSection("heading"),
+      blankSection("body"),
+      blankSection("heading"),
+      blankSection("body"),
+    ],
+  };
+}
+
 function subpagesListHtml(){
   if(!state.subpages) return `<div class="empty-note">載入中…</div>`;
   const cards = state.subpages.map((s, i) => `
@@ -814,7 +831,7 @@ function subpagesListHtml(){
       </div>
     </div>
   `).join("");
-  return `<div class="item-grid">${cards}</div>`;
+  return `<div class="item-grid">${cards}${addCardHtml("新增子頁面", "data-add-subpage")}</div>`;
 }
 
 function bindListEvents(){
@@ -872,6 +889,10 @@ function bindListEvents(){
       }
     });
   });
+  const addSubpageBtn = el.querySelector("[data-add-subpage]");
+  if(addSubpageBtn) addSubpageBtn.addEventListener("click", () => {
+    openSubpageEditor("", blankSubpage(), null, true);
+  });
 }
 
 function blankCase(){
@@ -914,8 +935,8 @@ function openSiteEditor(meta, item, sha){
 }
 function closeSiteEditor(){ state.editingSite = null; render(); }
 
-function openSubpageEditor(slug, item, sha){
-  state.editingSubpage = { slug, item, sha, pendingUploads: {} };
+function openSubpageEditor(slug, item, sha, isNew){
+  state.editingSubpage = { slug, item, sha, isNew: !!isNew, pendingUploads: {} };
   render();
 }
 function closeSubpageEditor(){ state.editingSubpage = null; render(); }
@@ -1614,17 +1635,21 @@ function renderCaseEditor(){
 /* 新案例不用自己打網址代號（slug）——這是給網址跟照片資料夾用的內部
    代號，一般使用者不需要理解這個概念，存檔時用案名自動翻成英文、轉成
    網址格式，重複的話自動加編號 */
-async function generateUniqueSlug(title){
+// existingSlugs：要避開撞名的既有 slug 清單；fallbackBase：翻譯失敗時用的
+// 預設前綴（案例用「case」、子頁面用「page」）。案例／子頁面兩種「新增」流程
+// 共用同一套「用標題自動翻譯出英文網址代號」邏輯，只是各自傳進不同的既有
+// 清單跟預設前綴。
+async function generateUniqueSlug(title, existingSlugs, fallbackBase){
   let base = "";
   try{
     const url = "https://translate.googleapis.com/translate_a/single?client=gtx&sl=zh-TW&tl=en&dt=t&q=" + encodeURIComponent(title);
     const r = await fetch(url);
     const j = await r.json();
     base = (j[0] || []).map((seg) => seg[0]).join("");
-  }catch(e){ /* 翻譯失敗就退回用「case」開頭的編號 */ }
+  }catch(e){ /* 翻譯失敗就退回用預設前綴的編號 */ }
   base = base.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "");
-  if(!base) base = "case";
-  const existing = new Set((state.cases || []).map((c) => c.slug));
+  if(!base) base = fallbackBase || "item";
+  const existing = new Set(existingSlugs || []);
   let slug = base;
   let i = 2;
   while(existing.has(slug)){
@@ -1641,7 +1666,7 @@ async function saveCaseEditor(ed){
   if(ed.isNew){
     try{
       setLoading(true, "產生案例編號中…");
-      slug = await generateUniqueSlug(ed.item.title);
+      slug = await generateUniqueSlug(ed.item.title, (state.cases || []).map((c) => c.slug), "case");
     }catch(err){
       toast("建立案例失敗：" + err.message, true);
       setLoading(false);
@@ -2268,6 +2293,9 @@ function bindSections(ed){
 function subpageEditorHtml(ed){
   const page = SUBPAGE_PAGES[ed.slug];
   const previewUrl = page ? `${SUBPAGE_SITE_BASE}/${encodeURIComponent(page.file)}` : null;
+  const noPreviewHint = ed.isNew
+    ? `<div class="field-hint">這是還沒發布過的新子頁面，還沒有對應的網頁程式碼可以預覽——請先在左邊填好內容並「儲存並發布」，之後再請人（或請 Claude）依這份內容建立對應的 .dc.html 頁面、部署上線，才會有預覽畫面。</div>`
+    : `<div class="field-hint">找不到這個子頁面對應的檔名（SUBPAGE_PAGES 沒有這筆），沒辦法開啟預覽。</div>`;
   return `
     <div class="editor">
       <div class="editor-head">
@@ -2275,6 +2303,11 @@ function subpageEditorHtml(ed){
       </div>
       <div class="subpage-editor-columns">
         <div class="subpage-editor-left">
+          <div class="field-block">
+            <label>標題</label>
+            <input type="text" data-path="title" value="${esc(ed.item.title || "")}" placeholder="例如：原型原點">
+            ${ed.isNew ? `<div class="field-hint">網址代號會在第一次「儲存並發布」時，依標題自動翻譯產生（跟新增案例一樣），存檔前不用自己填。</div>` : ""}
+          </div>
           <div class="field-block">
             <div class="label">段落（第 1 段固定是照片滑塊，其餘可以自由新增/刪除/拖曳排序，每段只做一件事：小標題、內文、照片……）</div>
             <div id="sectionsList">${sectionsHtml(ed)}</div>
@@ -2295,7 +2328,7 @@ function subpageEditorHtml(ed){
             </div>
             <div class="field-hint" style="margin-bottom:10px">目前已經發布上線的頁面，不會即時反映還沒按「儲存並發布」的修改；存檔後 GitHub Pages 需要幾分鐘重新部署，等一下再按「重新整理」才看得到最新結果。</div>
             <iframe id="subpagePublishedPreview" src="${esc(previewUrl)}" style="width:100%; height:80vh; min-height:520px; border:1px solid var(--line); border-radius:8px;"></iframe>
-          ` : `<div class="field-hint">找不到這個子頁面對應的檔名（SUBPAGE_PAGES 沒有這筆），沒辦法開啟預覽。</div>`}
+          ` : noPreviewHint}
         </div>
       </div>
     </div>
@@ -2328,15 +2361,30 @@ function renderSubpageEditor(){
 }
 
 async function saveSubpageEditor(ed){
+  if(!ed.item.title){ toast("請至少填寫標題", true); return; }
+
+  if(ed.isNew){
+    try{
+      setLoading(true, "產生子頁面代號中…");
+      ed.slug = await generateUniqueSlug(ed.item.title, (state.subpages || []).map((s) => s.slug), "page");
+    }catch(err){
+      toast("建立子頁面失敗：" + err.message, true);
+      setLoading(false);
+      return;
+    }
+  }
+
   try{
     setLoading(true, "儲存中…");
     await flushPendingUploads(ed, `${SUBPAGE_ASSET_PREFIX}${ed.slug}`);
     absolutizeSubpageAssetPaths(ed.item);
     const json = JSON.stringify(ed.item, null, 2) + "\n";
-    const res = await ghPutFile(`content/subpages/${ed.slug}.json`, utf8ToBase64(json), `Update subpage ${ed.slug} via admin`, ed.sha);
+    const res = await ghPutFile(`content/subpages/${ed.slug}.json`, utf8ToBase64(json), `${ed.isNew ? "Add" : "Update"} subpage ${ed.slug} via admin`, ed.sha);
     ed.sha = res.content.sha;
+    ed.isNew = false;
     toast("已發布，網站幾分鐘內會更新");
     state.subpages = null; // 下次回到清單時重新讀取，標題可能變了
+    rerenderCurrentEditor(); // 新頁面存檔後 slug 才確定，重畫一次讓右側預覽區塊的提示文字跟著更新
   }catch(err){
     toast("儲存失敗：" + err.message, true);
   }finally{
