@@ -343,7 +343,10 @@ function toast(msg, isErr){
   el.classList.toggle("err", !!isErr);
   el.classList.add("show");
   clearTimeout(toastTimer);
-  toastTimer = setTimeout(() => el.classList.remove("show"), 3200);
+  // 錯誤訊息留久一點（尤其是帶技術細節的那種，例如「新增子頁面」失敗時的
+  // [action @repo path] 錯誤），一般成功提示還是照原本 3.2 秒，不然畫面上
+  // 一直卡著提示框也很煩。
+  toastTimer = setTimeout(() => el.classList.remove("show"), isErr ? 15000 : 3200);
 }
 function setLoading(on, text){
   document.getElementById("loadingText").textContent = text || "處理中…";
