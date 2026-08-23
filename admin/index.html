@@ -376,7 +376,17 @@ async function callFunction(name, payload){
   });
   let data = {};
   try{ data = await res.json(); }catch(e){}
-  if(!res.ok) throw new Error(data.error || (res.status + " " + res.statusText));
+  if(!res.ok){
+    // 把 action/repo/path 標在錯誤訊息前面（例如 "[getFile @asstudiowebsite
+    // 原型原點.dc.html]"），跨 repo 動作變多之後，光看「Not Found」很難猜
+    // 是哪一步、對哪個 repo/路徑失敗，這樣使用者回報錯誤畫面就能直接定位。
+    const ctxParts = [];
+    if(payload && payload.action) ctxParts.push(payload.action);
+    if(payload && payload.repo) ctxParts.push("@" + payload.repo);
+    if(payload && payload.path) ctxParts.push(payload.path);
+    const ctx = ctxParts.length ? `[${ctxParts.join(" ")}] ` : "";
+    throw new Error(ctx + (data.error || (res.status + " " + res.statusText)));
+  }
   return data;
 }
 
