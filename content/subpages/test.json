@@ -1,0 +1,29 @@
+{
+  "title": "測試",
+  "sections": [
+    {
+      "id": "sc-section-gallery",
+      "type": "gallery-slider",
+      "items": [
+        {
+          "num": "01",
+          "zh": "測試",
+          "en": "test",
+          "target": "",
+          "photo": "https://as-studio001.github.io/Internal-Pages/images/subpages/test/螢幕擷取畫面_2026-08-21_121741.png",
+          "textOverride": "#ffffff"
+        }
+      ]
+    },
+    {
+      "id": "sc-section-custom-1787507100033-t5wcpdn",
+      "type": "heading",
+      "text": "鄵是"
+    },
+    {
+      "id": "sc-section-custom-1787507100033-9xp69ym",
+      "type": "body",
+      "text": "測試測試"
+    }
+  ]
+}
