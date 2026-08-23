@@ -2385,16 +2385,809 @@ function renderSubpageEditor(){
   document.getElementById("saveSubpageBtn").addEventListener("click", () => saveSubpageEditor(ed));
 }
 
-// 新子頁面的「.dc.html 程式碼骨架」不在這裡另外維護一份複本，而是直接向
-// asstudiowebsite 要一份「原型原點」目前實際部署的原始檔當樣板——它是 4 頁
-// 裡資料格式最單純的一頁（沒有原型方法那種 subtitle/introImage 額外邏輯），
-// 只換掉頁名／抓資料網址／退回內容三個地方，其餘（頁首頁尾、動畫、所有段落
-// 類型的排版與互動邏輯）原封不動沿用。這樣以後共用樣板本身如果有改進，新建
-// 的子頁面會自動吃到最新版，不用在後台這邊另外維護一份重複的八百行複本。
-// 得獎清單（award-list）那個高度客製化的捲動/大圖預覽元件不在這份樣板裡，
-// 如果新子頁面之後需要放得獎清單，那段程式碼還是要另外手動移植過去。
-const SUBPAGE_DC_TEMPLATE_SOURCE_FILE = "原型原點.dc.html";
+// 新子頁面的「.dc.html 程式碼骨架」內嵌一份「原型原點」目前實際部署的原始
+// 檔當樣板（不是動態去 asstudiowebsite 抓——那一步要透過 Netlify function
+// 跨 repo 讀取，2026-08-24 發現這條路會被擋下來、一直 404，原因還沒查出來，
+// 改成把樣板直接內嵌在這裡，繞開那個問題）。它是 4 頁裡資料格式最單純的一頁
+// （沒有原型方法那種 subtitle/introImage 額外邏輯），只換掉頁名／抓資料網址／
+// 退回內容三個地方，其餘（頁首頁尾、動畫、所有段落類型的排版與互動邏輯）原封
+// 不動沿用。得獎清單（award-list）那個高度客製化的捲動/大圖預覽元件不在這份
+// 樣板裡，如果新子頁面之後需要放得獎清單，那段程式碼還是要另外手動移植過去。
+//
+// ⚠️ 這是「原型原點.dc.html」在 2026-08-24 當下的完整複本，用來當新子頁面的
+// 起點——它本身不會自動跟著 asstudiowebsite 上的「原型原點.dc.html」同步。
+// 如果之後共用樣板（頁首/頁尾/動畫/各段落類型的排版邏輯）本身有大幅更新，
+// 這份內嵌複本要記得跟著手動更新，不然新建的子頁面會停留在舊版樣板。
 const SUBPAGE_DC_TEMPLATE_SOURCE_SLUG = "origin";
+const SUBPAGE_DC_TEMPLATE_SOURCE_HTML = `<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"><\/script>
+</head>
+<body>
+<!-- PAGE TRANSITION PRELOADER (arriving from homepage)：跟首頁自己第一次進站播放的
+     是同一支影片（uploads/網頁前導片.mp4），只在真的從首頁節點點進來時才播——由首頁
+     點擊節點當下設定的 sessionStorage 旗標 scTransitionIn 決定，直接重新整理/直接
+     輸入網址/瀏覽器上一頁都不會播（讀不到旗標就立刻移除遮罩） -->
+<div id="sc-arrival-overlay" style="position:fixed; inset:0; z-index:99999; background:#ffffff; display:flex; align-items:center; justify-content:center; transition:opacity 0.6s ease;">
+  <video id="sc-arrival-video" autoplay muted playsinline preload="auto" style="width:100%; height:100%; object-fit:cover;">
+    <source src="uploads/網頁前導片.mp4" type="video/mp4">
+  </video>
+</div>
+<script>
+(function () {
+  var overlay = document.getElementById('sc-arrival-overlay');
+  var vid = document.getElementById('sc-arrival-video');
+  if (!overlay || !vid) return;
+
+  var flag;
+  try { flag = sessionStorage.getItem('scTransitionIn'); } catch (err) { flag = null; }
+  if (flag !== '1') { overlay.remove(); return; }
+  try { sessionStorage.removeItem('scTransitionIn'); } catch (err) {}
+
+  var revealed = false;
+  function reveal() {
+    if (revealed) return;
+    revealed = true;
+    overlay.style.opacity = '0';
+    setTimeout(function () { overlay.remove(); }, 600);
+  }
+  vid.addEventListener('ended', reveal);
+  vid.addEventListener('error', reveal);
+  setTimeout(reveal, 15000);
+})();
+<\/script>
+<x-dc>
+<helmet>
+<link rel="icon" type="image/png" href="uploads/favicon.png?v=2">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="">
+<link href="https://fonts.googleapis.com/css2?family=Noto+Serif+TC:wght@200;700;800&display=swap" rel="stylesheet">
+<style>
+  * { box-sizing: border-box; }
+  body { margin: 0; -webkit-font-smoothing: antialiased; }
+  a { color: inherit; text-decoration: none; }
+  a:hover { color: inherit; opacity: 0.6; }
+</style>
+</helmet>
+<div style="background:{{ bgColor }}; color:{{ textColor }}; font-family:'Helvetica Neue',Helvetica,Arial,'PingFang TC','Microsoft JhengHei',sans-serif; width:100%; min-height:100vh; transition:background-color 0.3s, color 0.3s;">
+
+  <!-- HEADER -->
+  <header style="position:fixed; top:0; left:0; right:0; z-index:1000; padding:24px 40px; display:flex; justify-content:space-between; align-items:center;">
+    <div style="display:flex; align-items:center; gap:20px;">
+      <button data-menu-box="1" onClick="{{ toggleMaterialMenu }}" style="background:none; border:none; cursor:pointer; padding:8px; display:flex; flex-direction:column; gap:5px; justify-content:center; align-items:center; width:36px; height:36px;">
+        <span style="display:block; width:22px; height:2px; background-color:{{ textColor }}; transition:background-color 0.3s;"></span>
+        <span style="display:block; width:22px; height:2px; background-color:{{ textColor }}; transition:background-color 0.3s;"></span>
+        <span style="display:block; width:22px; height:2px; background-color:{{ textColor }}; transition:background-color 0.3s;"></span>
+      </button>
+      <sc-if value="{{ showMaterialMenu }}" hint-placeholder-val="{{ false }}">
+        <div data-menu-box="1" style="position:absolute; top:100%; left:40px; margin-top:8px; width:160px; background-color:{{ isDarkMode ? 'oklch(0.12 0 0)' : 'oklch(0.98 0 0)' }}; border:1px solid {{ isDarkMode ? 'oklch(0.25 0 0)' : 'oklch(0.85 0 0)' }}; border-radius:8px; box-shadow:0 8px 24px rgba(0,0,0,0.2); overflow:hidden;">
+          <a href="https://www.mashup.com.tw/as%20studio/?page=product_list&group_id=27070" style="display:block; padding:12px 16px; font-size:14px; color:{{ textColor }}; border-bottom:1px solid {{ isDarkMode ? 'oklch(0.2 0 0)' : 'oklch(0.92 0 0)' }}; transition:background-color 0.3s;" style-hover="background-color:{{ isDarkMode ? 'oklch(0.2 0 0)' : 'oklch(0.92 0 0)' }};">木構造</a>
+          <a href="https://www.mashup.com.tw/as%20studio/?page=product_list&group_id=25396" style="display:block; padding:12px 16px; font-size:14px; color:{{ textColor }}; border-bottom:1px solid {{ isDarkMode ? 'oklch(0.2 0 0)' : 'oklch(0.92 0 0)' }}; transition:background-color 0.3s;" style-hover="background-color:{{ isDarkMode ? 'oklch(0.2 0 0)' : 'oklch(0.92 0 0)' }};">竹構造</a>
+          <a href="https://www.mashup.com.tw/as%20studio/?page=product_list&group_id=25397" style="display:block; padding:12px 16px; font-size:14px; color:{{ textColor }}; border-bottom:1px solid {{ isDarkMode ? 'oklch(0.2 0 0)' : 'oklch(0.92 0 0)' }};" style-hover="background-color:{{ isDarkMode ? 'oklch(0.2 0 0)' : 'oklch(0.92 0 0)' }};">RC構造</a>
+          <a href="https://www.mashup.com.tw/as%20studio/?page=product_list&group_id=25398" style="display:block; padding:12px 16px; font-size:14px; color:{{ textColor }}; transition:background-color 0.3s;" style-hover="background-color:{{ isDarkMode ? 'oklch(0.2 0 0)' : 'oklch(0.92 0 0)' }};">鋼構造</a>
+        </div>
+      </sc-if>
+      <a href="./index.html" style="display:flex; align-items:center;">
+        <img src="uploads/favicon.png" alt="Logo" style="height:40px; filter:{{ logoFilter }}; transition:filter 0.3s;">
+      </a>
+    </div>
+    <div style="display:flex; gap:32px; align-items:center; background-color:{{ isDarkMode ? 'oklch(0.15 0 0 / 0.15)' : 'oklch(0.99 0 0 / 0.15)' }}; backdrop-filter:blur(10px); border-radius:8px; padding:16px 24px; transition:background-color 0.3s;">
+      <a href="https://www.mashup.com.tw/as%20studio/?page=service" style="font-size:16px; font-weight:500; letter-spacing:0.05em; transition:opacity 0.3s;">Team</a>
+      <a href="https://www.mashup.com.tw/as%20studio/?page=movies" style="font-size:16px; font-weight:500; letter-spacing:0.05em; transition:opacity 0.3s;">Film</a>
+      <a href="https://www.mashup.com.tw/as%20studio/?page=contact" style="font-size:16px; font-weight:500; letter-spacing:0.05em; transition:opacity 0.3s;">Contact</a>
+      <button onClick="{{ toggleDarkMode }}" style="background:none; border:1px solid {{ textColor }}; border-radius:4px; padding:8px 12px; font-size:14px; font-weight:500; cursor:pointer; transition:all 0.3s; color:{{ textColor }}; display:flex; align-items:center; justify-content:center; width:44px; height:44px;">
+        <sc-if value="{{ isDarkMode }}" hint-placeholder-val="{{ true }}">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>
+          </svg>
+        </sc-if>
+        <sc-if value="{{ !isDarkMode }}" hint-placeholder-val="{{ true }}">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="12" r="5"></circle>
+            <line x1="12" y1="1" x2="12" y2="3"></line>
+            <line x1="12" y1="21" x2="12" y2="23"></line>
+            <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line>
+            <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line>
+            <line x1="1" y1="12" x2="3" y2="12"></line>
+            <line x1="21" y1="12" x2="23" y2="12"></line>
+            <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line>
+            <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>
+          </svg>
+        </sc-if>
+      </button>
+    </div>
+  </header>
+
+  <!-- PAGE CONTENT -->
+  <section style="padding:220px 40px 160px; max-width:1600px; margin:0 auto;">
+
+    <!-- HOVER-EXPAND GALLERY (skiper35 效果的替代版，來自「活頁簿1／原型原點」工作表，5 欄) -->
+    <style>
+      .sc-gallery { position:relative; display:flex; height:328px; margin-bottom:56px; }
+      /* 游標彗星尾巴：容器包住整個圖片列（contained area），dot 只在滑鼠停留在列內時顯示，
+         每個 dot 用 JS 逐格 lerp 追前一個 dot（第一個追游標），做出拖尾效果；
+         點大小/透明度依序遞減，尺寸/透明度用 JS 建立時算好、位置每幀用 transform 更新 */
+      .sc-cursor-chain {
+        position:absolute; inset:0; overflow:hidden; pointer-events:none; z-index:50;
+        opacity:0; transition:opacity 0.25s ease;
+      }
+      .sc-cursor-chain.sc-visible { opacity:1; }
+      .sc-chain-dot {
+        position:absolute; left:0; top:0; border-radius:50%; background:currentColor;
+        pointer-events:none; will-change:transform;
+      }
+      .sc-gallery-panel {
+        position:relative; flex:1; min-width:0; overflow:hidden; cursor:pointer;
+        transition:flex 0.55s cubic-bezier(.16,1,.3,1);
+      }
+      .sc-gallery-panel:hover { flex:4; }
+      /* 有照片的滑塊左右各留 1px 空隙，不讓照片緊貼分隔線：
+         padding 1px + background-clip/origin:content-box，照片只畫在 padding 以內，
+         左右各 1px 露出滑塊底色（等於視覺上裁掉照片左右各 1px） */
+      .sc-gallery-panel[data-photo="true"] {
+        padding:0 1px;
+        background-clip:content-box;
+        background-origin:content-box;
+      }
+      .sc-gallery-icon {
+        position:absolute; top:50%; left:50%; transform:translate(-50%,-50%);
+        width:28px; height:28px; opacity:0.25; transition:opacity 0.4s ease;
+      }
+      .sc-gallery-panel:hover .sc-gallery-icon { opacity:0.4; }
+
+      /* 編號與大標題在收合/展開之間互換角度：
+         收合：編號 0 度（橫式）／大標題 -90 度（直式，貼合窄版面不超出滑塊）
+         展開：編號轉為 -90 度／大標題轉回 0 度（橫式可讀）
+         兩者都用絕對定位固定各自的 left/bottom 基準點旋轉（不透過 flex gap），
+         避免 transform 不影響版位計算導致的重疊或跑位過遠 */
+      .sc-gallery-caption {
+        position:absolute; left:35px; bottom:16px; height:44px; right:16px;
+      }
+      .sc-gallery-num {
+        position:absolute; left:0; bottom:0; transform-origin:left bottom;
+        font-family:'Noto Serif TC','Source Han Serif TC',serif; font-weight:800; font-size:20px; letter-spacing:0.05em;
+        white-space:nowrap; transform:translateY(-280px) rotate(0deg);
+        transition:transform 0.5s cubic-bezier(.65,0,.35,1);
+      }
+      .sc-gallery-panel:hover .sc-gallery-num { transform:translateY(0) rotate(-90deg); }
+
+      .sc-gallery-titles {
+        position:absolute; left:1px; bottom:0;
+        display:flex; flex-direction:column; justify-content:flex-end;
+      }
+      .sc-gallery-sub {
+        font-family:'Noto Serif TC','Source Han Serif TC',serif; font-weight:200; font-size:17px; line-height:1.3;
+        margin:0; white-space:nowrap; overflow:hidden;
+        max-height:0; transform:scaleY(0); transform-origin:bottom;
+        transition:max-height 0.4s ease, transform 0.4s ease;
+      }
+      .sc-gallery-panel:hover .sc-gallery-sub { max-height:20px; transform:scaleY(1); }
+      .sc-gallery-main {
+        display:inline-block; transform-origin:left bottom;
+        font-family:'Noto Serif TC','Source Han Serif TC',serif; font-weight:800; font-size:21px; line-height:1.2;
+        margin:0; white-space:nowrap;
+        transform:rotate(-90deg);
+        transition:transform 0.5s cubic-bezier(.65,0,.35,1);
+      }
+      .sc-gallery-panel:hover .sc-gallery-main { transform:rotate(0deg); }
+    </style>
+    <div class="sc-gallery" id="sc-gallery">
+      <sc-for list="{{ galleryItems }}" as="item" hint-placeholder-count="7">
+        <div class="sc-gallery-panel" data-photo="{{ item.hasPhoto }}" onClick="{{ item.goTo }}" style="background-color:{{ item.bg }}; border-left:{{ item.borderLeft }}; background-image:{{ item.bgImage }}; background-repeat:no-repeat; background-position:{{ item.bgPosition }}; background-size:{{ item.bgSize }};">
+          <sc-if value="{{ !item.hasPhoto }}" hint-placeholder-val="{{ true }}">
+            <svg class="sc-gallery-icon" viewBox="0 0 24 24" fill="none" stroke="{{ item.text }}" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+              <rect x="3" y="3" width="18" height="18" rx="2"></rect>
+              <circle cx="8.5" cy="8.5" r="1.5"></circle>
+              <path d="M21 15l-5-5L5 21"></path>
+            </svg>
+          </sc-if>
+          <div class="sc-gallery-caption">
+            <span class="sc-gallery-num" style="color:{{ item.text }};">{{ item.num }}</span>
+            <div class="sc-gallery-titles">
+              <p class="sc-gallery-sub" style="color:{{ item.text }};">{{ item.en }}</p>
+              <p class="sc-gallery-main" style="color:{{ item.text }};">{{ item.zh }}</p>
+            </div>
+          </div>
+        </div>
+      </sc-for>
+      <div class="sc-cursor-chain" id="sc-cursor-chain" style="color:#B4A249;"></div>
+    </div>
+
+    <div style="font-size:28px; letter-spacing:0.1em; opacity:0.5; margin-bottom:16px;">
+      <a href="./index.html">首頁</a> / {{ pageTitle }}
+    </div>
+    <h1 style="font-family:'Noto Serif TC','Source Han Serif TC',serif; font-size:30px; font-weight:800; letter-spacing:0.02em; margin:{{ h1Margin }};">{{ pageTitle }}</h1>
+    <sc-if value="{{ hasSubtitle }}" hint-placeholder-val="{{ false }}">
+      <div style="font-family:'Noto Serif TC','Source Han Serif TC',serif; font-size:22px; font-weight:700; letter-spacing:0.5em; opacity:0.6; margin:0 0 40px 0;">{{ pageSubtitle }}</div>
+    </sc-if>
+    <sc-if value="{{ hasIntroImage }}" hint-placeholder-val="{{ false }}">
+      <figure style="margin:0 0 56px 0;">
+        <img src="{{ pageIntroImage }}" alt="" style="width:100%; max-width:900px; display:block; margin:0 auto;">
+      </figure>
+    </sc-if>
+
+    <!-- 通用照片區塊：grid（直式/橫式混合裁一致比例）或 stack（原尺寸比例堆疊置中） -->
+    <style>
+      .sc-section-photo-grid { display:grid; grid-template-columns:repeat(auto-fill, minmax(220px, 1fr)); gap:12px; }
+      .sc-section-photo-grid img { width:100%; aspect-ratio:4/5; object-fit:cover; display:block; }
+      .sc-section-photo-stack { display:flex; flex-direction:column; align-items:center; gap:24px; }
+      .sc-section-photo-stack img { max-width:100%; max-height:90vh; width:auto; height:auto; display:block; }
+    </style>
+
+    <!-- 垂直時間軸：大事記，獨立運作、一進來先顯示前 2 筆 -->
+    <style>
+      .sc-timeline { position:relative; padding-left:28px; margin-left:76px; }
+      .sc-timeline-line { position:absolute; left:3px; top:6px; width:1px; height:0; transition:height 0.6s ease; }
+      .sc-timeline-item { position:relative; }
+      .sc-timeline-item-inner { overflow:hidden; max-height:0; opacity:0; padding-bottom:0; transition:max-height 0.6s ease, opacity 0.5s ease 0.1s, padding-bottom 0.6s ease; }
+      .sc-timeline-item.sc-visible .sc-timeline-item-inner { max-height:220px; opacity:1; padding-bottom:44px; }
+      .sc-timeline-item.sc-visible:last-child .sc-timeline-item-inner { padding-bottom:0; }
+      .sc-timeline-dot { position:absolute; left:-28px; top:4px; width:7px; height:7px; border-radius:50%; opacity:0; transition:opacity 0.4s ease 0.15s; }
+      .sc-timeline-item.sc-visible .sc-timeline-dot { opacity:1; }
+      .sc-timeline-year { font-family:'Noto Serif TC','Source Han Serif TC',serif; font-weight:800; font-size:30px; margin:0 0 6px 0; }
+      .sc-timeline-title { font-family:'Noto Serif TC','Source Han Serif TC',serif; font-weight:700; font-size:26px; letter-spacing:0.02em; opacity:0.85; margin:0 0 6px 0; }
+      .sc-timeline-desc { font-family:'Noto Serif TC','Source Han Serif TC',serif; font-weight:200; font-size:26px; line-height:1.8; opacity:0.65; margin:0; }
+      .sc-timeline-fade-hint { height:60px; margin-top:-12px; }
+    </style>
+
+    <!-- 水平時間軸：原型三時期，捲到附近時依序淡入 -->
+    <style>
+      .sc-h-timeline-scroll { overflow-x:auto; overflow-y:hidden; padding-bottom:4px; }
+      .sc-h-timeline { position:relative; min-width:600px; }
+      .sc-h-timeline-track { position:relative; display:flex; justify-content:space-between; gap:32px; }
+      .sc-h-timeline-line { position:absolute; top:5px; left:0; height:1px; width:0; background:#B4A249; z-index:0; transition:width 0.6s ease; }
+      .sc-h-timeline-step {
+        position:relative; flex:1; min-width:180px; display:flex; flex-direction:column; align-items:center; text-align:center;
+        opacity:0; transform:translateY(14px); transition:opacity 0.5s ease, transform 0.5s ease;
+      }
+      .sc-h-timeline-step.sc-visible { opacity:1; transform:translateY(0); }
+      .sc-h-timeline-dot { position:relative; z-index:1; width:10px; height:10px; border-radius:50%; margin-bottom:24px; flex-shrink:0; }
+      .sc-h-timeline-period { font-family:'Noto Serif TC','Source Han Serif TC',serif; font-weight:800; font-size:30px; letter-spacing:0.02em; margin:0 0 8px 0; }
+      .sc-h-timeline-event { font-family:'Noto Serif TC','Source Han Serif TC',serif; font-weight:700; font-size:26px; letter-spacing:0.05em; opacity:0.55; margin:0 0 10px 0; }
+      .sc-h-timeline-desc { font-family:'Noto Serif TC','Source Han Serif TC',serif; font-weight:200; font-size:26px; line-height:1.8; opacity:0.85; margin:0; max-width:220px; }
+    </style>
+
+    <!-- 案例資訊卡（手風琴）：海之博物館／東京國際會議中心／橫濱大棧橋 -->
+    <style>
+      .sc-accordion { border-width:1px; border-style:solid; border-radius:14px; padding:4px 24px; box-shadow:0 0 0 0 rgba(180,162,73,0); transition:box-shadow 0.6s cubic-bezier(.16,1,.3,1), transform 0.55s cubic-bezier(.34,1.56,.64,1), border-color 0.4s ease; }
+      .sc-accordion.open { transform:scale(1.008); box-shadow:0 12px 32px -12px rgba(180,162,73,0.4), 0 0 0 1px rgba(180,162,73,0.3); }
+      .sc-accordion-header { display:flex; align-items:center; justify-content:space-between; gap:16px; width:100%; background:none; border:none; cursor:pointer; padding:20px 0; font-family:'Noto Serif TC','Source Han Serif TC',serif; font-size:15px; font-weight:800; letter-spacing:0.02em; text-align:left; }
+      .sc-accordion-chevron { flex-shrink:0; transition:transform 0.5s cubic-bezier(.34,1.56,.64,1); }
+      .sc-accordion.open .sc-accordion-chevron { transform:rotate(180deg); }
+      .sc-accordion-title { display:inline-block; }
+      .sc-accordion-panel { max-height:0; overflow:hidden; transition:max-height 0.6s cubic-bezier(.16,1,.3,1); }
+      .sc-accordion-panel::before { content:''; display:block; height:1px; width:0; background:#B4A249; margin-bottom:16px; transition:width 0.6s cubic-bezier(.16,1,.3,1) 0.08s; }
+      .sc-accordion.open .sc-accordion-panel::before { width:100%; }
+      .sc-accordion-panel-inner { padding:0 0 24px 0; opacity:0; transform:translateY(-8px); transition:opacity 0.5s ease 0.18s, transform 0.5s cubic-bezier(.16,1,.3,1) 0.18s; }
+      .sc-accordion.open .sc-accordion-panel-inner { opacity:1; transform:translateY(0); }
+      .sc-accordion-photos { display:grid; grid-template-columns:repeat(auto-fill, minmax(160px, 1fr)); gap:10px; margin-bottom:18px; }
+      .sc-accordion-photos img { width:100%; aspect-ratio:4/3; object-fit:cover; display:block; border-radius:6px; }
+      .sc-accordion-spec { white-space:pre-line; }
+    </style>
+
+    <!-- 內文段落（sections）改成資料驅動（content/subpages/origin.json，見後台
+         「子頁面」編輯器）——每一段自己就是一種功能：小標題／內文／照片／垂直
+         時間軸／水平時間軸／案例資訊卡，可以自由新增/刪除/拖曳排序。這裡渲染的是
+         「內容段落」（不含 sections[0] 的照片滑塊，滑塊資料改由上面 galleryItems
+         直接渲染，見 renderVals()）。沒有資料（抓不到 JSON）時用 Component 裡的
+         _fallbackSections 當退回值。 -->
+    <div style="display:flex; flex-direction:column; gap:72px;">
+      <sc-for list="{{ sections }}" as="sec" hint-placeholder-count="5">
+        <div id="{{ sec.id }}">
+          <sc-if value="{{ sec.isHeading }}" hint-placeholder-val="{{ false }}">
+            <sc-if value="{{ !sec.isH3 }}" hint-placeholder-val="{{ true }}">
+              <h2 style="font-family:'Noto Serif TC','Source Han Serif TC',serif; font-size:26px; font-weight:700; letter-spacing:0.02em; margin:0 0 12px 0;">{{ sec.text }}</h2>
+            </sc-if>
+            <sc-if value="{{ sec.isH3 }}" hint-placeholder-val="{{ false }}">
+              <h3 style="font-family:'Noto Serif TC','Source Han Serif TC',serif; font-size:22px; font-weight:700; letter-spacing:0.02em; margin:40px 0 12px 0;">{{ sec.text }}</h3>
+            </sc-if>
+          </sc-if>
+          <sc-if value="{{ sec.isBody }}" hint-placeholder-val="{{ false }}">
+            <sc-if value="{{ !sec.isEmphasis }}" hint-placeholder-val="{{ true }}">
+              <p style="font-family:'Noto Serif TC','Source Han Serif TC',serif; font-size:26px; font-weight:200; line-height:1.9; opacity:0.85; margin:0;">{{ sec.text }}</p>
+            </sc-if>
+            <sc-if value="{{ sec.isEmphasis }}" hint-placeholder-val="{{ false }}">
+              <p style="font-family:'Noto Serif TC','Source Han Serif TC',serif; font-size:32px; font-weight:700; line-height:1.9; opacity:0.5; margin:0;">{{ sec.text }}</p>
+            </sc-if>
+          </sc-if>
+          <sc-if value="{{ sec.isPhotosGrid }}" hint-placeholder-val="{{ false }}">
+            <div class="sc-section-photo-grid">
+              <sc-for list="{{ sec.images }}" as="img"><img src="{{ img }}" alt=""></sc-for>
+            </div>
+          </sc-if>
+          <sc-if value="{{ sec.isPhotosStack }}" hint-placeholder-val="{{ false }}">
+            <div class="sc-section-photo-stack">
+              <sc-for list="{{ sec.images }}" as="img"><img src="{{ img }}" alt=""></sc-for>
+            </div>
+          </sc-if>
+          <sc-if value="{{ sec.isTimelineVertical }}" hint-placeholder-val="{{ false }}">
+            <div class="sc-timeline" data-sc-vtimeline="{{ sec.instanceId }}">
+              <div class="sc-timeline-line" style="background:{{ textColor }};"></div>
+              <sc-for list="{{ sec.items }}" as="tItem">
+                <div class="sc-timeline-item">
+                  <span class="sc-timeline-dot" style="background:{{ textColor }};"></span>
+                  <div class="sc-timeline-item-inner">
+                    <p class="sc-timeline-year" style="color:{{ textColor }};">{{ tItem.year }}</p>
+                    <p class="sc-timeline-title" style="color:{{ textColor }};">{{ tItem.title }}</p>
+                    <p class="sc-timeline-desc" style="color:{{ textColor }};">{{ tItem.desc }}</p>
+                  </div>
+                </div>
+              </sc-for>
+              <div class="sc-timeline-fade-hint" style="background:linear-gradient(to bottom, transparent, {{ bgColor }});"></div>
+            </div>
+          </sc-if>
+          <sc-if value="{{ sec.isTimelineHorizontal }}" hint-placeholder-val="{{ false }}">
+            <div class="sc-h-timeline-scroll" data-sc-htimeline="{{ sec.instanceId }}">
+              <div class="sc-h-timeline">
+                <div class="sc-h-timeline-track">
+                  <div class="sc-h-timeline-line"></div>
+                  <sc-for list="{{ sec.items }}" as="item">
+                    <div class="sc-h-timeline-step">
+                      <span class="sc-h-timeline-dot" style="background:#B4A249;"></span>
+                      <p class="sc-h-timeline-period" style="color:{{ textColor }};">{{ item.period }}</p>
+                      <p class="sc-h-timeline-event" style="color:{{ textColor }};">{{ item.event }}</p>
+                      <p class="sc-h-timeline-desc" style="color:{{ textColor }};">{{ item.desc }}</p>
+                    </div>
+                  </sc-for>
+                </div>
+              </div>
+            </div>
+          </sc-if>
+          <sc-if value="{{ sec.isCaseCard }}" hint-placeholder-val="{{ false }}">
+            <div class="sc-accordion" data-sc-card="{{ sec.instanceId }}" style="border-color:{{ isDarkMode ? 'oklch(0.3 0 0)' : 'oklch(0.85 0 0)' }};">
+              <button type="button" class="sc-accordion-header" style="color:{{ textColor }};">
+                <span class="sc-accordion-title">{{ sec.title }}</span>
+                <svg class="sc-accordion-chevron" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <polyline points="6 9 12 15 18 9"></polyline>
+                </svg>
+              </button>
+              <div class="sc-accordion-panel">
+                <div class="sc-accordion-panel-inner">
+                  <sc-if value="{{ sec.hasPhotos }}" hint-placeholder-val="{{ false }}">
+                    <div class="sc-accordion-photos">
+                      <sc-for list="{{ sec.photos }}" as="img"><img src="{{ img }}" alt=""></sc-for>
+                    </div>
+                  </sc-if>
+                  <p class="sc-accordion-spec" style="font-family:'Noto Serif TC','Source Han Serif TC',serif; font-size:13px; font-weight:200; line-height:1.9; opacity:0.85; margin:0 0 12px 0; color:{{ textColor }};">{{ sec.specZh }}</p>
+                  <sc-if value="{{ sec.hasSpecEn }}" hint-placeholder-val="{{ false }}">
+                    <p class="sc-accordion-spec" style="font-family:'Noto Serif TC','Source Han Serif TC',serif; font-size:13px; font-weight:200; line-height:1.85; opacity:0.65; margin:0; color:{{ textColor }};">{{ sec.specEn }}</p>
+                  </sc-if>
+                </div>
+              </div>
+            </div>
+          </sc-if>
+        </div>
+      </sc-for>
+    </div>
+  </section>
+
+  <!-- FOOTER -->
+  <footer style="background-color:{{ isDarkMode ? 'oklch(0.12 0 0)' : 'oklch(0.95 0 0)' }}; padding:80px 40px; transition:background-color 0.3s;">
+    <div style="max-width:1200px; margin:0 auto; display:flex; justify-content:space-between; align-items:flex-start;">
+      <div style="text-align:left;">
+        <p style="color:{{ isDarkMode ? 'oklch(0.7 0 0)' : 'oklch(0.4 0 0)' }}; font-size:14px; margin:0 0 8px 0; transition:color 0.3s;">電話：06-2905293</p>
+        <p style="color:{{ isDarkMode ? 'oklch(0.7 0 0)' : 'oklch(0.4 0 0)' }}; font-size:14px; margin:0 0 8px 0; transition:color 0.3s;">傳真：06-2905493</p>
+        <p style="color:{{ isDarkMode ? 'oklch(0.7 0 0)' : 'oklch(0.4 0 0)' }}; font-size:14px; margin:0; transition:color 0.3s;">電郵：<a href="mailto:as.studio001@gmail.com" style="color:{{ isDarkMode ? 'oklch(0.7 0 0)' : 'oklch(0.4 0 0)' }}; text-decoration:none; transition:opacity 0.3s;" style-hover="opacity:0.7;">as.studio001@gmail.com</a></p>
+      </div>
+      <div style="text-align:center;">
+        <p style="color:{{ isDarkMode ? 'oklch(0.7 0 0)' : 'oklch(0.4 0 0)' }}; font-size:14px; margin:0; transition:color 0.3s;">台南市東區中華東路三段44巷7號1樓</p>
+      </div>
+      <div style="text-align:right; display:flex; gap:16px; align-items:center;">
+        <a href="https://www.facebook.com/AS.structure" target="_blank" rel="noopener" style="display:flex; align-items:center; justify-content:center; width:32px; height:32px; border-radius:50%; background-color:{{ isDarkMode ? 'oklch(0.25 0 0)' : 'oklch(0.9 0 0)' }}; transition:all 0.3s;" style-hover="opacity:0.7;">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color:{{ isDarkMode ? 'oklch(0.95 0 0)' : 'oklch(0.16 0 0)' }}; transition:color 0.3s;">
+            <path d="M18 2h-3a6 6 0 0 0-6 6v4h-2v4h2v6h4v-6h3l1-4h-4V8a2 2 0 0 1 2-2h1Z"></path>
+          </svg>
+        </a>
+        <a href="https://www.instagram.com/as.futuregroup?igsh=MTRsZXV2dmhnaGdqOQ%3D%3D" target="_blank" rel="noopener" style="display:flex; align-items:center; justify-content:center; width:32px; height:32px; border-radius:50%; background-color:{{ isDarkMode ? 'oklch(0.25 0 0)' : 'oklch(0.9 0 0)' }}; transition:all 0.3s;" style-hover="opacity:0.7;">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color:{{ isDarkMode ? 'oklch(0.95 0 0)' : 'oklch(0.16 0 0)' }}; transition:color 0.3s;">
+            <rect x="2" y="2" width="20" height="20" rx="5" ry="5"></rect>
+            <path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z"></path>
+            <circle cx="17.5" cy="6.5" r="1.5"></circle>
+          </svg>
+        </a>
+        <a href="https://www.youtube.com/@%E9%99%B3%E5%86%A0%E5%B8%86-z9v" target="_blank" rel="noopener" style="display:flex; align-items:center; justify-content:center; width:32px; height:32px; border-radius:50%; background-color:{{ isDarkMode ? 'oklch(0.25 0 0)' : 'oklch(0.9 0 0)' }}; transition:all 0.3s;" style-hover="opacity:0.7;">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" style="color:{{ isDarkMode ? 'oklch(0.95 0 0)' : 'oklch(0.16 0 0)' }}; transition:color 0.3s;">
+            <path d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z"></path>
+          </svg>
+        </a>
+      </div>
+    </div>
+  </footer>
+
+</div>
+
+</x-dc>
+<script type="text/x-dc" data-dc-script>
+class Component extends DCLogic {
+  state = { isDarkMode: false, showMaterialMenu: false, data: null };
+
+  pageTitle = '原型原點';
+
+  // 內容改成後台可編輯（content/subpages/origin.json），這裡的 _fallbackSections
+  // 只在「抓不到 JSON」時當退回值用。sections[0] 固定是照片滑塊（type:
+  // gallery-slider），其餘每段是「一段一種功能」的扁平清單，跟「原型教學」同一套
+  // schema——這頁多用了 case-card（海之博物館／東京國際會議中心／橫濱大棧橋）跟
+  // 兩種時間軸（原型三時期／大事記）。
+  _fallbackSections = [
+    {
+      "id": "sc-section-gallery",
+      "type": "gallery-slider",
+      "items": [
+        { "num": "01", "zh": "SDG", "en": "StructuralDesignGroup", "photo": "uploads/渡邊邦夫.jpg", "textOverride": "#ffffff", "target": "sc-section-origin" },
+        { "num": "02", "zh": "1992海之博物館", "en": "", "photo": "uploads/海之博物館.jpg", "textOverride": "#ffffff", "target": "sc-section-sea-museum-card" },
+        { "num": "03", "zh": "1996東京國際", "en": "", "photo": "uploads/東京國際會議中心.jpg", "textOverride": "#ffffff", "target": "sc-section-tokyo-forum-card" },
+        { "num": "04", "zh": "2002橫濱大棧橋", "en": "", "photo": "uploads/橫濱大棧橋.jpg", "textOverride": "#ffffff", "target": "sc-section-yokohama-pier-card" },
+        { "num": "05", "zh": "原型三時期", "en": "", "photo": "uploads/02.jpg", "textOverride": "#ffffff", "target": "sc-section-three-periods" }
+      ]
+    },
+    { "id": "sc-section-origin", "type": "heading", "text": "原點：SDG 與原型結構的對話" },
+    { "id": "sc-section-origin-body", "type": "body", "text": "在建築與結構之間，存在一個被不斷追問的起點——那個尚未被命名的「原點」。它是材料被發現的瞬間、力被感知的方向，也是建築思考的源頭。SDG（構造設計集團）正是在這樣的原點上，重新定義了「結構」的意義，讓構造成為設計的核心語言，也啟發了台灣原型結構的誕生。" },
+    { "id": "sc-section-sdg-spirit", "type": "heading", "text": "SDG 的精神：結構即設計" },
+    { "id": "sc-section-sdg-spirit-body", "type": "body", "text": "在 SDG 的實踐中，設計與結構從不分離。渡邊邦夫強調：「沒有什麼材料不能被設計，沒有什麼構造不能被想像。」他要求設計師以建築師的眼光提問，讓力學成為理解形體的語言。結構因此不再隱身，而以線條與力的節奏，參與空間的生成，成為建築詩學的一部分。" },
+    { "id": "sc-section-from-sdg", "type": "heading", "text": "從 SDG 到原型結構" },
+    { "id": "sc-section-from-sdg-body", "type": "body", "text": "回到台灣後，陳冠帆將這份精神化為實踐，創立「原型結構工程顧問有限公司」，主張結構與建築本為一體。他將 SDG 的自由思維延伸至竹構與木構研究，讓材料成為思考的起點，而非形式的裝飾。SDG 對原型結構最深遠的影響，正是在於讓結構回到設計的原點，讓材料回到自然的秩序。" },
+    { "id": "sc-section-sea-museum-card", "type": "case-card", "title": "海之博物館", "photos": ["uploads/海之博物館.jpg", "uploads/海之博物館.jpg", "uploads/海之博物館.jpg"],
+      "specZh": "建築類型 / 博物館\\n項目狀態 / 已完工（1992 年竣工）\\n構造系統 / 層壓木桁架＋鋼筋混凝土\\n基地位置 / 日本三重縣鳥羽市\\n攝影 / Satoru Mishima\\n合作團隊 /\\n建築設計｜內藤廣（Hiroshi Naitō）\\n結構設計｜構造設計集團 SDG（渡邊邦夫 Kunio Watanabe）",
+      "specEn": "" },
+    { "id": "sc-section-sea-museum", "type": "heading", "text": "海之博物館" },
+    { "id": "sc-section-sea-museum-body", "type": "body", "text": "海之民博物館由建築師內藤廣設計，結構設計由渡邊邦夫率領的構造設計集團（SDG）負責，1992 年於三重縣鳥羽市完工。建築以 18.5 公尺寬的層壓木桁架屋頂為核心，結合木構與鋼筋混凝土複合結構，形成溫潤而堅實的展覽空間。中央天窗引入自然光，映照海洋文物，使空間充滿光影流動的節奏。起伏的屋頂呼應海浪的韻律，蜿蜒的動線如潮汐般引導參觀者在空間中移動。博物館收藏木船、海女器具與漁具，展現人與海的共生歷史。此案以結構詩學與材料誠實著稱，既是文化的容器，也是海岸線上一座靜謐的地景建築。" },
+    { "id": "sc-section-tokyo-forum-card", "type": "case-card", "title": "東京國際會議中心", "photos": ["uploads/東京國際會議中心.jpg", "uploads/東京國際會議中心.jpg", "uploads/東京國際會議中心.jpg"],
+      "specZh": "建築類型 / 會議與文化中心\\n項目狀態 / 已完工（1996 年竣工，1997 年開幕）\\n構造系統 / 鋼結構 + 鋼骨玻璃結構\\n基地位置 / 日本東京都千代田區丸之內地區\\n攝影 / Kawasumi Architectural Photography\\n合作團隊 /\\n建築設計｜Rafael Viñoly Architects\\n結構設計｜Structural Design Group (SDG) / 渡邊邦夫（Kunio Watanabe）",
+      "specEn": "" },
+    { "id": "sc-section-tokyo-forum", "type": "heading", "text": "東京國際會議中心" },
+    { "id": "sc-section-tokyo-forum-body", "type": "body", "text": "東京國際論壇於 1996 年竣工、1997 年開幕，位於東京丸之內地區，是一座融合會議、展演與公共活動的文化地標。由 Rafael Viñoly Architects 設計，結構設計由構造設計集團（SDG）的渡邊邦夫負責，展現建築與工程的精準協奏。其核心為標誌性的玻璃大廳，形似船艙，橫跨約 230 公尺，兩側以高達 60 公尺的鋼索懸吊玻璃牆支撐於優雅的鋼拱之間。大廳作為整體動線的中樞，串連多座表演廳、會議室與展覽空間，透過橋梁與坡道交織出流動的公共體驗。外立面以花崗岩包覆，構築城市邊界；內部則以透明結構引光入室。白日如晶體般透亮，夜晚化為東京天際線上的光之艦。二十多年來，論壇舉辦數千場活動、迎接數以百萬計訪客，成為城市開放精神與建築美學的象徵。2024 年，該建築榮獲美國建築師學會（AIA）「二十五年獎」，肯定其持續的設計價值與文化影響力。" },
+    { "id": "sc-section-yokohama-pier-card", "type": "case-card", "title": "橫濱大棧橋", "photos": ["uploads/橫濱大棧橋.jpg", "uploads/橫濱大棧橋.jpg", "uploads/橫濱大棧橋.jpg"],
+      "specZh": "建築類型 / 海運客運碼頭\\n項目狀態 / 已完工（2002 年竣工）\\n構造系統 / 鋼構＋鋼筋混凝土複合結構，採折板與箱型梁系統形成無柱大跨空間\\n基地位置 / 日本神奈川縣橫濱市中區\\n攝影 / Satoru Mishima / FOA\\n合作團隊 /\\n建築設計｜Foreign Office Architects (FOA)\\n結構設計｜構造設計集團 SDG（渡邊邦夫 Kunio Watanabe）",
+      "specEn": "" },
+    { "id": "sc-section-yokohama-pier", "type": "heading", "text": "橫濱大棧橋" },
+    { "id": "sc-section-yokohama-pier-body", "type": "body", "text": "橫濱國際客運碼頭於 2002 年完工，由 Foreign Office Architects（FOA） 設計，構造設計集團（SDG） 的 渡邊邦夫 負責結構設計。此案以「流動的地景」取代傳統碼頭，將建築、結構與都市動線融合為連續的公共地形。總樓地板面積約 48,000 平方公尺，屋頂以起伏的折板形態延展成海邊步道，使城市與港灣之間無縫銜接。下方的鋼構與鋼筋混凝土複合折板系統形成無柱大跨空間，容納旅客候船廳與多功能展演區。其結構形式以折板與箱型梁協同受力，使屋頂既為結構亦為表皮，最小化支撐，展現連續與運動的張力。設計將公共步行層與功能層整合，將基礎設施轉化為可親近的市民平台。橫濱大棧橋以其創新的建築與結構語彙，成為日本城市濱水設計的里程碑與象徵。" },
+    { "id": "sc-section-three-periods", "type": "timeline-horizontal", "items": [
+      { "period": "一人", "event": "我", "desc": "SDG 學成歸國" },
+      { "period": "原型結構", "event": "我們", "desc": "成立以設計為導向的設計公司" },
+      { "period": "原型結構+原型建築", "event": "不同的我們", "desc": "實現建築+結構為一體的理念" }
+    ] },
+    { "id": "sc-section-timeline", "type": "heading", "text": "大事記" },
+    { "id": "sc-section-timeline-vertical", "type": "timeline-vertical", "items": [
+      { "year": "2005", "title": "建築的起點", "desc": "成大建築研究所結構組畢" },
+      { "year": "2006", "title": "進入日本結構設計", "desc": "SDG 構造設計集團（2006~2011）" },
+      { "year": "2007", "title": "學習日本建築結構思維", "desc": "學習根本且深度的結構設計脈絡" },
+      { "year": "2008", "title": "結構開始介入建築創作", "desc": "韓國國際競圖" },
+      { "year": "2009", "title": "大型公共建築實踐", "desc": "日月潭向山遊客中心" },
+      { "year": "2010", "title": "國際工程實戰", "desc": "上海世博中國船舶館" },
+      { "year": "2011", "title": "返台，開始自己的路", "desc": "返台成立個人工作體系（原型結構雛形）" },
+      { "year": "2012", "title": "結構成為建築設計的一部分", "desc": "新營服務區公廁" },
+      { "year": "2013", "title": "原型結構誕生", "desc": "原型結構工程顧問有限公司" },
+      { "year": "2014", "title": "結構走進公共藝術", "desc": "X-SITE《邊緣地景》" },
+      { "year": "2015", "title": "木構回應城市文化", "desc": "嘉義美術館" },
+      { "year": "2016", "title": "輕盈的結構成為可能", "desc": "X-SITE《浮光之間》" },
+      { "year": "2017", "title": "從結構與教育並進", "desc": "華德福實驗分校" },
+      { "year": "2018", "title": "結構獲得建築界認可", "desc": "ENISHI 緣民宿" },
+      { "year": "2019", "title": "大跨度橋梁的整合實踐", "desc": "故宮南院景觀橋" },
+      { "year": "2020", "title": "木構成為原型核心", "desc": "左鎮化石館、德光教會" },
+      { "year": "2021", "title": "從作品走向研究與策展", "desc": "構竹林鐵策展規劃" },
+      { "year": "2022", "title": "從結構走向建築", "desc": "原型建築有限公司成立" },
+      { "year": "2023", "title": "從結構開啟的建築設計", "desc": "嘉義實驗木場" },
+      { "year": "2024", "title": "材料研究走向實體實驗", "desc": "竹結構系列" },
+      { "year": "2025", "title": "開始打造自己的建築", "desc": "原型1號宅" },
+      { "year": "2026", "title": "從公司走向原型系統", "desc": "留白計畫" }
+    ] }
+  ];
+
+  scrollToSection(id) {
+    if (!id) return;
+    const el = document.getElementById(id);
+    if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  }
+
+  toggleDarkMode() {
+    this.setState(s => ({ isDarkMode: !s.isDarkMode }));
+  }
+
+  toggleMaterialMenu() {
+    this.setState(s => ({ showMaterialMenu: !s.showMaterialMenu }));
+  }
+
+  componentDidMount() {
+    fetch('https://as-studio001.github.io/Internal-Pages/content/subpages/origin.json', { cache: 'no-store' })
+      .then((res) => (res.ok ? res.json() : null))
+      .then((json) => {
+        if (!json) return;
+        this.setState({ data: json }, () => {
+          this._teardownSectionWidgets();
+          this._setupSectionWidgets();
+        });
+      })
+      .catch(() => {});
+
+    this._onDocMouseDown = (e) => {
+      const inMenu = e.target && e.target.closest && e.target.closest('[data-menu-box]');
+      if (!inMenu && this.state.showMaterialMenu) this.setState({ showMaterialMenu: false });
+    };
+    document.addEventListener('mousedown', this._onDocMouseDown);
+
+    this._sizeGallerySquare = () => {
+      const gallery = document.getElementById('sc-gallery');
+      if (!gallery) return;
+      const totalWidth = gallery.clientWidth;
+      if (!totalWidth) return;
+      const HOVER_FLEX = 4;
+      const panelCount = document.querySelectorAll('.sc-gallery-panel').length;
+      if (!panelCount) return;
+      const totalFlexUnits = HOVER_FLEX + (panelCount - 1);
+      const squareSize = Math.round(totalWidth * HOVER_FLEX / totalFlexUnits);
+      gallery.style.height = squareSize + 'px';
+
+      const numOffset = -(squareSize - 48);
+      let styleEl = document.getElementById('sc-gallery-dynamic-style');
+      if (!styleEl) {
+        styleEl = document.createElement('style');
+        styleEl.id = 'sc-gallery-dynamic-style';
+        document.body.appendChild(styleEl);
+      }
+      styleEl.textContent =
+        '.sc-gallery-num { transform: translateY(' + numOffset + 'px) rotate(0deg); }' +
+        '.sc-gallery-panel:hover .sc-gallery-num { transform: translateY(0) rotate(-90deg); }';
+
+      document.querySelectorAll('.sc-gallery-panel[data-photo="true"]').forEach((panel) => {
+        panel.style.backgroundSize = squareSize + 'px ' + squareSize + 'px';
+      });
+    };
+    this._sizeGallerySquare();
+    window.addEventListener('resize', this._sizeGallerySquare);
+
+    (() => {
+      const container = document.getElementById('sc-cursor-chain');
+      const gallery = document.getElementById('sc-gallery');
+      if (!container || !gallery) return;
+
+      const CHAIN_LENGTH = 7;
+      const LERP = 0.35;
+      const dots = [];
+      for (let i = 0; i < CHAIN_LENGTH; i++) {
+        const size = Math.max(3, 14 - i * 1.6);
+        const opacity = Math.max(0.06, 0.9 - i * 0.13);
+        const dotEl = document.createElement('span');
+        dotEl.className = 'sc-chain-dot';
+        dotEl.style.width = size + 'px';
+        dotEl.style.height = size + 'px';
+        dotEl.style.opacity = String(opacity);
+        container.appendChild(dotEl);
+        dots.push({ el: dotEl, x: 0, y: 0 });
+      }
+
+      let targetX = 0, targetY = 0;
+      let active = false;
+
+      this._onGalleryMouseMove = (e) => {
+        const rect = gallery.getBoundingClientRect();
+        targetX = e.clientX - rect.left;
+        targetY = e.clientY - rect.top;
+        if (!active) {
+          active = true;
+          dots.forEach((d) => { d.x = targetX; d.y = targetY; });
+          container.classList.add('sc-visible');
+        }
+      };
+      this._onGalleryMouseLeave = () => {
+        active = false;
+        container.classList.remove('sc-visible');
+      };
+      gallery.addEventListener('mousemove', this._onGalleryMouseMove);
+      gallery.addEventListener('mouseleave', this._onGalleryMouseLeave);
+
+      const animateChain = () => {
+        if (active) {
+          let prevX = targetX, prevY = targetY;
+          dots.forEach((d) => {
+            d.x += (prevX - d.x) * LERP;
+            d.y += (prevY - d.y) * LERP;
+            d.el.style.transform = 'translate(' + d.x + 'px,' + d.y + 'px) translate(-50%,-50%)';
+            prevX = d.x; prevY = d.y;
+          });
+        }
+        this._chainRAF = requestAnimationFrame(animateChain);
+      };
+      animateChain();
+    })();
+
+    this._setupSectionWidgets();
+  }
+
+  _setupSectionWidgets() {
+    this._setupVerticalTimelines();
+    this._setupHorizontalTimelines();
+    this._setupAccordionCards();
+  }
+
+  _teardownSectionWidgets() {
+    if (this._onVTimelineScroll) window.removeEventListener('scroll', this._onVTimelineScroll);
+    if (this._onHTimelineScroll) window.removeEventListener('scroll', this._onHTimelineScroll);
+    if (this._accordionHeaders) {
+      this._accordionHeaders.forEach((header) => header.removeEventListener('click', this._onAccordionHeaderClick));
+    }
+  }
+
+  _setupVerticalTimelines() {
+    const containers = Array.from(document.querySelectorAll('[data-sc-vtimeline]'));
+    this._vTimelines = containers.map((container) => ({ container, revealIndex: 0, revealing: false }));
+
+    const growLine = (t) => {
+      const items = t.container.querySelectorAll('.sc-timeline-item');
+      const line = t.container.querySelector('.sc-timeline-line');
+      if (!line || !items.length || t.revealIndex <= 0) return;
+      setTimeout(() => {
+        const idx = Math.min(t.revealIndex, items.length) - 1;
+        const dot = items[idx] && items[idx].querySelector('.sc-timeline-dot');
+        if (!dot) return;
+        const lineRect = line.getBoundingClientRect();
+        const dotRect = dot.getBoundingClientRect();
+        const distance = (dotRect.top + dotRect.height / 2) - lineRect.top;
+        line.style.height = Math.max(0, distance + 151) + 'px';
+      }, 620);
+    };
+
+    const revealNext = (t) => {
+      const items = t.container.querySelectorAll('.sc-timeline-item');
+      if (t.revealIndex >= items.length) return;
+      items[t.revealIndex].classList.add('sc-visible');
+      t.revealIndex++;
+      growLine(t);
+    };
+
+    this._vTimelines.forEach((t) => {
+      revealNext(t);
+      revealNext(t);
+    });
+
+    this._onVTimelineScroll = () => {
+      this._vTimelines.forEach((t) => {
+        if (t.revealing) return;
+        const items = t.container.querySelectorAll('.sc-timeline-item');
+        if (t.revealIndex >= items.length) return;
+        const rect = t.container.getBoundingClientRect();
+        if (rect.top > window.innerHeight - 120) return;
+        t.revealing = true;
+        revealNext(t);
+        setTimeout(() => { t.revealing = false; }, 150);
+      });
+    };
+    window.addEventListener('scroll', this._onVTimelineScroll, { passive: true });
+    this._onVTimelineScroll();
+  }
+
+  _setupHorizontalTimelines() {
+    const containers = Array.from(document.querySelectorAll('[data-sc-htimeline]'));
+    this._hTimelines = containers.map((container) => ({ container, revealed: false }));
+
+    const reveal = (t) => {
+      t.revealed = true;
+      const steps = t.container.querySelectorAll('.sc-h-timeline-step');
+      steps.forEach((el, i) => {
+        setTimeout(() => el.classList.add('sc-visible'), i * 150);
+      });
+      setTimeout(() => {
+        const line = t.container.querySelector('.sc-h-timeline-line');
+        const track = t.container.querySelector('.sc-h-timeline-track');
+        const dots = t.container.querySelectorAll('.sc-h-timeline-dot');
+        if (!line || !track || dots.length < 2) return;
+        const trackRect = track.getBoundingClientRect();
+        const firstRect = dots[0].getBoundingClientRect();
+        const lastRect = dots[dots.length - 1].getBoundingClientRect();
+        const first = (firstRect.left + firstRect.width / 2) - trackRect.left;
+        const last = (lastRect.left + lastRect.width / 2) - trackRect.left;
+        line.style.left = first + 'px';
+        line.style.width = Math.max(0, last - first) + 'px';
+      }, 200);
+    };
+
+    this._onHTimelineScroll = () => {
+      this._hTimelines.forEach((t) => {
+        if (t.revealed) return;
+        const rect = t.container.getBoundingClientRect();
+        if (rect.top > window.innerHeight - 100) return;
+        reveal(t);
+      });
+    };
+    window.addEventListener('scroll', this._onHTimelineScroll, { passive: true });
+    this._onHTimelineScroll();
+  }
+
+  _setupAccordionCards() {
+    this._onAccordionHeaderClick = (e) => {
+      const header = e.currentTarget;
+      const accordion = header.closest('.sc-accordion');
+      if (!accordion) return;
+      const panel = accordion.querySelector('.sc-accordion-panel');
+      const inner = accordion.querySelector('.sc-accordion-panel-inner');
+      if (!panel || !inner) return;
+      const isOpen = accordion.classList.toggle('open');
+      panel.style.maxHeight = isOpen ? inner.scrollHeight + 'px' : '0px';
+    };
+    this._accordionHeaders = Array.from(document.querySelectorAll('.sc-accordion-header'));
+    this._accordionHeaders.forEach((header) => header.addEventListener('click', this._onAccordionHeaderClick));
+  }
+
+  componentWillUnmount() {
+    document.removeEventListener('mousedown', this._onDocMouseDown);
+    window.removeEventListener('resize', this._sizeGallerySquare);
+    if (this._chainRAF) cancelAnimationFrame(this._chainRAF);
+    const gallery = document.getElementById('sc-gallery');
+    if (gallery && this._onGalleryMouseMove) gallery.removeEventListener('mousemove', this._onGalleryMouseMove);
+    if (gallery && this._onGalleryMouseLeave) gallery.removeEventListener('mouseleave', this._onGalleryMouseLeave);
+    this._teardownSectionWidgets();
+  }
+
+  renderVals() {
+    const isDarkMode = this.state.isDarkMode;
+    const data = this.state.data;
+    const allSections = (data && data.sections) || this._fallbackSections;
+    const gallerySection = allSections[0] || { items: [] };
+    const galleryItems = gallerySection.items || [];
+    const contentSections = allSections.slice(1);
+    return {
+      isDarkMode,
+      pageTitle: (data && data.title) || this.pageTitle,
+      pageSubtitle: (data && data.subtitle) || '',
+      hasSubtitle: !!(data && data.subtitle),
+      pageIntroImage: (data && data.introImage) || '',
+      hasIntroImage: !!(data && data.introImage),
+      h1Margin: (data && data.subtitle) ? '0 0 12px 0' : '0 0 40px 0',
+      bgColor: isDarkMode ? '#0a0a0a' : '#ffffff',
+      textColor: isDarkMode ? '#ffffff' : '#1a1a1a',
+      logoFilter: isDarkMode ? 'none' : 'invert(1)',
+      showMaterialMenu: this.state.showMaterialMenu,
+      toggleMaterialMenu: () => this.toggleMaterialMenu(),
+      toggleDarkMode: () => this.toggleDarkMode(),
+      galleryItems: galleryItems.map((it) => {
+        const lineColor = isDarkMode ? 'rgba(255,255,255,0.8)' : 'rgba(136,136,136,0.8)';
+        const hasPhoto = !!it.photo;
+        return {
+          ...it,
+          bg: isDarkMode ? '#0a0a0a' : '#ffffff',
+          text: it.textOverride || (isDarkMode ? '#ffffff' : '#1a1a1a'),
+          borderLeft: '0.5px solid ' + lineColor,
+          goTo: () => this.scrollToSection(it.target),
+          hasPhoto,
+          bgImage: hasPhoto ? "url('" + it.photo + "')" : 'none',
+          bgPosition: hasPhoto ? 'left center' : '0 0',
+          bgSize: hasPhoto ? '328px 328px' : 'auto'
+        };
+      }),
+      sections: contentSections.map((s, i) => {
+        const si = i + 1;
+        const instanceId = 'sec' + si;
+        const base = {
+          ...s,
+          instanceId,
+          isHeading: s.type === 'heading',
+          isBody: s.type === 'body',
+          isPhotosGrid: s.type === 'photos' && s.layout !== 'stack',
+          isPhotosStack: s.type === 'photos' && s.layout === 'stack',
+          isTimelineVertical: s.type === 'timeline-vertical',
+          isTimelineHorizontal: s.type === 'timeline-horizontal',
+          isCaseCard: s.type === 'case-card'
+        };
+        if (s.type === 'heading') return { ...base, text: s.text || '', isH3: s.level === 'h3' };
+        if (s.type === 'body') return { ...base, text: s.text || '', isEmphasis: s.style === 'emphasis' };
+        if (s.type === 'photos') return { ...base, images: s.images || [] };
+        if (s.type === 'timeline-vertical' || s.type === 'timeline-horizontal') return { ...base, items: s.items || [] };
+        if (s.type === 'case-card') {
+          const photos = s.photos || [];
+          const specEn = s.specEn || '';
+          return { ...base, title: s.title || '', photos, hasPhotos: photos.length > 0, specZh: s.specZh || '', specEn, hasSpecEn: !!specEn.trim() };
+        }
+        return base;
+      })
+    };
+  }
+}
+<\/script>
+</body>
+</html>
+`;
 
 const BLANK_SUBPAGE_FALLBACK_SECTIONS_LITERAL = `[
     { "id": "sc-section-gallery", "type": "gallery-slider", "items": [] },
@@ -2444,8 +3237,7 @@ async function createSubpageDcHtmlFile(title, slug){
   if(/[\/\\?#%]/.test(title)) throw new Error("標題不能包含 / \\ ? # % 這些符號，會被當成網址檔名的一部分");
   const filename = `${title}.dc.html`;
   await assertSubpageFilenameAvailable(filename);
-  const { content: templateSource } = await ghGetFileRaw(SUBPAGE_DC_TEMPLATE_SOURCE_FILE, "asstudiowebsite");
-  const html = generateSubpageDcHtml(templateSource, title, slug);
+  const html = generateSubpageDcHtml(SUBPAGE_DC_TEMPLATE_SOURCE_HTML, title, slug);
   await ghPutFile(filename, utf8ToBase64(html), `Add new subpage ${filename} via admin`, null, "asstudiowebsite");
 }
 
