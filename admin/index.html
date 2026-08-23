@@ -95,6 +95,19 @@ input,textarea,select{ font-family:inherit; font-size:14px; }
 
 .editor{ padding-bottom:80px; }
 .editor-head{ display:flex; justify-content:space-between; align-items:center; margin-bottom:24px; gap:12px; flex-wrap:wrap; }
+
+/* 子頁面編輯器：左邊表單、右邊預覽，兩欄並排——右欄用 position:sticky 固定
+   貼在畫面上，左邊表單往下捲動編輯到很後面的段落時，右邊預覽畫面還是留在
+   看得到的地方，不用改完又捲回最上面才能對照效果。畫面窄的時候（例如筆電
+   內建螢幕、或分割視窗）改回上下堆疊，並排會太擠反而更難用。 */
+.wrap.wrap-wide{ max-width:1440px; }
+.subpage-editor-columns{ display:flex; gap:32px; align-items:flex-start; }
+.subpage-editor-left{ flex:1 1 0; min-width:0; }
+.subpage-editor-right{ flex:1 1 0; min-width:0; position:sticky; top:20px; }
+@media (max-width:1000px){
+  .subpage-editor-columns{ flex-direction:column; }
+  .subpage-editor-right{ position:static; width:100%; }
+}
 .back-link{ display:inline-flex; align-items:center; gap:6px; color:var(--muted); font-size:13.5px; background:none; border:none; padding:0; }
 .back-link:hover{ color:var(--ink); }
 .field-block{ margin-bottom:26px; }
@@ -125,7 +138,14 @@ input,textarea,select{ font-family:inherit; font-size:14px; }
 @media (max-width:640px){ .two-col, .three-col, .four-col{ grid-template-columns:1fr; } }
 
 .cover-drop{
-  aspect-ratio:16/9; max-width:520px; border-radius:8px; overflow:hidden;
+  /* 一定要給明確的 width（不能只給 max-width）：這個容器沒有照片時，
+     裡面唯一的內容 .placeholder 是 position:absolute（不算進版面計算），
+     容器本身沒有任何「正常流」的內容可以撐出寬度——在 flex 版面裡（滑塊／
+     得獎清單這幾個表單都是用 display:flex 把縮圖跟旁邊的文字欄位並排）
+     沒有明確寬度的 flex item，寬度會塌縮到幾乎是 0px，整個上傳區塊變成
+     使用者完全看不到、點不到的一個小點——曾經因為這樣被誤以為「沒有地方
+     可以放照片」，其實只是版面塌陷，不是真的少了功能。 */
+  aspect-ratio:16/9; width:100%; max-width:520px; border-radius:8px; overflow:hidden;
   background:#efece5; border:1.5px dashed var(--line); position:relative; cursor:pointer;
 }
 .cover-drop.has-image{ border-style:solid; }
@@ -142,7 +162,7 @@ input,textarea,select{ font-family:inherit; font-size:14px; }
   background:rgba(20,19,17,0.55); color:#fff; font-size:12.5px; opacity:0; transition:opacity .15s ease;
 }
 .cover-drop.has-image:hover .replace-hint{ opacity:1; }
-.cover-drop.small{ max-width:200px; aspect-ratio:4/3; }
+.cover-drop.small{ width:200px; max-width:200px; aspect-ratio:4/3; flex-shrink:0; }
 
 /* simple text list (paragraphs) */
 .text-list-row{ display:flex; gap:10px; align-items:flex-start; margin-bottom:10px; }
@@ -177,6 +197,19 @@ input,textarea,select{ font-family:inherit; font-size:14px; }
   border:1.5px dashed var(--line); background:none; color:var(--muted); font-size:13.5px; font-weight:600;
 }
 .add-step-btn:hover{ border-color:var(--ink); color:var(--ink); }
+
+/* 拖曳排序（子頁面「內文段落」：段落之間、段落內的小標題／內文／照片之間都可以
+   拖曳調整順序）——原生 HTML5 Drag and Drop，不依賴外部套件，見 makeSortable() */
+.section-drag-handle, .block-drag-handle{
+  cursor:grab; color:var(--muted); font-size:17px; line-height:1; user-select:none; flex-shrink:0;
+  padding:6px 8px; margin:-6px -8px; border-radius:4px; transition:background-color .15s ease, color .15s ease;
+}
+.section-drag-handle:hover, .block-drag-handle:hover{ background:rgba(32,31,29,0.06); color:var(--ink); }
+.section-drag-handle:active, .block-drag-handle:active{ cursor:grabbing; }
+.section-card.dragging, .block-row.dragging{ opacity:.4; }
+.block-row{ border:1px solid var(--line); border-radius:6px; padding:12px; margin-bottom:10px; background:var(--paper); }
+.block-row-head{ display:flex; align-items:center; gap:8px; margin-bottom:8px; }
+.block-row-head .block-row-label{ font-size:11.5px; font-weight:700; color:var(--muted); letter-spacing:.04em; }
 
 /* 5-language block */
 .lang5-block{ border:1px solid var(--line); border-radius:8px; padding:14px; background:#fff; }
@@ -425,7 +458,7 @@ function setPath(obj, path, value){
 const state = {
   user: null,
   users: null, // [{id, email, created_at, last_sign_in_at, invited}]
-  tab: "cases", // cases | site | users
+  tab: "cases", // cases | site | subpages | users
   cases: null, // [{slug, title, ledeMeta, tag, hero}]
   editingCase: null, // { slug, item, sha, isNew, pendingUploads }
   siteMeta: [
@@ -436,6 +469,23 @@ const state = {
     { name: "chapter-digital", label: "章節：原型數位", file: "content/site/chapter-digital.json" },
   ],
   editingSite: null, // { meta, item, sha, pendingUploads }
+  subpages: null, // [{slug, title}]
+  editingSubpage: null, // { slug, item, sha, pendingUploads }
+};
+
+// 子頁面（原型教學／原型原點／原型結構／原型獲獎／原型方法）實際部署在
+// 另一個 repo（as-studio001/asstudiowebsite，網域 www.as-structure.com），
+// 不在這個後台自己的 repo 底下，檔名沒辦法用列目錄的方式自動取得，只能
+// 手動維護這份「slug → 實際頁面檔名」對照表——每次那邊做完一頁新的子
+// 頁面，這裡就手動加一筆。SUBPAGE_SITE_BASE 開發階段先指向本機靜態伺服
+// 器，正式上線、確認 www.as-structure.com 上的頁面已經換成新版之後，
+// 記得改回 "https://www.as-structure.com"。
+const SUBPAGE_SITE_BASE = "http://127.0.0.1:8790";
+const SUBPAGE_PAGES = {
+  teaching: { label: "原型教學", file: "原型教學.dc.html" },
+  origin: { label: "原型原點", file: "原型原點.dc.html" },
+  award: { label: "原型獲獎", file: "原型獲獎.dc.html" },
+  method: { label: "原型方法", file: "原型方法.dc.html" },
 };
 
 // 只有這三個章節的案例卡片是簡單的「照片＋連結＋標題」格式，可以自動
@@ -458,6 +508,22 @@ async function loadCaseList(){
     }
   }));
   state.cases = items;
+}
+
+async function loadSubpageList(){
+  const entries = await ghListDir("content/subpages");
+  const files = entries.filter(e => e.type === "file" && e.name.endsWith(".json"));
+  const items = await Promise.all(files.map(async f => {
+    const slug = f.name.replace(/\.json$/, "");
+    const page = SUBPAGE_PAGES[slug];
+    try{
+      const { json } = await ghGetFile(f.path);
+      return { slug, title: json.title || (page && page.label) || slug };
+    }catch(e){
+      return { slug, title: "（讀取失敗）" };
+    }
+  }));
+  state.subpages = items;
 }
 
 /* ============================================================
@@ -487,6 +553,7 @@ function render(){
   }
   if(state.editingCase){ renderCaseEditor(); return; }
   if(state.editingSite){ renderSiteEditor(); return; }
+  if(state.editingSubpage){ renderSubpageEditor(); return; }
   renderList();
 }
 
@@ -599,6 +666,7 @@ function renderList(){
       <div class="tab-nav">
         <button data-tab="cases" class="${state.tab === "cases" ? "active" : ""}">建築案例</button>
         <button data-tab="site" class="${state.tab === "site" ? "active" : ""}">主網站內容</button>
+        <button data-tab="subpages" class="${state.tab === "subpages" ? "active" : ""}">子頁面</button>
         <button data-tab="users" class="${state.tab === "users" ? "active" : ""}">使用者管理</button>
       </div>
       <div id="tabContent"></div>
@@ -615,6 +683,7 @@ function renderTabContent(){
   const el = document.getElementById("tabContent");
   if(state.tab === "cases"){ el.innerHTML = casesListHtml(); bindListEvents(); return; }
   if(state.tab === "users"){ el.innerHTML = usersListHtml(); bindUsersEvents(); return; }
+  if(state.tab === "subpages"){ el.innerHTML = subpagesListHtml(); bindListEvents(); return; }
   el.innerHTML = siteListHtml();
   bindListEvents();
 }
@@ -730,8 +799,30 @@ function siteListHtml(){
   return `<div class="item-grid">${cards}</div>`;
 }
 
+// 子頁面（原型教學等）目前是固定的一批頁面（見 SUBPAGE_PAGES），不像
+// 「案例」開放使用者自己新增，所以沒有 addCardHtml——之後每做完一頁，
+// 手動在 content/subpages 底下加一份 JSON、SUBPAGE_PAGES 補一筆，這裡
+// 就會自動列出來。
+function subpagesListHtml(){
+  if(!state.subpages) return `<div class="empty-note">載入中…</div>`;
+  const cards = state.subpages.map((s, i) => `
+    <div class="item-card" data-edit-subpage="${i}">
+      <div class="thumb empty" style="background:#201f1d;color:#fff;">${esc((s.title || s.slug).slice(0,2))}</div>
+      <div class="info">
+        <div class="t">${esc(s.title || s.slug)}</div>
+        <div class="m">${esc(s.slug)}</div>
+      </div>
+    </div>
+  `).join("");
+  return `<div class="item-grid">${cards}</div>`;
+}
+
 function bindListEvents(){
   const el = document.getElementById("tabContent");
+  if(state.tab === "subpages" && state.subpages == null){
+    loadSubpageList().then(renderTabContent).catch((err) => toast(err.message || "載入子頁面失敗", true));
+    return;
+  }
   el.querySelectorAll("[data-edit]").forEach(card => {
     card.addEventListener("click", async () => {
       const idx = parseInt(card.dataset.edit, 10);
@@ -759,6 +850,21 @@ function bindListEvents(){
         setLoading(true, "載入中…");
         const { json, sha } = await ghGetFile(meta.file);
         openSiteEditor(meta, json, sha);
+      }catch(err){
+        toast("載入失敗：" + err.message, true);
+      }finally{
+        setLoading(false);
+      }
+    });
+  });
+  el.querySelectorAll("[data-edit-subpage]").forEach(card => {
+    card.addEventListener("click", async () => {
+      const idx = parseInt(card.dataset.editSubpage, 10);
+      const slug = state.subpages[idx].slug;
+      try{
+        setLoading(true, "載入中…");
+        const { json, sha } = await ghGetFile(`content/subpages/${slug}.json`);
+        openSubpageEditor(slug, json, sha);
       }catch(err){
         toast("載入失敗：" + err.message, true);
       }finally{
@@ -807,6 +913,12 @@ function openSiteEditor(meta, item, sha){
   render();
 }
 function closeSiteEditor(){ state.editingSite = null; render(); }
+
+function openSubpageEditor(slug, item, sha){
+  state.editingSubpage = { slug, item, sha, pendingUploads: {} };
+  render();
+}
+function closeSubpageEditor(){ state.editingSubpage = null; render(); }
 
 /* ============================================================
    共用小元件
@@ -993,6 +1105,7 @@ function replaceValueDeep(obj, oldVal, newVal){
 function rerenderCurrentEditor(){
   if(state.editingCase) renderCaseEditor();
   else if(state.editingSite) renderSiteEditor();
+  else if(state.editingSubpage) renderSubpageEditor();
 }
 
 /* ============================================================
@@ -1179,6 +1292,7 @@ function caseEditorHtml(ed){
    ============================================================ */
 window.addEventListener("message", (e) => {
   if(!e.data) return;
+
   const ed = state.editingCase;
   if(!ed) return;
   if(e.data.type === "cms-edit"){
@@ -1613,6 +1727,618 @@ async function deleteCurrentCase(){
     closeCaseEditor();
   }catch(err){
     toast("刪除失敗：" + err.message, true);
+  }finally{
+    setLoading(false);
+  }
+}
+
+/* ============================================================
+   子頁面編輯器（原型教學等，content/subpages/<slug>.json）——做法比照
+   「主網站內容」章節編輯器，不是案例編輯器：一般的表單欄位（拖拉/點擊
+   上傳照片、文字輸入框），不是即時預覽 iframe。子頁面的 .dc.html 原始
+   檔在另一個 repo（asstudiowebsite），沒辦法像案例編輯器那樣直接嵌一個
+   會即時重繪的頁面進來，而且維護者操作習慣也是比較直覺的表單，所以照
+   章節編輯器的模式做：coverDropHtml／bindCoverDropEvents（單張照片拖拉
+   上傳，跟 heroPhoto／mainPhoto 同一個元件）、imageListHtml／bindImageList
+   （多張照片清單，跟章節 thumbnails 同一個元件）、data-path 文字欄位
+   （bindPathInputs 直接寫回 ed.item，不用整頁重畫）。
+
+   這次只把「橫向滑塊畫廊」跟「內文段落」做進來（見 teaching.json 的
+   schema），時間軸／手風琴／案例輪播／得獎清單這些只有少數子頁才有的
+   特殊模組還沒做，之後要做哪一頁再個別設計。
+   ============================================================ */
+// uploadAsset() 只回傳相對於「這個後台」repo 的路徑（例如
+// "images/subpages/teaching/xxx.jpg"），子頁面實際部署在另一個 repo／
+// 網域（asstudiowebsite），畫廊照片的舊資料則是相對於「子頁面自己網站」
+// 的路徑（例如 "uploads/實習.jpg"）——兩種相對路徑的基準網址不一樣，不能
+// 都用 resolveSrc()／rawUrl()（那個只認得 Internal-Pages 自己的網址），
+// 這裡另外寫一個專門給子頁面用的版本，正確分流三種情況。
+function resolveSubpagePhotoSrc(ed, value){
+  if(!value) return "";
+  if(ed.pendingUploads[value]) return ed.pendingUploads[value].previewUrl;
+  if(/^https?:\/\//.test(value)) return value;
+  return `${SUBPAGE_SITE_BASE}/${value.split("/").map(encodeURIComponent).join("/")}`;
+}
+
+// 存檔前把「剛剛才上傳、現在是相對於後台 repo 的路徑」轉成完整網址，
+// 否則子頁面渲染時會把它當成相對於子頁面自己網站的路徑去抓、404——
+// 已經是完整網址、或子頁面自己網站既有的相對路徑（不是這次上傳產生的）
+// 都不受影響，用固定的資料夾前綴（跟 saveSubpageEditor 傳給
+// flushPendingUploads 的 folder 一致）判斷是不是「這次上傳的」。
+const SUBPAGE_ASSET_PREFIX = "images/subpages/";
+function absolutizeSubpageAssetPaths(obj){
+  if(Array.isArray(obj)){
+    obj.forEach((v, i) => {
+      if(typeof v === "string" && v.startsWith(SUBPAGE_ASSET_PREFIX)) obj[i] = "https://as-studio001.github.io/Internal-Pages/" + v;
+      else if(v && typeof v === "object") absolutizeSubpageAssetPaths(v);
+    });
+    return;
+  }
+  if(obj && typeof obj === "object"){
+    Object.keys(obj).forEach((k) => {
+      const v = obj[k];
+      if(typeof v === "string" && v.startsWith(SUBPAGE_ASSET_PREFIX)) obj[k] = "https://as-studio001.github.io/Internal-Pages/" + v;
+      else if(v && typeof v === "object") absolutizeSubpageAssetPaths(v);
+    });
+  }
+}
+
+// 捲動目標下拉選單的選項：用內文段落（sections）目前的中文標題當選項文字，
+// 值還是存段落的 id（跟原本文字框存的東西一樣，畫面上只是換成挑標題、
+// 不用自己記/打 id）。如果目前存的 target 對不到任何一段（例如段落被刪
+// 掉、改過 id），額外加一個選項把原始值原封不動列出來，不會靜默把資料
+// 洗掉，讓維護者自己決定要不要換掉。
+function sectionOptionLabel(s, si){
+  if(s.type === "heading") return s.text || "（空白標題）";
+  return (SECTION_TYPE_LABELS[s.type] || s.type) + " #" + si;
+}
+
+// 捲動目標下拉選單的選項：內容段落（不含 sections[0] 照片滑塊本身，捲到自己
+// 沒有意義）都可以當目標，標題段落用它自己的文字當選項文字比較好認，其他
+// 類型用「類型名稱 + 第幾段」代替（它們沒有單一一行文字可以代表自己）。
+function galleryTargetOptionsHtml(ed, currentTarget){
+  const secs = getPath(ed.item, "sections") || [];
+  const contentSecs = secs.slice(1).map((s, i) => ({ s, si: i + 1 }));
+  const known = contentSecs.some(({ s }) => s.id === currentTarget);
+  const options = [`<option value="">（不捲動）</option>`];
+  contentSecs.forEach(({ s, si }) => {
+    options.push(`<option value="${esc(s.id)}" ${s.id === currentTarget ? "selected" : ""}>${esc(sectionOptionLabel(s, si))}</option>`);
+  });
+  if(currentTarget && !known){
+    options.push(`<option value="${esc(currentTarget)}" selected>${esc(currentTarget)}（找不到對應段落）</option>`);
+  }
+  return options.join("");
+}
+
+// 通用的「拖曳調整順序」小工具：container 底下每個符合 itemSelector 的直接
+// 子元素都可以被拖曳，但只能從 handleSelector 那個把手開始拖（用 dragstart
+// 時判斷事件目標是不是在把手裡面，不是就 preventDefault 擋掉），避免點文字框
+// /文字時不小心也觸發拖曳。拖曳中即時把元素在 DOM 裡搬動位置，讓使用者立刻
+// 看到排列結果；放開滑鼠（drop）才讀最終的 DOM 順序（每個項目的 data-sort-key）
+// 回傳給 onReorder 去更新實際資料。不依賴任何外部套件，純 HTML5 原生 API。
+function makeSortable(container, itemSelector, handleSelector, onReorder){
+  if(!container) return;
+  let dragEl = null;
+  const items = () => Array.from(container.children).filter((el) => el.matches(itemSelector));
+  // 讀目前 DOM 的順序存起來，drop 觸發時呼叫一次；如果 drop 沒觸發（見下面
+  // dragend 的說明），dragEl 還留著，dragend 收尾時也會呼叫到這裡，用「畫面
+  // 上已經拖成的樣子」補救性存一次，避免看起來排好了、資料卻沒真的存到。
+  const commitOrder = () => {
+    if(!dragEl) return;
+    onReorder(items().map((el) => el.dataset.sortKey));
+  };
+  items().forEach((el) => {
+    // 一開始不是 draggable，只有真的按住「把手」才暫時打開，放開/拖完就關掉——
+    // 子頁面編輯器有兩層拖曳（段落本身、段落內的小標題/內文/照片互相嵌套），
+    // 如果兩層同時都是 draggable=true，瀏覽器對「巢狀 draggable 元素」原生支援
+    // 並不穩定（實測會整個卡住、dragover/drop 完全不觸發），所以任何時刻最多
+    // 只讓使用者剛按下把手的那一層變成 draggable，兩層不會同時成立。
+    // 另外每個事件都呼叫 e.stopPropagation()：nested 兩層各自都掛了同一組
+    // 監聽器，drag 事件會往上冒泡，不擋住的話內層的 dragstart/dragover/drop
+    // 會連外層（例如段落卡片本身）的同一套邏輯也一起觸發，把外層的 dragEl
+    // 弄亂。
+    el.draggable = false;
+    const handle = el.querySelector(handleSelector);
+    if(handle){
+      handle.addEventListener("mousedown", (e) => { el.draggable = true; e.stopPropagation(); });
+    }
+    el.addEventListener("dragstart", (e) => {
+      e.stopPropagation();
+      dragEl = el;
+      el.classList.add("dragging");
+      e.dataTransfer.effectAllowed = "move";
+      try{ e.dataTransfer.setData("text/plain", ""); }catch(err){ /* Firefox 需要至少設一次資料才會真的啟動拖曳 */ }
+    });
+    el.addEventListener("dragend", (e) => {
+      e.stopPropagation();
+      // 保險機制：正常情況 drop 事件會先呼叫 commitOrder() 把新順序存起來、
+      // 順便把 dragEl 清空，這裡的 commitOrder() 因為 dragEl 已經是 null
+      // 直接跳過，不會重複存兩次。但如果放開滑鼠那一刻游標剛好落在沒有正確
+      // 接受 drop 的位置（drop 事件沒觸發），dragEl 這時還留著——因為
+      // dragover 全程都在即時搬動 DOM，畫面上其實已經是排序後的樣子，資料
+      // 卻還沒存到，兩邊會兜不起來（使用者以為排好了，其實存檔會存回舊順序）。
+      // 這裡補呼叫一次 commitOrder()，用「畫面上已經拖成的樣子」存一次，
+      // 確保放開滑鼠之後，看起來的樣子永遠等於真的存下來的東西。
+      commitOrder();
+      el.draggable = false;
+      el.classList.remove("dragging");
+      dragEl = null;
+    });
+    el.addEventListener("mouseup", (e) => { el.draggable = false; e.stopPropagation(); });
+    // dragenter 也要擋（不只 dragover）：瀏覽器在游標剛進入一個新元素的那一刻
+    // 先發 dragenter，沒被擋下來的話，有些情況下那個元素還沒被視為合法的放置
+    // 目標，要等下一次 dragover 才會生效——兩個都擋才穩，尤其在項目高度差很大
+    // （拖過去的路徑上一路都在同一個很高的項目範圍內，dragover 事件很密集但
+    // 都對著同一個元素）時比較不會出現放開滑鼠卻沒有觸發 drop 的狀況。
+    el.addEventListener("dragenter", (e) => {
+      if(!dragEl || dragEl === el) return;
+      e.preventDefault();
+      e.stopPropagation();
+    });
+    el.addEventListener("dragover", (e) => {
+      if(!dragEl || dragEl === el) return;
+      e.preventDefault();
+      e.stopPropagation();
+      const rect = el.getBoundingClientRect();
+      const before = (e.clientY - rect.top) < rect.height / 2;
+      el.parentNode.insertBefore(dragEl, before ? el : el.nextSibling);
+    });
+  });
+  container.addEventListener("dragenter", (e) => { if(dragEl) e.preventDefault(); });
+  container.addEventListener("dragover", (e) => { if(dragEl) e.preventDefault(); });
+  container.addEventListener("drop", (e) => {
+    if(!dragEl) return;
+    e.preventDefault();
+    e.stopPropagation();
+    commitOrder();
+    dragEl = null; // 已經處理過，等一下 dragend 的 commitOrder() 會因為 dragEl 是 null 直接跳過
+  });
+}
+
+// 段落是「一段一種功能」的扁平清單，不是「段落包多個區塊」——小標題／內文／
+// 照片／垂直時間軸／水平時間軸／案例資訊卡／得獎清單，每段自己選一種，可以
+// 自由新增任意數量、任意順序。sections[0] 固定是照片滑塊（gallery-slider），
+// 不在這份可新增的類型清單裡，也不能被拖到別的位置或刪除——見
+// gallerySectionCardHtml，它的排版跟編輯方式都跟其他段落完全不同，獨立處理。
+const SECTION_TYPE_LABELS = {
+  heading: "小標題",
+  body: "內文",
+  photos: "照片",
+  "timeline-vertical": "垂直時間軸",
+  "timeline-horizontal": "水平時間軸",
+  "case-card": "案例資訊卡",
+  "award-list": "得獎清單"
+};
+const SECTION_TYPE_OPTIONS = Object.keys(SECTION_TYPE_LABELS);
+
+function blankSection(type){
+  const id = "sc-section-custom-" + Date.now() + "-" + uid();
+  if(type === "photos") return { id, type, layout: "grid", images: [] };
+  if(type === "timeline-vertical" || type === "timeline-horizontal") return { id, type, items: [] };
+  if(type === "case-card") return { id, type, title: "", photos: [], specZh: "", specEn: "" };
+  if(type === "award-list") return { id, type, items: [] };
+  return { id, type, text: "" };
+}
+
+// 垂直/水平時間軸段落裡「一筆一筆」的年份/標題/說明（或時期/事件/說明）——
+// 跟照片滑塊、段落都是同一種「可新增/移除的清單」模式，獨立成小函式，兩種
+// 時間軸共用同一份，差別只在傳進來的欄位定義（fields）。
+function timelineItemsHtml(si, items, fields){
+  const rows = items.map((it, ii) => `
+    <div class="step-card" data-item-index="${ii}" style="margin-bottom:10px;">
+      <div class="step-card-head">
+        <span class="step-label">第 ${ii + 1} 筆</span>
+        <button type="button" class="row-remove-btn" data-remove-titem="${ii}" title="移除">×</button>
+      </div>
+      ${fields.map(([key, label]) => `
+        <div class="field-block" style="margin-bottom:8px;">
+          <label>${label}</label>
+          <input type="text" data-path="sections.${si}.items.${ii}.${key}" value="${esc(it[key] || "")}">
+        </div>
+      `).join("")}
+    </div>
+  `).join("");
+  return `
+    <div id="timelineItems_${si}">
+      ${rows}
+      <button type="button" class="add-photo-btn" data-add-titem="1">${iconUpload()}<span>新增一筆</span></button>
+    </div>
+  `;
+}
+
+function bindTimelineItems(ed, si){
+  const container = document.getElementById(`timelineItems_${si}`);
+  if(!container) return;
+  const section = getPath(ed.item, `sections.${si}`);
+  const items = section.items || (section.items = []);
+  container.querySelectorAll("[data-remove-titem]").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      items.splice(parseInt(btn.dataset.removeTitem, 10), 1);
+      rerenderCurrentEditor();
+    });
+  });
+  const addBtn = container.querySelector("[data-add-titem]");
+  if(addBtn) addBtn.addEventListener("click", () => {
+    items.push({});
+    rerenderCurrentEditor();
+  });
+}
+
+// 得獎清單逐筆的表單：num/year/name/tier/link 都是文字輸入框，photo 用跟
+// 滑塊同一套 coverDropHtml 單張換圖元件。
+function awardListItemsHtml(ed, si, items){
+  const rows = items.map((it, ii) => `
+    <div class="step-card award-item-row" data-item-index="${ii}" data-sort-key="${ii}" style="margin-bottom:10px;">
+      <div class="step-card-head">
+        <span style="display:flex; align-items:center; gap:8px;">
+          <span class="award-item-drag-handle" title="拖曳調整順序" style="cursor:grab; opacity:.5;">⠿</span>
+          <span class="step-label">第 ${ii + 1} 筆${it.name ? "　" + esc(it.name) : ""}</span>
+        </span>
+        <button type="button" class="row-remove-btn" data-remove-awarditem="${ii}" title="移除">×</button>
+      </div>
+      <div style="display:flex; gap:14px; align-items:flex-start;">
+        ${coverDropHtml(`sections.${si}.items.${ii}.photo`, resolveSubpagePhotoSrc(ed, it.photo), true)}
+        <div style="flex:1">
+          <div class="two-col">
+            <div>
+              <label>編號</label>
+              <input type="text" data-path="sections.${si}.items.${ii}.num" value="${esc(it.num || "")}">
+            </div>
+            <div>
+              <label>年份</label>
+              <input type="text" data-path="sections.${si}.items.${ii}.year" value="${esc(it.year || "")}">
+            </div>
+          </div>
+          <div class="field-block" style="margin-top:10px;">
+            <label>獎項名稱</label>
+            <input type="text" data-path="sections.${si}.items.${ii}.name" value="${esc(it.name || "")}">
+          </div>
+          <div class="two-col" style="margin-top:10px;">
+            <div>
+              <label>級別（例如「首獎」「佳作」，選填）</label>
+              <input type="text" data-path="sections.${si}.items.${ii}.tier" value="${esc(it.tier || "")}">
+            </div>
+            <div>
+              <label>連結網址（選填，沒填就顯示純文字）</label>
+              <input type="text" data-path="sections.${si}.items.${ii}.link" value="${esc(it.link || "")}" placeholder="https://...">
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  `).join("");
+  return `
+    <div id="awardItems_${si}">
+      ${rows}
+      <button type="button" class="add-photo-btn" data-add-awarditem="1">${iconUpload()}<span>新增一筆</span></button>
+    </div>
+  `;
+}
+
+function bindAwardListItems(ed, si){
+  const container = document.getElementById(`awardItems_${si}`);
+  if(!container) return;
+  const section = getPath(ed.item, `sections.${si}`);
+  const items = section.items || (section.items = []);
+  const folder = `${SUBPAGE_ASSET_PREFIX}${ed.slug}`;
+  items.forEach((it, ii) => bindCoverDropEvents(ed, `sections.${si}.items.${ii}.photo`, folder));
+  container.querySelectorAll("[data-remove-awarditem]").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      items.splice(parseInt(btn.dataset.removeAwarditem, 10), 1);
+      rerenderCurrentEditor();
+    });
+  });
+  const addBtn = container.querySelector("[data-add-awarditem]");
+  if(addBtn) addBtn.addEventListener("click", () => {
+    items.push({ num: String(items.length + 1).padStart(2, "0"), year: "", name: "", tier: "", photo: "", link: "" });
+    rerenderCurrentEditor();
+  });
+  // 拖曳調整清單順序：每筆的表單欄位（data-path、縮圖 id...）都是照它在陣列
+  // 裡的位置（ii）編出來的，拖完一定要整頁重畫才會全部對到新順序，跟段落／
+  // 時間軸拖曳排序是同一個道理。
+  makeSortable(container, ".award-item-row", ".award-item-drag-handle", (newOrder) => {
+    const reordered = newOrder.map((idxStr) => items[parseInt(idxStr, 10)]);
+    items.length = 0;
+    items.push(...reordered);
+    rerenderCurrentEditor();
+  });
+}
+
+// 每段的表單欄位，依 type 分派——heading/body 是文字輸入、photos/case-card
+// 是圖片清單、timeline-*/award-list 是逐筆可增減清單。
+function sectionFieldsHtml(ed, si, s){
+  const type = s.type;
+  if(type === "heading"){
+    return `
+      <div class="field-block" style="margin-bottom:10px;">
+        <label>標題文字</label>
+        <input type="text" data-path="sections.${si}.text" value="${esc(s.text || "")}">
+      </div>
+      <div class="field-block" style="margin-bottom:0;">
+        <label>大小</label>
+        <select data-path="sections.${si}.level" style="width:100%; padding:9px 10px; border:1px solid var(--line); border-radius:5px; background:#fff; color:var(--ink);">
+          <option value="h2" ${s.level !== "h3" ? "selected" : ""}>一般標題</option>
+          <option value="h3" ${s.level === "h3" ? "selected" : ""}>小標題（穿插在中間用的子標題）</option>
+        </select>
+      </div>
+    `;
+  }
+  if(type === "body"){
+    return `
+      <div class="field-block" style="margin-bottom:10px;">
+        <label>內文文字</label>
+        <textarea data-path="sections.${si}.text" style="min-height:120px">${esc(s.text || "")}</textarea>
+      </div>
+      <div class="field-block" style="margin-bottom:0;">
+        <label>樣式</label>
+        <select data-path="sections.${si}.style" style="width:100%; padding:9px 10px; border:1px solid var(--line); border-radius:5px; background:#fff; color:var(--ink);">
+          <option value="" ${s.style !== "emphasis" ? "selected" : ""}>一般內文</option>
+          <option value="emphasis" ${s.style === "emphasis" ? "selected" : ""}>強調段（結語，字級更大、粗體、灰階）</option>
+        </select>
+      </div>
+    `;
+  }
+  if(type === "photos"){
+    return `
+      <div class="field-block" style="margin-bottom:10px;">
+        <label>排版方式</label>
+        <select data-path="sections.${si}.layout" style="width:100%; padding:9px 10px; border:1px solid var(--line); border-radius:5px; background:#fff; color:var(--ink);">
+          <option value="grid" ${s.layout !== "stack" ? "selected" : ""}>格狀排列（適合多張照片）</option>
+          <option value="stack" ${s.layout === "stack" ? "selected" : ""}>直式堆疊（適合手繪圖這類要看清楚全圖的直式圖）</option>
+        </select>
+      </div>
+      ${imageListHtml(ed, `sections.${si}.images`, `sectionPhotos_${si}`)}
+    `;
+  }
+  if(type === "timeline-vertical") return timelineItemsHtml(si, s.items || [], [["year", "年份"], ["title", "標題"], ["desc", "說明"]]);
+  if(type === "timeline-horizontal") return timelineItemsHtml(si, s.items || [], [["period", "時期"], ["event", "事件"], ["desc", "說明"]]);
+  if(type === "case-card"){
+    return `
+      <div class="field-block" style="margin-bottom:10px;">
+        <label>案名</label>
+        <input type="text" data-path="sections.${si}.title" value="${esc(s.title || "")}">
+      </div>
+      <div class="field-block" style="margin-bottom:10px;">
+        <div class="label">照片（選填，展開卡片時顯示在規格文字上方）</div>
+        ${imageListHtml(ed, `sections.${si}.photos`, `sectionCardPhotos_${si}`)}
+      </div>
+      <div class="field-block" style="margin-bottom:10px;">
+        <label>中文規格（一行一項，例如「建築類型 / 住宅」，換行就會分行顯示）</label>
+        <textarea data-path="sections.${si}.specZh" style="min-height:100px">${esc(s.specZh || "")}</textarea>
+      </div>
+      <div class="field-block">
+        <label>英文規格（選填）</label>
+        <textarea data-path="sections.${si}.specEn" style="min-height:100px">${esc(s.specEn || "")}</textarea>
+      </div>
+    `;
+  }
+  if(type === "award-list") return awardListItemsHtml(ed, si, s.items || []);
+  return "";
+}
+
+// 照片滑塊固定當第 1 段：排版（橫向 hover-expand）、欄位都跟其他段落完全
+// 不同，獨立一個卡片渲染，不透過 sectionFieldsHtml 那套 type 分派；也不能
+// 被拖到別的位置或刪除，只有滑塊本身（items）可以自由增減。
+function gallerySectionCardHtml(ed, gallerySection){
+  const items = gallerySection.items || [];
+  const rows = items.map((it, ii) => `
+    <div class="step-card" data-gallery-index="${ii}">
+      <div class="step-card-head">
+        <span class="step-label">滑塊 ${ii + 1}</span>
+        <button type="button" class="row-remove-btn" data-remove-gallery="${ii}" title="移除這個滑塊">×</button>
+      </div>
+      <div style="display:flex; gap:14px; align-items:flex-start;">
+        ${coverDropHtml(`sections.0.items.${ii}.photo`, resolveSubpagePhotoSrc(ed, it.photo), true)}
+        <div style="flex:1">
+          <div class="two-col">
+            <div>
+              <label>編號</label>
+              <input type="text" data-path="sections.0.items.${ii}.num" value="${esc(it.num || "")}">
+            </div>
+            <div>
+              <label>捲動目標（點這個滑塊要捲到哪一段，選填）</label>
+              <select data-path="sections.0.items.${ii}.target" style="width:100%; padding:9px 10px; border:1px solid var(--line); border-radius:5px; background:#fff; color:var(--ink);">${galleryTargetOptionsHtml(ed, it.target || "")}</select>
+            </div>
+          </div>
+          <div class="two-col" style="margin-top:12px">
+            <div>
+              <label>中文標題</label>
+              <input type="text" data-path="sections.0.items.${ii}.zh" value="${esc(it.zh || "")}">
+            </div>
+            <div>
+              <label>英文副標</label>
+              <input type="text" data-path="sections.0.items.${ii}.en" value="${esc(it.en || "")}">
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  `).join("");
+  return `
+    <div class="step-card section-card" data-section-fixed="gallery">
+      <div class="step-card-head">
+        <span class="step-label">第 1 段・照片滑塊（固定在最前面）</span>
+      </div>
+      <div id="galleryItemsList">
+        ${rows}
+        <button type="button" class="add-step-btn" data-add-gallery="1">${iconUpload()}<span>新增滑塊</span></button>
+      </div>
+    </div>
+  `;
+}
+
+function bindGallerySection(ed){
+  const gallerySection = getPath(ed.item, "sections.0");
+  if(!gallerySection) return;
+  const items = gallerySection.items || (gallerySection.items = []);
+  const container = document.getElementById("galleryItemsList");
+  if(!container) return;
+  const folder = `${SUBPAGE_ASSET_PREFIX}${ed.slug}`;
+  items.forEach((it, ii) => bindCoverDropEvents(ed, `sections.0.items.${ii}.photo`, folder));
+  container.querySelectorAll("[data-remove-gallery]").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      items.splice(parseInt(btn.dataset.removeGallery, 10), 1);
+      rerenderCurrentEditor();
+    });
+  });
+  const addBtn = container.querySelector("[data-add-gallery]");
+  if(addBtn) addBtn.addEventListener("click", () => {
+    const num = String(items.length + 1).padStart(2, "0");
+    items.push({ num, zh: "", en: "", target: "", photo: "", textOverride: "#ffffff" });
+    rerenderCurrentEditor();
+  });
+}
+
+function sectionCardHtml(ed, si, s){
+  const type = s.type;
+  return `
+    <div class="step-card section-card" data-section-index="${si}" data-sort-key="${si}">
+      <div class="step-card-head">
+        <span style="display:flex; align-items:center; gap:8px;">
+          <span class="section-drag-handle" title="拖曳調整段落順序">⠿</span>
+          <span class="step-label">第 ${si + 1} 段・${SECTION_TYPE_LABELS[type] || type}</span>
+        </span>
+        <button type="button" class="row-remove-btn" data-remove-section="${si}" title="移除這段">×</button>
+      </div>
+      ${sectionFieldsHtml(ed, si, s)}
+    </div>
+  `;
+}
+
+function sectionsHtml(ed){
+  const secs = getPath(ed.item, "sections") || [];
+  const gallerySection = secs[0];
+  const contentSections = secs.slice(1);
+  const galleryCard = gallerySection ? gallerySectionCardHtml(ed, gallerySection) : "";
+  const contentCards = contentSections.map((s, i) => sectionCardHtml(ed, i + 1, s)).join("");
+  return `
+    ${galleryCard}
+    <div id="contentSectionsList">${contentCards}</div>
+    <div style="display:flex; gap:8px; align-items:center; margin-top:10px;">
+      <select id="addSectionType" style="padding:9px 10px; border:1px solid var(--line); border-radius:5px; background:#fff; color:var(--ink);">
+        ${SECTION_TYPE_OPTIONS.map((t) => `<option value="${t}">${SECTION_TYPE_LABELS[t]}</option>`).join("")}
+      </select>
+      <button type="button" class="add-step-btn" data-add-section="1">${iconUpload()}<span>新增段落</span></button>
+    </div>
+  `;
+}
+
+function bindSections(ed){
+  const secs = getPath(ed.item, "sections") || [];
+  const contentSections = secs.slice(1);
+  const folder = `${SUBPAGE_ASSET_PREFIX}${ed.slug}`;
+  const contentContainer = document.getElementById("contentSectionsList");
+
+  contentSections.forEach((s, i) => {
+    const si = i + 1;
+    if(s.type === "photos") bindImageList(ed, `sections.${si}.images`, `sectionPhotos_${si}`, folder);
+    if(s.type === "case-card") bindImageList(ed, `sections.${si}.photos`, `sectionCardPhotos_${si}`, folder);
+    if(s.type === "timeline-vertical" || s.type === "timeline-horizontal") bindTimelineItems(ed, si);
+    if(s.type === "award-list") bindAwardListItems(ed, si);
+  });
+
+  if(contentContainer){
+    contentContainer.querySelectorAll("[data-remove-section]").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        if(!confirm("確定要移除這一段嗎？")) return;
+        secs.splice(parseInt(btn.dataset.removeSection, 10), 1);
+        rerenderCurrentEditor();
+      });
+    });
+    // 段落彼此之間的順序調整：sections[0]（照片滑塊）固定不參與這個拖曳容器，
+    // 永遠留在最前面；「第 N 段」標籤跟每段表單欄位的 id 都是按陣列位置編
+    // 出來的，拖完一定要整頁重畫。
+    makeSortable(contentContainer, ".section-card", ".section-drag-handle", (newOrder) => {
+      const reordered = newOrder.map((idxStr) => secs[parseInt(idxStr, 10)]);
+      secs.length = 1;
+      secs.push(...reordered);
+      rerenderCurrentEditor();
+    });
+  }
+
+  const addSectionBtn = document.querySelector("[data-add-section]");
+  if(addSectionBtn) addSectionBtn.addEventListener("click", () => {
+    const select = document.getElementById("addSectionType");
+    const type = select ? select.value : "body";
+    secs.push(blankSection(type));
+    rerenderCurrentEditor();
+  });
+}
+
+function subpageEditorHtml(ed){
+  const page = SUBPAGE_PAGES[ed.slug];
+  const previewUrl = page ? `${SUBPAGE_SITE_BASE}/${encodeURIComponent(page.file)}` : null;
+  return `
+    <div class="editor">
+      <div class="editor-head">
+        <button class="back-link" id="backBtn">← 回到子頁面列表</button>
+      </div>
+      <div class="subpage-editor-columns">
+        <div class="subpage-editor-left">
+          <div class="field-block">
+            <div class="label">段落（第 1 段固定是照片滑塊，其餘可以自由新增/刪除/拖曳排序，每段只做一件事：小標題、內文、照片……）</div>
+            <div id="sectionsList">${sectionsHtml(ed)}</div>
+          </div>
+
+          <div class="save-bar">
+            <span class="save-status" id="saveStatus"></span>
+            <button class="btn primary" id="saveSubpageBtn">儲存並發布</button>
+          </div>
+        </div>
+        <div class="subpage-editor-right">
+          ${previewUrl ? `
+            <div class="field-block" style="margin-bottom:10px;">
+              <div class="label" style="display:flex; align-items:center; justify-content:space-between; gap:10px;">
+                <span>頁面預覽</span>
+                <button type="button" class="btn ghost" id="refreshPreviewBtn">↻ 重新整理</button>
+              </div>
+            </div>
+            <div class="field-hint" style="margin-bottom:10px">目前已經發布上線的頁面，不會即時反映還沒按「儲存並發布」的修改；存檔後 GitHub Pages 需要幾分鐘重新部署，等一下再按「重新整理」才看得到最新結果。</div>
+            <iframe id="subpagePublishedPreview" src="${esc(previewUrl)}" style="width:100%; height:80vh; min-height:520px; border:1px solid var(--line); border-radius:8px;"></iframe>
+          ` : `<div class="field-hint">找不到這個子頁面對應的檔名（SUBPAGE_PAGES 沒有這筆），沒辦法開啟預覽。</div>`}
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+function renderSubpageEditor(){
+  const ed = state.editingSubpage;
+  app.innerHTML = `
+    ${renderTopBar()}
+    <div class="wrap wrap-wide">${subpageEditorHtml(ed)}</div>
+  `;
+  document.getElementById("backBtn").addEventListener("click", closeSubpageEditor);
+  bindPathInputs(ed, app);
+  bindGallerySection(ed);
+  bindSections(ed);
+  const refreshBtn = document.getElementById("refreshPreviewBtn");
+  if(refreshBtn) refreshBtn.addEventListener("click", () => {
+    const frame = document.getElementById("subpagePublishedPreview");
+    if(!frame) return;
+    // 跨網域（admin 跟子頁面網站不同源）不能直接呼叫 iframe 內部的 reload()，
+    // 改成在網址後面加一個每次都不同的參數逼瀏覽器真的重新抓一次，不要因為
+    // 網址字串完全沒變、又剛好命中瀏覽器快取而看起來像沒重新整理。
+    const base = frame.dataset.baseSrc || frame.src;
+    frame.dataset.baseSrc = base;
+    const sep = base.includes("?") ? "&" : "?";
+    frame.src = base + sep + "_r=" + Date.now();
+  });
+  document.getElementById("saveSubpageBtn").addEventListener("click", () => saveSubpageEditor(ed));
+}
+
+async function saveSubpageEditor(ed){
+  try{
+    setLoading(true, "儲存中…");
+    await flushPendingUploads(ed, `${SUBPAGE_ASSET_PREFIX}${ed.slug}`);
+    absolutizeSubpageAssetPaths(ed.item);
+    const json = JSON.stringify(ed.item, null, 2) + "\n";
+    const res = await ghPutFile(`content/subpages/${ed.slug}.json`, utf8ToBase64(json), `Update subpage ${ed.slug} via admin`, ed.sha);
+    ed.sha = res.content.sha;
+    toast("已發布，網站幾分鐘內會更新");
+    state.subpages = null; // 下次回到清單時重新讀取，標題可能變了
+  }catch(err){
+    toast("儲存失敗：" + err.message, true);
   }finally{
     setLoading(false);
   }
