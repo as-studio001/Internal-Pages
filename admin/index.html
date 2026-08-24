@@ -516,6 +516,7 @@ const state = {
   editingSite: null, // { meta, item, sha, pendingUploads }
   subpages: null, // [{slug, title}]
   editingSubpage: null, // { slug, item, sha, isNew, pendingUploads }
+  editingHomepage: false, // 主網頁編輯器（圓點位置編輯器.html）目前是不是開著
 };
 
 // 子頁面（原型教學／原型原點／原型結構／原型獲獎／原型方法）實際部署在
@@ -604,6 +605,7 @@ function render(){
   if(state.editingCase){ renderCaseEditor(); return; }
   if(state.editingSite){ renderSiteEditor(); return; }
   if(state.editingSubpage){ renderSubpageEditor(); return; }
+  if(state.editingHomepage){ renderHomepageEditor(); return; }
   renderList();
 }
 
@@ -735,7 +737,7 @@ function renderTabContent(){
   if(state.tab === "cases"){ el.innerHTML = casesListHtml(); bindListEvents(); return; }
   if(state.tab === "users"){ el.innerHTML = usersListHtml(); bindUsersEvents(); return; }
   if(state.tab === "subpages"){ el.innerHTML = subpagesListHtml(); bindListEvents(); return; }
-  if(state.tab === "homepage"){ el.innerHTML = homepageEditorHtml(); return; }
+  if(state.tab === "homepage"){ el.innerHTML = homepageListHtml(); bindHomepageListEvents(); return; }
   el.innerHTML = siteListHtml();
   bindListEvents();
 }
@@ -3720,22 +3722,55 @@ async function saveSiteEditor(ed){
 }
 
 /* ============================================================
-   主網頁：直接內嵌現成的「圓點位置編輯器.html」（獨立、自包含的視覺化
-   工具，不是這個後台自己重做的一套）——後台這裡只負責用 iframe 把它
-   放進「主網頁」這個分頁，工具本身的匯入（貼上 建築事務所首頁.dc.html
-   完整內容）／同步（複製出更新後的完整檔案內容，貼回去覆蓋）都在工具
-   自己裡面完成，不經過這個後台的存檔機制，也不寫 GitHub。
+   主網頁：入口跟其他分頁一樣先是一張卡片，點進去才整頁打開現成的
+   「圓點位置編輯器.html」（獨立、自包含的視覺化工具，不是這個後台自己
+   重做的一套）——只用 iframe 把它嵌進編輯畫面，工具本身的匯入（貼上
+   建築事務所首頁.dc.html 完整內容）／同步（複製出更新後的完整檔案內容，
+   貼回去覆蓋）都在工具自己裡面完成，不經過這個後台的存檔機制，也不寫
+   GitHub。
    ============================================================ */
-function homepageEditorHtml(){
+function homepageListHtml(){
   return `
-    <div class="field-hint" style="margin-bottom:14px;">
-      這是編輯主網頁（首頁）圓點與連線位置的視覺化工具，跟後台其他分頁不是同一套系統——直接在下面操作就好：
-      先按工具裡的「從主網頁匯入」，貼上目前 asstudiowebsite 這個 repo 裡「建築事務所首頁.dc.html」的完整內容；
-      編輯完再按「同步到主網頁」，複製出更新後的完整檔案內容，貼回去覆蓋原本的檔案。
-      <strong>index.html 也要記得貼一次同樣的內容</strong>（這兩個檔案目前是各自獨立、需要手動保持一致，見該 repo 的 CLAUDE.md 說明）。
+    <div class="item-grid">
+      <div class="item-card" data-edit-homepage="1">
+        <div class="thumb empty" style="background:#201f1d;color:#fff;">首頁</div>
+        <div class="info">
+          <div class="t">首頁圓點與連線</div>
+          <div class="m">圓點位置編輯器</div>
+        </div>
+      </div>
     </div>
-    <iframe src="./圓點位置編輯器.html" style="width:100%; height:85vh; min-height:640px; border:1px solid var(--line); border-radius:8px;"></iframe>
   `;
+}
+
+function bindHomepageListEvents(){
+  const el = document.getElementById("tabContent");
+  const card = el.querySelector("[data-edit-homepage]");
+  if(card) card.addEventListener("click", openHomepageEditor);
+}
+
+function openHomepageEditor(){ state.editingHomepage = true; render(); }
+function closeHomepageEditor(){ state.editingHomepage = false; render(); }
+
+function renderHomepageEditor(){
+  app.innerHTML = `
+    ${renderTopBar()}
+    <div class="wrap wrap-wide">
+      <div class="editor">
+        <div class="editor-head">
+          <button class="back-link" id="backBtn">← 回到主網頁列表</button>
+        </div>
+        <div class="field-hint" style="margin-bottom:14px;">
+          這是編輯主網頁（首頁）圓點與連線位置的視覺化工具，跟後台其他編輯畫面不是同一套系統——直接在下面操作就好：
+          先按工具裡的「從主網頁匯入」，貼上目前 asstudiowebsite 這個 repo 裡「建築事務所首頁.dc.html」的完整內容；
+          編輯完再按「同步到主網頁」，複製出更新後的完整檔案內容，貼回去覆蓋原本的檔案。
+          <strong>index.html 也要記得貼一次同樣的內容</strong>（這兩個檔案目前是各自獨立、需要手動保持一致，見該 repo 的 CLAUDE.md 說明）。
+        </div>
+        <iframe src="./圓點位置編輯器.html" style="width:100%; height:85vh; min-height:640px; border:1px solid var(--line); border-radius:8px;"></iframe>
+      </div>
+    </div>
+  `;
+  document.getElementById("backBtn").addEventListener("click", closeHomepageEditor);
 }
 /* ============================================================
    啟動
