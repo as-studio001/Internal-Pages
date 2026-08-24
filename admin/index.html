@@ -447,8 +447,8 @@ async function ghPutFile(path, base64Content, message, sha, repo){
   return callFunction("github-proxy", { action: "putFile", path, content: base64Content, message, sha, repo });
 }
 
-async function ghDeleteFile(path, message, sha){
-  return callFunction("github-proxy", { action: "deleteFile", path, message, sha });
+async function ghDeleteFile(path, message, sha, repo){
+  return callFunction("github-proxy", { action: "deleteFile", path, message, sha, repo });
 }
 
 function readFileAsBase64(file){
@@ -2487,6 +2487,7 @@ function subpageEditorHtml(ed){
     <div class="editor">
       <div class="editor-head">
         <button class="back-link" id="backBtn">← 回到子頁面列表</button>
+        ${!ed.isNew ? `<button class="btn danger" id="deleteSubpageBtn">刪除這個子頁面</button>` : ""}
       </div>
       <div class="subpage-editor-columns">
         <div class="subpage-editor-left">
@@ -2545,6 +2546,42 @@ function renderSubpageEditor(){
     frame.src = base + sep + "_r=" + Date.now();
   });
   document.getElementById("saveSubpageBtn").addEventListener("click", () => saveSubpageEditor(ed));
+  const deleteBtn = document.getElementById("deleteSubpageBtn");
+  if(deleteBtn) deleteBtn.addEventListener("click", deleteCurrentSubpage);
+}
+
+// 刪除子頁面：一定會刪掉 Internal-Pages 裡的 JSON 資料（這步用的是一直
+// 都穩定的預設路徑寫入，不受跨 repo 問題影響）；asstudiowebsite 上對應
+// 的 .dc.html 用「盡量刪、刪不掉不擋住整個操作」的方式處理——找不到檔案
+// （代表原本就沒真的建立成功，例如卡在額度問題那段期間新增的頁面）或
+// 跨 repo 動作失敗，都只會在結果提示裡註明，需要的話使用者自己去
+// asstudiowebsite 手動確認/清掉，不會因為這一步失敗導致連 Internal-Pages
+// 那份都刪不掉。照片（images/subpages/<slug>/ 底下的檔案）不會一併清掉，
+// 跟案例刪除目前的行為一致，是已知、可接受的殘留。
+async function deleteCurrentSubpage(){
+  if(!confirm("確定要刪除這個子頁面嗎？這個動作沒辦法復原。")) return;
+  const ed = state.editingSubpage;
+  try{
+    setLoading(true, "刪除中…");
+    await ghDeleteFile(`content/subpages/${ed.slug}.json`, `Delete subpage ${ed.slug} via admin`, ed.sha);
+
+    let dcHtmlWarning = "";
+    const filename = `${ed.item.title}.dc.html`;
+    try{
+      const { sha: dcSha } = await ghGetFileRaw(filename, "asstudiowebsite");
+      await ghDeleteFile(filename, `Delete subpage ${filename} via admin`, dcSha, "asstudiowebsite");
+    }catch(e){
+      dcHtmlWarning = `；但 asstudiowebsite 上的「${filename}」沒有一併清掉（可能本來就沒建立成功，或跨 repo 動作有問題），需要的話請自行到 GitHub 確認`;
+    }
+
+    toast("已刪除" + dcHtmlWarning, !!dcHtmlWarning);
+    state.subpages = null;
+    closeSubpageEditor();
+  }catch(err){
+    toast("刪除失敗：" + err.message, true);
+  }finally{
+    setLoading(false);
+  }
 }
 
 // 新子頁面的「.dc.html 程式碼骨架」內嵌一份「原型原點」目前實際部署的原始
