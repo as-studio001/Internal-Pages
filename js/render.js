@@ -612,6 +612,7 @@
       .cms-editable-text:focus{ outline:2px solid #4d8dff; background:rgba(90,150,255,0.16); }
       .cms-editable-photo{ cursor:pointer; transition:filter .15s ease, outline-color .15s ease; outline:2px dashed rgba(90,150,255,0.4); outline-offset:-2px; }
       .cms-editable-photo:hover{ filter:brightness(0.72); outline-color:rgba(90,150,255,0.85); }
+      .cms-drop-target{ outline:3px solid #4d8dff !important; outline-offset:-3px; }
       /* 空白的灰底佔位圖（還沒有照片）光靠虛線框不夠明顯，容易讓人
          看不出來這塊是可以點的——直接疊字說明「點擊上傳照片」。 */
       .ph.cms-editable-photo::after{
@@ -661,9 +662,29 @@
 
     // 內文照片點下去不是馬上跳出換照片視窗，而是先在後台跳出一個小工具列
     // （換照片／獨立全版／跟下一張併排…），排版微調直接在這份預覽上做，
-    // 跟 Word 圖片點下去跳出文繞圖選項是同一個概念。
+    // 跟 Word 圖片點下去跳出文繞圖選項是同一個概念。也可以直接把照片拖
+    // 到另一張照片上，交換它們在內文照片陣列裡的順序（文字段落跟照片
+    // 還是分開兩排，不是把照片塞進文字裡）。
+    let draggedContentPhotoIndex = null;
     $$("#content [data-photo-index]").forEach((img) => {
-      makePhotoClickable(img, () => postCmsEdit({ field: "photo-select", index: Number(img.dataset.photoIndex) }), "點擊調整這張照片的排版／換照片");
+      makePhotoClickable(img, () => postCmsEdit({ field: "photo-select", index: Number(img.dataset.photoIndex) }), "點擊調整排版／換照片，或直接拖曳到另一張照片上交換順序");
+      img.draggable = true;
+      img.addEventListener("dragstart", () => {
+        draggedContentPhotoIndex = Number(img.dataset.photoIndex);
+      });
+      img.addEventListener("dragover", (e) => {
+        e.preventDefault();
+        img.classList.add("cms-drop-target");
+      });
+      img.addEventListener("dragleave", () => img.classList.remove("cms-drop-target"));
+      img.addEventListener("drop", (e) => {
+        e.preventDefault();
+        img.classList.remove("cms-drop-target");
+        const toIndex = Number(img.dataset.photoIndex);
+        if (draggedContentPhotoIndex == null || draggedContentPhotoIndex === toIndex) return;
+        postCmsEdit({ field: "photo-reorder", from: draggedContentPhotoIndex, to: toIndex });
+        draggedContentPhotoIndex = null;
+      });
     });
 
     // 設計研究／施工過程的每一段文字說明；縮圖（含圖面）的點擊換照片

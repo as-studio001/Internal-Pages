@@ -177,7 +177,9 @@ input,textarea,select{ font-family:inherit; font-size:14px; }
 .photo-list{ display:flex; flex-direction:column; gap:10px; }
 .photo-list-drop{ border-radius:8px; transition:background .15s ease; }
 .photo-list-drop.drag-over{ background:rgba(107,99,85,0.08); outline:1.5px dashed var(--ink); outline-offset:6px; }
-.photo-row{ display:flex; gap:12px; align-items:center; }
+.photo-row{ display:flex; gap:12px; align-items:center; transition:outline-color .15s ease; outline:2px solid transparent; outline-offset:2px; }
+.photo-row.drag-target{ outline-color:var(--ink); }
+.photo-row .drag-handle{ cursor:grab; color:var(--muted); font-size:16px; flex-shrink:0; }
 .photo-row .thumb{ width:84px; height:63px; flex-shrink:0; border-radius:5px; overflow:hidden; background:#efece5; border:1px solid var(--line); }
 .photo-row .thumb img{ width:100%; height:100%; object-fit:cover; }
 .photo-row input[type=text]{ flex:1; }
@@ -471,6 +473,13 @@ function setPath(obj, path, value){
   let o = obj;
   for(let i = 0; i < keys.length - 1; i++) o = o[keys[i]];
   o[keys[keys.length - 1]] = value;
+}
+
+function reorderPhotos(ed, basePath, from, to){
+  const list = getPath(ed.item, basePath);
+  if(!list || from === to || from < 0 || to < 0 || from >= list.length || to >= list.length) return;
+  const [moved] = list.splice(from, 1);
+  list.splice(to, 0, moved);
 }
 
 /* ============================================================
@@ -1028,7 +1037,8 @@ function bindPathInputs(ed, container){
 function photoListHtml(ed, basePath, listId, showCaption){
   const list = getPath(ed.item, basePath) || [];
   const rows = list.map((p, i) => `
-    <div class="photo-row" data-photo-index="${i}">
+    <div class="photo-row" data-photo-index="${i}" draggable="true">
+      <span class="drag-handle" title="拖曳調整順序">⠿</span>
       <div class="thumb"><img src="${esc(resolveSrc(ed.pendingUploads, p.src))}" alt=""></div>
       ${showCaption === false ? "" : `<input type="text" data-path="${basePath}.${i}.caption" value="${esc(p.caption || "")}" placeholder="圖說（選填）">`}
       <button type="button" class="row-remove-btn" data-remove-photo="${i}" title="移除">×</button>
@@ -1065,6 +1075,25 @@ function bindPhotoList(ed, basePath, listId, folder){
   wrap.addEventListener("drop", e => {
     const files = Array.from(e.dataTransfer.files || []).filter(f => f.type.startsWith("image/"));
     if(files.length) addPhotoFiles(ed, basePath, files);
+  });
+
+  // 清單裡的照片本身也能互相拖曳交換順序（跟從電腦拖新照片進來是不同的
+  // 拖曳，靠 dataTransfer 有沒有真的檔案區分，兩邊互不干擾）
+  let dragRowIndex = null;
+  wrap.querySelectorAll(".photo-row").forEach((row) => {
+    row.addEventListener("dragstart", () => { dragRowIndex = parseInt(row.dataset.photoIndex, 10); });
+    row.addEventListener("dragover", (e) => { e.preventDefault(); e.stopPropagation(); row.classList.add("drag-target"); });
+    row.addEventListener("dragleave", () => row.classList.remove("drag-target"));
+    row.addEventListener("drop", (e) => {
+      e.stopPropagation();
+      row.classList.remove("drag-target");
+      const toIndex = parseInt(row.dataset.photoIndex, 10);
+      if(dragRowIndex == null || dragRowIndex === toIndex) return;
+      reorderPhotos(ed, basePath, dragRowIndex, toIndex);
+      if(basePath === "photos") delete ed.item.photoLayout;
+      dragRowIndex = null;
+      rerenderCurrentEditor();
+    });
   });
 }
 
@@ -1257,7 +1286,7 @@ function caseEditorHtml(ed){
         <div class="field-block">
           <div class="label">內文照片</div>
           ${photoListHtml(ed, "photos", "photosList")}
-          <div class="field-hint">依順序排列，上傳後系統會先自動排出一版（決定要並排還是全幅、要接在哪段文字後面），下面預覽點照片可以再微調</div>
+          <div class="field-hint">可以直接拖曳（⠿）調整順序；上傳後系統會先自動排出一版（決定要並排還是全幅、要接在哪段文字後面），下面預覽點照片可以再微調，也能直接在預覽裡拖曳照片交換順序</div>
         </div>
         <div class="field-block" style="margin-top:16px">
           <div class="label">排版微調（點下面預覽裡的照片）</div>
@@ -1602,6 +1631,15 @@ function handleCaseEdit(ed, data){
     // 獨立全版／跟下一張併排…），排版微調直接在這份預覽上做
     ed.selectedPhotoIndex = data.index;
     refreshPhotoToolbar(ed);
+    return;
+  }
+  if(data.field === "photo-reorder"){
+    // 直接把預覽裡的照片拖到另一張上交換順序——位置全部變了，舊的
+    // 分組/併排比例設定沒意義了，清掉讓它重新自動排一次
+    reorderPhotos(ed, "photos", data.from, data.to);
+    delete ed.item.photoLayout;
+    ed.selectedPhotoIndex = null;
+    rerenderCurrentEditor();
     return;
   }
   if(data.field === "step-body"){
