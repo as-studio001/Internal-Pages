@@ -1675,6 +1675,7 @@ function refreshPhotoGroups(ed){
   if(!block) return;
   block.innerHTML = photoGroupsHtml(ed);
   bindPhotoGroups(ed);
+  bindPathInputs(ed, block); // 圖說輸入框是新插入的 DOM，要重新綁一次才會有作用
 }
 
 function pickImageFile(cb){
