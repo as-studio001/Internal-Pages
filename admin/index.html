@@ -234,14 +234,10 @@ input,textarea,select{ font-family:inherit; font-size:14px; }
 .case-card-editor{ border:1px solid var(--line); border-radius:8px; padding:16px; margin-bottom:16px; background:#fff; }
 .case-card-editor-head{ display:flex; justify-content:space-between; align-items:center; margin-bottom:12px; }
 
-.photo-layout-groups{ display:flex; flex-direction:column; gap:10px; }
-.photo-layout-row{
-  display:flex; flex-wrap:wrap; align-items:center; gap:14px; padding:10px 14px;
-  border:1px solid var(--line); border-radius:6px; background:#fff; font-size:13px;
+#photoToolbar{
+  border:1px solid var(--line); border-radius:8px; padding:14px 16px; background:#fff;
 }
-.photo-layout-row .step-label{ font-weight:700; color:var(--muted); font-size:12px; letter-spacing:.02em; }
-.photo-layout-row label{ display:flex; align-items:center; gap:6px; color:var(--muted); }
-.photo-layout-row select{ padding:5px 8px; border:1px solid var(--line); border-radius:5px; background:#fff; color:var(--ink); }
+.photo-toolbar-actions{ display:flex; flex-wrap:wrap; align-items:center; gap:8px; margin-top:8px; }
 
 .empty-note{ color:var(--muted); font-size:13px; font-style:italic; }
 .chapter-picker{ display:flex; flex-wrap:wrap; gap:10px; }
@@ -1253,21 +1249,22 @@ function caseEditorHtml(ed){
           <span class="preview-section-num">2</span>
           <div class="label">內容</div>
         </div>
-        <iframe id="preview_content" class="case-live-preview" data-preview-key="content" src="../index.html?preview=1" style="height:72vh;min-height:560px;"></iframe>
-        <div class="field-hint">段落文字、內文照片都直接在上面點下去修改／更換；也有「+ 新增段落」「+ 新增照片」按鈕，全新案例也能直接在這裡開始建立內容。</div>
-        <div class="field-block" style="margin-top:16px">
+        <div class="field-block">
           <div class="label">內文段落</div>
           <textarea id="paragraphsText" style="min-height:320px">${esc((c.paragraphs || []).join("\n\n"))}</textarea>
-          <div class="field-hint">直接打字就好，一整段連續打，段落之間空一行即可——存檔時會自動依空行拆成段落，跟下面的內文照片自動交錯排版</div>
+          <div class="field-hint">直接打字就好，一整段連續打，段落之間空一行即可——存檔時會自動依空行拆成段落</div>
         </div>
         <div class="field-block">
           <div class="label">內文照片</div>
           ${photoListHtml(ed, "photos", "photosList")}
-          <div class="field-hint">依順序排列，上傳後系統會先自動排出一版（決定要並排還是全幅、要接在哪段文字後面），下面「照片排版」可以再微調</div>
+          <div class="field-hint">依順序排列，上傳後系統會先自動排出一版（決定要並排還是全幅、要接在哪段文字後面），下面預覽點照片可以再微調</div>
         </div>
-        <div class="field-block" id="photoLayoutBlock">
-          ${photoLayoutHtml(ed)}
+        <div class="field-block" style="margin-top:16px">
+          <div class="label">排版微調（點下面預覽裡的照片）</div>
+          <iframe id="preview_content" class="case-live-preview" data-preview-key="content" src="../index.html?preview=1" style="height:72vh;min-height:560px;"></iframe>
+          <div class="field-hint">段落文字都直接在上面點下去修改；點照片會跳出小工具列，可以換照片、選它要獨立全版還是跟下一張併排（併排比例也是點選，不是自由拖拉）。也有「+ 新增段落」「+ 新增照片」按鈕，全新案例也能直接在這裡開始建立內容。</div>
         </div>
+        <div class="field-block" id="photoToolbar" style="display:none"></div>
       </div>
 
       <div class="preview-section">
@@ -1377,7 +1374,7 @@ window.addEventListener("message", (e) => {
   }
   if(e.data.type === "cms-auto-layout"){
     ed.item.photoLayout = e.data.layout;
-    refreshPhotoLayoutBlock(ed);
+    refreshPhotoToolbar(ed);
     return;
   }
 });
@@ -1445,74 +1442,132 @@ function ensurePhotoLayout(ed){
 
 const PAIR_RATIO_LABELS = ["左大右小", "右大左小", "接近對半"];
 
-function photoLayoutHtml(ed){
+/* 點預覽裡某張內文照片之後跳出的小工具列（換照片／獨立全版／跟下一張
+   併排＋選比例）——版面配置固定就這幾種，點選就好，不是自由拖拉調整
+   大小，避免排版跑掉。 */
+function replacePhotoAt(ed, index){
+  pickImageFile((file) => {
+    const key = "PENDING::" + uid();
+    const previewUrl = URL.createObjectURL(file);
+    ed.pendingUploads[key] = { file, previewUrl };
+    ed.item.photos[index].src = key;
+    postCaseProjectToIframe(ed);
+    syncCompactThumb("photosList", index, previewUrl);
+  });
+}
+
+/* 把某張照片從目前的排版分組裡拆出來，回傳「拆完之後」的分組清單跟
+   它原本接在第幾段文字後（後面設定 solo/pair 都要沿用這個位置，不然
+   一調整排版，插入位置就跳掉） */
+function extractPhotoFromLayout(layout, indices){
+  // indices[0] 是「主要那張」（使用者實際點的那張照片）——插入位置優先
+  // 沿用它原本所在的分組，不是隨便挑一個沾到邊的分組
+  let afterParagraph = 0;
+  let foundPrimary = false;
+  const rest = [];
+  for(const g of layout){
+    const hit = g.photos.some((i) => indices.includes(i));
+    if(hit){
+      if(!foundPrimary || g.photos.includes(indices[0])){
+        afterParagraph = g.afterParagraph;
+        if(g.photos.includes(indices[0])) foundPrimary = true;
+      }
+      const remaining = g.photos.filter((i) => !indices.includes(i));
+      if(remaining.length > 0){
+        const newGroup = Object.assign({}, g, { photos: remaining });
+        if(remaining.length !== 2) delete newGroup.pairRatio;
+        rest.push(newGroup);
+      }
+    } else {
+      rest.push(g);
+    }
+  }
+  return { rest, afterParagraph };
+}
+
+function setPhotoSolo(ed, index){
   const photos = ed.item.photos || [];
+  const layout = getValidPhotoLayout(ed) || photos.map((_, i) => ({ photos: [i], afterParagraph: 0 }));
+  const { rest, afterParagraph } = extractPhotoFromLayout(layout, [index]);
+  rest.push({ photos: [index], afterParagraph });
+  ed.item.photoLayout = rest;
+}
+
+function setPhotoPairWithNext(ed, index, ratio){
+  const photos = ed.item.photos || [];
+  const next = index + 1;
+  if(next >= photos.length) return;
+  const layout = getValidPhotoLayout(ed) || photos.map((_, i) => ({ photos: [i], afterParagraph: 0 }));
+  const { rest, afterParagraph } = extractPhotoFromLayout(layout, [index, next]);
+  rest.push({ photos: [index, next], afterParagraph, pairRatio: ratio });
+  ed.item.photoLayout = rest;
+}
+
+function movePhotoGroup(ed, index, delta){
   const paragraphs = ed.item.paragraphs || [];
-  if(photos.length < 2){
-    return `<div class="label">照片排版</div><div class="field-hint">目前少於 2 張照片，不需要排版設定，系統會自動全幅顯示。</div>`;
-  }
   const layout = getValidPhotoLayout(ed);
-  if(!layout){
-    return `
-      <div class="label">照片排版</div>
-      <div class="field-hint">正在產生自動排版…完成後可以在這裡微調每組照片要接在哪段文字後面、並排比例怎麼分。</div>
-    `;
-  }
+  if(!layout) return;
+  const g = layout.find((gr) => gr.photos.includes(index));
+  if(!g) return;
+  g.afterParagraph = Math.max(0, Math.min(paragraphs.length, g.afterParagraph + delta));
+}
+
+function photoToolbarHtml(ed){
+  const index = ed.selectedPhotoIndex;
+  if(index == null) return "";
+  const photos = ed.item.photos || [];
+  if(index >= photos.length){ ed.selectedPhotoIndex = null; return ""; }
+  const hasNext = index + 1 < photos.length;
+  const layout = getValidPhotoLayout(ed);
+  const myGroup = layout && layout.find((g) => g.photos.includes(index));
+  const isPaired = !!(myGroup && myGroup.photos.length === 2);
+  const currentRatio = isPaired ? myGroup.pairRatio : null;
   return `
-    <div class="label">照片排版（已自動產生，可微調）</div>
-    <div class="photo-layout-groups">
-      ${layout.map((g, gi) => `
-        <div class="photo-layout-row" data-layout-group="${gi}">
-          <span class="step-label">第 ${g.photos.map((i) => i + 1).join("、")} 張</span>
-          <label>接在
-            <select data-layout-after="${gi}">
-              <option value="0" ${g.afterParagraph === 0 ? "selected" : ""}>最前面</option>
-              ${paragraphs.map((_, pi) => `<option value="${pi + 1}" ${g.afterParagraph === pi + 1 ? "selected" : ""}>第 ${pi + 1} 段文字後</option>`).join("")}
-            </select>
-          </label>
-          ${g.pairRatio != null ? `
-            <label>並排比例
-              <select data-layout-ratio="${gi}">
-                ${PAIR_RATIO_LABELS.map((label, i) => `<option value="${i}" ${g.pairRatio === i ? "selected" : ""}>${label}</option>`).join("")}
-              </select>
-            </label>
-          ` : ""}
-        </div>
-      `).join("")}
+    <div class="label">第 ${index + 1} 張照片</div>
+    <div class="photo-toolbar-actions">
+      <button type="button" class="btn" data-photo-action="replace">🖼 換這張照片</button>
+      <button type="button" class="btn ${!isPaired ? "primary" : ""}" data-photo-action="solo">獨立全版</button>
+      ${hasNext ? PAIR_RATIO_LABELS.map((label, i) => `
+        <button type="button" class="btn ${isPaired && currentRatio === i ? "primary" : ""}" data-photo-action="pair" data-ratio="${i}">跟下一張併排：${label}</button>
+      `).join("") : `<span class="field-hint" style="margin:0">已經是最後一張，沒有下一張可以併排</span>`}
     </div>
-    <div class="field-hint">單張全幅、多張直式照片並排等版型系統會自動判斷，這裡只能調整並排比例跟插入位置</div>
-    <button type="button" class="btn" id="resetPhotoLayoutBtn" style="margin-top:10px">還原成自動排版</button>
+    <div class="photo-toolbar-actions">
+      <button type="button" class="btn ghost" data-photo-action="moveBack">◀ 往前一段文字</button>
+      <button type="button" class="btn ghost" data-photo-action="moveForward">往後一段文字 ▶</button>
+      <button type="button" class="back-link" data-photo-action="close">關閉</button>
+    </div>
+    <div class="field-hint">單張全幅、多張直式照片並排等版型系統會自動判斷，這裡只控制獨立／併排比例、跟接在哪段文字後面</div>
   `;
 }
 
-function bindPhotoLayoutControls(ed){
-  const block = document.getElementById("photoLayoutBlock");
+function refreshPhotoToolbar(ed){
+  const block = document.getElementById("photoToolbar");
   if(!block) return;
-  block.querySelectorAll("[data-layout-after]").forEach((sel) => {
-    sel.addEventListener("change", () => {
-      ed.item.photoLayout[Number(sel.dataset.layoutAfter)].afterParagraph = Number(sel.value);
-      postCaseProjectToIframe(ed);
-    });
-  });
-  block.querySelectorAll("[data-layout-ratio]").forEach((sel) => {
-    sel.addEventListener("change", () => {
-      ed.item.photoLayout[Number(sel.dataset.layoutRatio)].pairRatio = Number(sel.value);
-      postCaseProjectToIframe(ed);
-    });
-  });
-  const resetBtn = document.getElementById("resetPhotoLayoutBtn");
-  if(resetBtn) resetBtn.addEventListener("click", () => {
-    delete ed.item.photoLayout;
-    refreshPhotoLayoutBlock(ed);
-    ensurePhotoLayout(ed);
-  });
+  if(ed.selectedPhotoIndex == null){
+    block.style.display = "none";
+    block.innerHTML = "";
+    return;
+  }
+  block.style.display = "";
+  block.innerHTML = photoToolbarHtml(ed);
+  bindPhotoToolbar(ed);
 }
 
-function refreshPhotoLayoutBlock(ed){
-  const block = document.getElementById("photoLayoutBlock");
+function bindPhotoToolbar(ed){
+  const block = document.getElementById("photoToolbar");
   if(!block) return;
-  block.innerHTML = photoLayoutHtml(ed);
-  bindPhotoLayoutControls(ed);
+  block.querySelectorAll("[data-photo-action]").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      const index = ed.selectedPhotoIndex;
+      const action = btn.dataset.photoAction;
+      if(action === "close"){ ed.selectedPhotoIndex = null; refreshPhotoToolbar(ed); return; }
+      if(action === "replace"){ replacePhotoAt(ed, index); return; }
+      if(action === "solo"){ setPhotoSolo(ed, index); postCaseProjectToIframe(ed); refreshPhotoToolbar(ed); return; }
+      if(action === "pair"){ setPhotoPairWithNext(ed, index, Number(btn.dataset.ratio)); postCaseProjectToIframe(ed); refreshPhotoToolbar(ed); return; }
+      if(action === "moveBack"){ movePhotoGroup(ed, index, -1); postCaseProjectToIframe(ed); refreshPhotoToolbar(ed); return; }
+      if(action === "moveForward"){ movePhotoGroup(ed, index, 1); postCaseProjectToIframe(ed); refreshPhotoToolbar(ed); return; }
+    });
+  });
 }
 
 function pickImageFile(cb){
@@ -1542,15 +1597,11 @@ function handleCaseEdit(ed, data){
     });
     return;
   }
-  if(data.field === "photo-replace"){
-    pickImageFile((file) => {
-      const key = "PENDING::" + uid();
-      const previewUrl = URL.createObjectURL(file);
-      ed.pendingUploads[key] = { file, previewUrl };
-      ed.item.photos[data.index].src = key;
-      postCaseProjectToIframe(ed);
-      syncCompactThumb("photosList", data.index, previewUrl);
-    });
+  if(data.field === "photo-select"){
+    // 點內文照片不是馬上換照片，是先選定這張、跳出工具列（換照片／
+    // 獨立全版／跟下一張併排…），排版微調直接在這份預覽上做
+    ed.selectedPhotoIndex = data.index;
+    refreshPhotoToolbar(ed);
     return;
   }
   if(data.field === "step-body"){
@@ -1642,7 +1693,6 @@ function renderCaseEditor(){
       .map((s) => s.trim())
       .filter(Boolean);
     postCaseProjectToIframe(ed);
-    refreshPhotoLayoutBlock(ed); // 段落數變了，「接在第幾段後」的選項要跟著更新
   });
 
   const folder = () => `images/${ed.item.slug || "tmp"}`;
@@ -1651,7 +1701,7 @@ function renderCaseEditor(){
   bindStepsFor(ed, "designResearch", "designResearchList", folder());
   bindStepsFor(ed, "process", "processList", folder());
 
-  bindPhotoLayoutControls(ed);
+  refreshPhotoToolbar(ed);
   ensurePhotoLayout(ed);
 
   document.getElementById("saveBtn").addEventListener("click", () => saveCaseEditor(ed));

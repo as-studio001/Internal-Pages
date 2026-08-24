@@ -584,10 +584,10 @@
     });
   }
 
-  function makePhotoClickable(el, onReplace) {
+  function makePhotoClickable(el, onReplace, titleText) {
     if (!el) return;
     el.classList.add("cms-editable-photo");
-    el.title = "點擊更換照片";
+    el.title = titleText || "點擊更換照片";
     el.addEventListener("click", (e) => {
       e.preventDefault();
       onReplace();
@@ -659,8 +659,11 @@
     const heroPhotoEl = $("#hero-photo img") || $("#hero-photo .ph");
     makePhotoClickable(heroPhotoEl, () => postCmsEdit({ field: "hero-replace" }));
 
+    // 內文照片點下去不是馬上跳出換照片視窗，而是先在後台跳出一個小工具列
+    // （換照片／獨立全版／跟下一張併排…），排版微調直接在這份預覽上做，
+    // 跟 Word 圖片點下去跳出文繞圖選項是同一個概念。
     $$("#content [data-photo-index]").forEach((img) => {
-      makePhotoClickable(img, () => postCmsEdit({ field: "photo-replace", index: Number(img.dataset.photoIndex) }));
+      makePhotoClickable(img, () => postCmsEdit({ field: "photo-select", index: Number(img.dataset.photoIndex) }), "點擊調整這張照片的排版／換照片");
     });
 
     // 設計研究／施工過程的每一段文字說明；縮圖（含圖面）的點擊換照片
