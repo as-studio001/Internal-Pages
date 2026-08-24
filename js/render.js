@@ -157,7 +157,7 @@
     root.appendChild(el);
   }
 
-  function renderPhotoRow(root, chunk, ratioState, ratioOverride) {
+  function renderPhotoRow(root, chunk, ratioState) {
     const el = document.createElement("div");
     el.classList.add("block", "block--photos", "c-12");
 
@@ -169,18 +169,10 @@
       el.classList.add("block--photos--portrait");
       el.style.gridTemplateColumns = chunk.map(() => "1fr").join(" ");
     } else if (allNonPortrait && chunk.length === 2) {
-      // ratioOverride：後台「照片排版」裡使用者手動選的並排比例（0~2，
-      // 對應 PAIR_RATIOS 的索引）；沒有的話（自動排版模式）照原本邏輯
-      // 依序輪替，同一組不連續選到一樣的比例。
-      let idx;
-      if (ratioOverride != null && PAIR_RATIOS[ratioOverride]) {
-        idx = ratioOverride;
-      } else {
-        idx = ratioState.next % PAIR_RATIOS.length;
-        if (idx === ratioState.last) idx = (idx + 1) % PAIR_RATIOS.length;
-        ratioState.last = idx;
-        ratioState.next++;
-      }
+      let idx = ratioState.next % PAIR_RATIOS.length;
+      if (idx === ratioState.last) idx = (idx + 1) % PAIR_RATIOS.length;
+      ratioState.last = idx;
+      ratioState.next++;
       el.style.gridTemplateColumns = PAIR_RATIOS[idx].map((r) => r + "fr").join(" ");
     } else {
       el.classList.add("block--photos--mixed");
@@ -195,6 +187,83 @@
       }
       el.appendChild(img);
     });
+    root.appendChild(el);
+  }
+
+  // 後台「照片排版」工具列讓使用者從固定的一組模板裡挑，不是自由排版
+  // ——每個模板固定要用幾張照片、固定的欄位/格狀比例，避免排版跑掉。
+  // 自動排版（沒有手動選模板的組）完全不受影響，還是走上面 renderPhotoRow
+  // 那套自動判斷邏輯。
+  const TEMPLATE_DEFS = {
+    "solo": { count: 1 },
+    "pair-50-50": { count: 2, cols: [1, 1] },
+    "pair-60-40": { count: 2, cols: [6, 4] },
+    "pair-40-60": { count: 2, cols: [4, 6] },
+    "pair-70-30": { count: 2, cols: [7, 3] },
+    "pair-30-70": { count: 2, cols: [3, 7] },
+    "pair-portrait": { count: 2, cols: [1, 1], portrait: true },
+    "triple-even": { count: 3, cols: [1, 1, 1] },
+    "triple-portrait": { count: 3, cols: [1, 1, 1], portrait: true },
+    "quad-even": { count: 4, cols: [1, 1, 1, 1] },
+    "quad-portrait": { count: 4, cols: [1, 1, 1, 1], portrait: true },
+    "big-left-stack-right": { count: 3, asym: "left" },
+    "big-right-stack-left": { count: 3, asym: "right" },
+    "big-top-stack-bottom": { count: 3, asym: "top" },
+    "big-bottom-stack-top": { count: 3, asym: "bottom" },
+  };
+
+  // 4 種不規則格狀模板：一張大圖＋兩張堆疊的小圖。big/small 各自的
+  // [gridRow, gridColumn] 值，容器本身給一個固定的長寬比例（16/9）讓
+  // fr 比例有依據可以算，照片用 object-fit:cover 填滿格子（跟其他模板
+  // 「完整顯示不裁切」不同，這 4 種是刻意裁切成整齊的格狀構圖）。
+  const ASYM_GRID = {
+    left: { cols: "2fr 1fr", rows: "1fr 1fr", big: ["1 / span 2", "1"], small: [["1", "2"], ["2", "2"]] },
+    right: { cols: "1fr 2fr", rows: "1fr 1fr", big: ["1 / span 2", "2"], small: [["1", "1"], ["2", "1"]] },
+    top: { cols: "1fr 1fr", rows: "2fr 1fr", big: ["1", "1 / span 2"], small: [["2", "1"], ["2", "2"]] },
+    bottom: { cols: "1fr 1fr", rows: "1fr 2fr", big: ["2", "1 / span 2"], small: [["1", "1"], ["1", "2"]] },
+  };
+
+  function renderTemplateGroup(root, photos, templateId) {
+    const tpl = TEMPLATE_DEFS[templateId];
+    if (!tpl || photos.length !== tpl.count) {
+      // 保底：理論上 validPhotoLayout 已經擋掉張數對不上的狀況，這裡只是
+      // 避免萬一發生時整頁壞掉，退回最保守的畫法
+      if (photos.length <= 1) { renderSoloContained(root, photos[0]); return; }
+      renderPhotoRow(root, photos, { next: 0, last: -1 });
+      return;
+    }
+    if (tpl.count === 1) { renderSoloContained(root, photos[0]); return; }
+
+    const el = document.createElement("div");
+    el.classList.add("block", "block--photos", "c-12");
+
+    if (tpl.asym) {
+      const cfg = ASYM_GRID[tpl.asym];
+      el.style.gridTemplateColumns = cfg.cols;
+      el.style.gridTemplateRows = cfg.rows;
+      el.style.aspectRatio = "16 / 9";
+      const positions = [cfg.big, cfg.small[0], cfg.small[1]];
+      photos.forEach((p, i) => {
+        const img = buildImage(p);
+        if (p._i != null) img.dataset.photoIndex = String(p._i);
+        img.style.gridRow = positions[i][0];
+        img.style.gridColumn = positions[i][1];
+        img.style.width = "100%";
+        img.style.height = "100%";
+        img.style.objectFit = "cover";
+        el.appendChild(img);
+      });
+    } else {
+      if (tpl.portrait) el.classList.add("block--photos--portrait");
+      else el.classList.add("block--photos--mixed");
+      el.style.gridTemplateColumns = tpl.cols.map((c) => c + "fr").join(" ");
+      photos.forEach((p) => {
+        const img = buildImage(p);
+        if (p._i != null) img.dataset.photoIndex = String(p._i);
+        if (!tpl.portrait) img.style.aspectRatio = String(p.ratio || 4 / 3);
+        el.appendChild(img);
+      });
+    }
     root.appendChild(el);
   }
 
@@ -234,8 +303,11 @@
     const taggedPhotos = (PROJECT.photos || []).map((p, i) => Object.assign({}, p, { _i: i }));
 
     // 後台「照片排版」讓使用者微調過的話（PROJECT.photoLayout），直接
-    // 照這份清單分組＋插入位置＋並排比例；沒有（或已經跟照片對不上）
-    // 就照舊完全自動分組，兩種案例都用同一套渲染，不影響既有案例。
+    // 照這份清單分組＋插入位置；沒有（或已經跟照片對不上）就照舊完全
+    // 自動分組，兩種案例都用同一套渲染，不影響既有案例。手動分組裡
+    // 「有沒有指定 template」也各自獨立——沒指定的組一樣走自動判斷的
+    // 並排/全幅邏輯（renderPhotoRow/renderSoloContained），只有指定
+    // template 的組才用 renderTemplateGroup 那套固定模板畫。
     const manualLayout = validPhotoLayout(PROJECT.photoLayout, taggedPhotos.length);
     const chunks = manualLayout
       ? manualLayout.map((g) => g.photos.map((i) => taggedPhotos[i]))
@@ -243,55 +315,44 @@
     const insertAfter = manualLayout
       ? manualLayout.map((g) => g.afterParagraph)
       : chunks.map((_, i) => Math.round(((i + 1) * paragraphs.length) / (chunks.length + 1)));
-    const ratioOverrides = manualLayout ? manualLayout.map((g) => g.pairRatio) : chunks.map(() => undefined);
+    const templates = manualLayout ? manualLayout.map((g) => g.template) : chunks.map(() => null);
 
     const ratioState = { next: 0, last: -1 };
     let chunkPos = 0;
-    const insertChunk = (chunk, override) => {
+    const insertChunk = (chunk, template) => {
+      if (template) { renderTemplateGroup(root, chunk, template); return; }
       if (chunk.length === 1) renderSoloContained(root, chunk[0]);
-      else renderPhotoRow(root, chunk, ratioState, override);
+      else renderPhotoRow(root, chunk, ratioState);
     };
 
     // 插在「第 0 段之後」＝最前面，先處理掉，其餘照原順序跟著段落跑。
     while (chunkPos < chunks.length && insertAfter[chunkPos] === 0) {
-      insertChunk(chunks[chunkPos], ratioOverrides[chunkPos]);
+      insertChunk(chunks[chunkPos], templates[chunkPos]);
       chunkPos++;
     }
     paragraphs.forEach((body, i) => {
       renderTextBlock(root, body, i);
       while (chunkPos < chunks.length && insertAfter[chunkPos] === i + 1) {
-        insertChunk(chunks[chunkPos], ratioOverrides[chunkPos]);
+        insertChunk(chunks[chunkPos], templates[chunkPos]);
         chunkPos++;
       }
     });
     while (chunkPos < chunks.length) {
-      insertChunk(chunks[chunkPos], ratioOverrides[chunkPos]);
+      insertChunk(chunks[chunkPos], templates[chunkPos]);
       chunkPos++;
     }
   }
 
   // 後台「產生自動排版」用：跑一次跟 renderContent 全自動模式一樣的分組
-  // /插入位置/並排比例演算法，但不畫出來，而是回傳一份使用者可以微調
-  // 的清單（存進 PROJECT.photoLayout 就會變成手動排版）。
+  // /插入位置演算法，但不畫出來，而是回傳一份使用者可以微調的清單
+  // （存進 PROJECT.photoLayout 就會變成手動排版；不主動指定 template，
+  // 讓使用者自己在工具列挑，沒挑的組維持自動判斷的並排/全幅邏輯）。
   function computeAutoPhotoLayout() {
     const paragraphs = PROJECT.paragraphs || [];
     const taggedPhotos = (PROJECT.photos || []).map((p, i) => Object.assign({}, p, { _i: i }));
     const chunks = makePhotoChunks(taggedPhotos);
     const insertAfter = chunks.map((_, i) => Math.round(((i + 1) * paragraphs.length) / (chunks.length + 1)));
-    const ratioState = { next: 0, last: -1 };
-    return chunks.map((chunk, i) => {
-      const group = { photos: chunk.map((p) => p._i), afterParagraph: insertAfter[i] };
-      const orientations = chunk.map(orientationOf);
-      const allNonPortrait = orientations.every((o) => o !== "portrait");
-      if (allNonPortrait && chunk.length === 2) {
-        let idx = ratioState.next % PAIR_RATIOS.length;
-        if (idx === ratioState.last) idx = (idx + 1) % PAIR_RATIOS.length;
-        ratioState.last = idx;
-        ratioState.next++;
-        group.pairRatio = idx;
-      }
-      return group;
-    });
+    return chunks.map((chunk, i) => ({ photos: chunk.map((p) => p._i), afterParagraph: insertAfter[i] }));
   }
 
   function formatCoords(lat, lng) {

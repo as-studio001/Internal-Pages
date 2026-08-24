@@ -1469,11 +1469,29 @@ function ensurePhotoLayout(ed){
   postCaseProjectToIframe(ed);
 }
 
-const PAIR_RATIO_LABELS = ["左大右小", "右大左小", "接近對半"];
+/* 固定的 15 種照片排版模板（跟 js/render.js 的 TEMPLATE_DEFS 一一對應，
+   這裡只需要顯示用的名稱跟需要幾張照片）——選模板點選就好，不是自由
+   拖拉調整大小/位置，避免排版跑掉。 */
+const PHOTO_TEMPLATES = [
+  { id: "solo", label: "單張全幅", count: 1 },
+  { id: "pair-50-50", label: "左右對半", count: 2 },
+  { id: "pair-60-40", label: "左大右小 60/40", count: 2 },
+  { id: "pair-40-60", label: "右大左小 40/60", count: 2 },
+  { id: "pair-70-30", label: "左大右小 70/30", count: 2 },
+  { id: "pair-30-70", label: "右大左小 30/70", count: 2 },
+  { id: "pair-portrait", label: "兩張直式並排", count: 2 },
+  { id: "triple-even", label: "三張橫向均分", count: 3 },
+  { id: "triple-portrait", label: "三張直式並排", count: 3 },
+  { id: "quad-even", label: "四張橫向均分", count: 4 },
+  { id: "quad-portrait", label: "四張直式並排", count: 4 },
+  { id: "big-left-stack-right", label: "左大＋右側疊兩小", count: 3 },
+  { id: "big-right-stack-left", label: "右大＋左側疊兩小", count: 3 },
+  { id: "big-top-stack-bottom", label: "上大＋下方並排兩小", count: 3 },
+  { id: "big-bottom-stack-top", label: "下大＋上方並排兩小", count: 3 },
+];
 
-/* 點預覽裡某張內文照片之後跳出的小工具列（換照片／獨立全版／跟下一張
-   併排＋選比例）——版面配置固定就這幾種，點選就好，不是自由拖拉調整
-   大小，避免排版跑掉。 */
+/* 點預覽裡某張內文照片之後跳出的小工具列（換照片／選排版模板）——版面
+   配置固定就這 15 種，點選就好，不是自由拖拉調整大小，避免排版跑掉。 */
 function replacePhotoAt(ed, index){
   pickImageFile((file) => {
     const key = "PENDING::" + uid();
@@ -1503,8 +1521,9 @@ function extractPhotoFromLayout(layout, indices){
       }
       const remaining = g.photos.filter((i) => !indices.includes(i));
       if(remaining.length > 0){
-        const newGroup = Object.assign({}, g, { photos: remaining });
-        if(remaining.length !== 2) delete newGroup.pairRatio;
+        // 拆走幾張之後張數變了，原本選的模板（固定張數）就不算數了，
+        // 剩下的照片退回自動判斷排版
+        const newGroup = { photos: remaining, afterParagraph: g.afterParagraph };
         rest.push(newGroup);
       }
     } else {
@@ -1514,21 +1533,18 @@ function extractPhotoFromLayout(layout, indices){
   return { rest, afterParagraph };
 }
 
-function setPhotoSolo(ed, index){
+/* 選一個模板：從點的這張照片開始，往後收剛好模板需要的張數成一組
+   （模板需要幾張照片是固定的，不是自由選）。 */
+function setPhotoTemplate(ed, index, templateId){
+  const tpl = PHOTO_TEMPLATES.find((t) => t.id === templateId);
+  if(!tpl) return;
   const photos = ed.item.photos || [];
+  const indices = [];
+  for(let k = 0; k < tpl.count; k++) indices.push(index + k);
+  if(indices[indices.length - 1] >= photos.length) return; // 剩下的照片不夠這個模板需要的張數
   const layout = getValidPhotoLayout(ed) || photos.map((_, i) => ({ photos: [i], afterParagraph: 0 }));
-  const { rest, afterParagraph } = extractPhotoFromLayout(layout, [index]);
-  rest.push({ photos: [index], afterParagraph });
-  ed.item.photoLayout = rest;
-}
-
-function setPhotoPairWithNext(ed, index, ratio){
-  const photos = ed.item.photos || [];
-  const next = index + 1;
-  if(next >= photos.length) return;
-  const layout = getValidPhotoLayout(ed) || photos.map((_, i) => ({ photos: [i], afterParagraph: 0 }));
-  const { rest, afterParagraph } = extractPhotoFromLayout(layout, [index, next]);
-  rest.push({ photos: [index, next], afterParagraph, pairRatio: ratio });
+  const { rest, afterParagraph } = extractPhotoFromLayout(layout, indices);
+  rest.push({ photos: indices, afterParagraph, template: templateId });
   ed.item.photoLayout = rest;
 }
 
@@ -1546,26 +1562,27 @@ function photoToolbarHtml(ed){
   if(index == null) return "";
   const photos = ed.item.photos || [];
   if(index >= photos.length){ ed.selectedPhotoIndex = null; return ""; }
-  const hasNext = index + 1 < photos.length;
+  const remaining = photos.length - index;
   const layout = getValidPhotoLayout(ed);
   const myGroup = layout && layout.find((g) => g.photos.includes(index));
-  const isPaired = !!(myGroup && myGroup.photos.length === 2);
-  const currentRatio = isPaired ? myGroup.pairRatio : null;
+  const currentTemplate = myGroup ? (myGroup.template || null) : null;
   return `
     <div class="label">第 ${index + 1} 張照片</div>
     <div class="photo-toolbar-actions">
       <button type="button" class="btn" data-photo-action="replace">🖼 換這張照片</button>
-      <button type="button" class="btn ${!isPaired ? "primary" : ""}" data-photo-action="solo">獨立全版</button>
-      ${hasNext ? PAIR_RATIO_LABELS.map((label, i) => `
-        <button type="button" class="btn ${isPaired && currentRatio === i ? "primary" : ""}" data-photo-action="pair" data-ratio="${i}">跟下一張併排：${label}</button>
-      `).join("") : `<span class="field-hint" style="margin:0">已經是最後一張，沒有下一張可以併排</span>`}
-    </div>
-    <div class="photo-toolbar-actions">
       <button type="button" class="btn ghost" data-photo-action="moveBack">◀ 往前一段文字</button>
       <button type="button" class="btn ghost" data-photo-action="moveForward">往後一段文字 ▶</button>
       <button type="button" class="back-link" data-photo-action="close">關閉</button>
     </div>
-    <div class="field-hint">單張全幅、多張直式照片並排等版型系統會自動判斷，這裡只控制獨立／併排比例、跟接在哪段文字後面</div>
+    <div class="label" style="margin-top:14px;font-size:12px;">選一個排版模板（會用這張＋接下來需要的張數收成一組）</div>
+    <div class="photo-toolbar-actions">
+      ${PHOTO_TEMPLATES.map((t) => {
+        const disabled = t.count > remaining;
+        const active = currentTemplate === t.id;
+        return `<button type="button" class="btn ${active ? "primary" : ""}" data-photo-action="template" data-template="${t.id}" ${disabled ? "disabled" : ""}>${t.label}${t.count > 1 ? `（${t.count}張）` : ""}</button>`;
+      }).join("")}
+    </div>
+    <div class="field-hint">沒挑模板的照片維持自動判斷（依比例決定並排或全幅）；「關閉」不會取消已選的模板</div>
   `;
 }
 
@@ -1591,8 +1608,7 @@ function bindPhotoToolbar(ed){
       const action = btn.dataset.photoAction;
       if(action === "close"){ ed.selectedPhotoIndex = null; refreshPhotoToolbar(ed); return; }
       if(action === "replace"){ replacePhotoAt(ed, index); return; }
-      if(action === "solo"){ setPhotoSolo(ed, index); postCaseProjectToIframe(ed); refreshPhotoToolbar(ed); return; }
-      if(action === "pair"){ setPhotoPairWithNext(ed, index, Number(btn.dataset.ratio)); postCaseProjectToIframe(ed); refreshPhotoToolbar(ed); return; }
+      if(action === "template"){ setPhotoTemplate(ed, index, btn.dataset.template); postCaseProjectToIframe(ed); refreshPhotoToolbar(ed); return; }
       if(action === "moveBack"){ movePhotoGroup(ed, index, -1); postCaseProjectToIframe(ed); refreshPhotoToolbar(ed); return; }
       if(action === "moveForward"){ movePhotoGroup(ed, index, 1); postCaseProjectToIframe(ed); refreshPhotoToolbar(ed); return; }
     });
