@@ -522,10 +522,15 @@ const state = {
 // 另一個 repo（as-studio001/asstudiowebsite，網域 www.as-structure.com），
 // 不在這個後台自己的 repo 底下，檔名沒辦法用列目錄的方式自動取得，只能
 // 手動維護這份「slug → 實際頁面檔名」對照表——每次那邊做完一頁新的子
-// 頁面，這裡就手動加一筆。SUBPAGE_SITE_BASE 開發階段先指向本機靜態伺服
-// 器，正式上線、確認 www.as-structure.com 上的頁面已經換成新版之後，
-// 記得改回 "https://www.as-structure.com"。
-const SUBPAGE_SITE_BASE = "http://127.0.0.1:8790";
+// 頁面，這裡就手動加一筆。
+//
+// 2026-08-24：SUBPAGE_SITE_BASE 之前一直寫死指向本機測試伺服器
+// （http://127.0.0.1:8790），從架設當下到現在都沒有改回正式網址——這會
+// 導致後台「頁面預覽」跟舊資料格式的縮圖（resolveSubpagePhotoSrc 用到的
+// 那些）在正式環境下永遠連不上（瀏覽器會嘗試連使用者自己電腦上根本沒
+// 在跑的本機網址）。原型教學/原型原點/原型獲獎/原型方法這 4 頁都已經
+// 改成向 asstudiowebsite 抓 JSON 內容部署上線，改回真正的網域是安全的。
+const SUBPAGE_SITE_BASE = "https://www.as-structure.com";
 const SUBPAGE_PAGES = {
   teaching: { label: "原型教學", file: "原型教學.dc.html" },
   origin: { label: "原型原點", file: "原型原點.dc.html" },
