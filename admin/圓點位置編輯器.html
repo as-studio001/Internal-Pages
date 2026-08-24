@@ -503,6 +503,7 @@
     <textarea id="syncOutputAll" class="modal-output" readonly spellcheck="false" style="flex:1 1 auto; margin:10px 18px 0; min-height:320px;"></textarea>
     <div class="modal-actions">
       <button type="button" id="btnGoToFullImport" class="sc-btn" hidden>改用完整檔案匯入</button>
+      <button type="button" id="btnAutoPushSite" class="sc-btn" hidden title="請這個編輯器內嵌所在的後台頁面，直接把這份內容推送到 asstudiowebsite（同步覆蓋 建築事務所首頁.dc.html 跟 index.html 兩個檔案）">自動推送到 asstudiowebsite</button>
       <button type="button" id="btnCopyAllSync" class="sc-btn primary" style="display:flex; align-items:center; gap:6px;">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:14px;height:14px;"><rect width="14" height="14" x="8" y="8" rx="2" ry="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></svg>
         複製全部
@@ -1606,6 +1607,12 @@
   const syncModalTitleEl = document.getElementById('syncModalTitle');
   const syncModalHintEl = document.getElementById('syncModalHint');
   const btnGoToFullImportEl = document.getElementById('btnGoToFullImport');
+  const btnAutoPushSiteEl = document.getElementById('btnAutoPushSite');
+  // 「自動推送」只有兩個條件都成立才顯示：(a) 這次同步是整份檔案內容
+  // （不是分段），(b) 這個工具現在是被嵌在別的頁面（後台）的 iframe 裡——
+  // 獨立打開這個檔案時 window.parent === window，按下去等於自己傳訊息給
+  // 自己，沒有任何效果，不如直接不顯示，避免誤會「按了應該有反應」。
+  const isEmbeddedInParent = window.parent !== window;
   document.getElementById('btnSyncSite').addEventListener('click', () => {
     const fullText = buildFullSiteText();
     if (fullText) {
@@ -1613,6 +1620,7 @@
       syncModalTitleEl.textContent = '完整主網頁檔案內容';
       syncModalHintEl.textContent = '按「複製全部」，直接整個覆蓋「建築事務所首頁.dc.html」這個檔案即可——已經是更新好 specialIds／nodeData／edgeData／languages 之後的完整檔案內容，不用再找特定位置分別貼。';
       btnGoToFullImportEl.hidden = true;
+      btnAutoPushSiteEl.hidden = !isEmbeddedInParent;
     } else {
       const parts = buildSyncParts();
       syncOutputAllEl.value =
@@ -1623,6 +1631,7 @@
       syncModalTitleEl.textContent = '尚未匯入完整檔案，暫時只能分段複製';
       syncModalHintEl.textContent = '這個瀏覽器分頁還沒用「從主網頁匯入」貼過完整的 建築事務所首頁.dc.html 檔案內容（或上次貼的只是片段），所以沒辦法直接給你整份可以覆蓋的新檔案——按下面「改用完整檔案匯入」，貼上整個檔案內容，之後這裡就會直接產生整份新檔案。如果現在就是想要分段內容，可以繼續往下複製：依文字裡「===== 標題 =====」的標示，把對應那一段（不含標題本身）分別貼到主網頁同名陣列的中括號［ ］內取代。';
       btnGoToFullImportEl.hidden = false;
+      btnAutoPushSiteEl.hidden = true;
     }
     syncModalOverlay.hidden = false;
   });
@@ -1646,6 +1655,30 @@
       syncOutputAllEl.select();
       showToast('自動複製失敗，已選取內容，請手動複製（Ctrl+C）');
     }
+  });
+
+  // 2026-08-24 新增：這個工具自己完全不知道怎麼寫入 GitHub（沒有密鑰、
+  // 沒有 Netlify 存取權），所以「自動推送」不是這裡直接打 API，而是把整份
+  // 更新好的檔案內容用 postMessage 丟給嵌著這個 iframe 的父頁面（後台的
+  // 「主網頁」編輯畫面），由父頁面代為執行真正的寫入動作，完成後再用
+  // postMessage 把結果傳回來顯示——這個工具只負責「產生內容」跟「顯示
+  // 結果」，跟寫入權限完全分開，符合它原本設計時「本身不碰任何密鑰」
+  // 的定位。
+  btnAutoPushSiteEl.addEventListener('click', () => {
+    if (!window.confirm('這會直接覆蓋 asstudiowebsite 上的「建築事務所首頁.dc.html」跟「index.html」兩個檔案，確定要推送嗎？')) return;
+    btnAutoPushSiteEl.disabled = true;
+    const original = btnAutoPushSiteEl.textContent;
+    btnAutoPushSiteEl.textContent = '推送中…';
+    window.parent.postMessage({ type: 'sc-homepage-sync', fileText: syncOutputAllEl.value }, '*');
+    window.addEventListener('message', function onResult(e) {
+      const data = e.data || {};
+      if (data.type !== 'sc-homepage-sync-result') return;
+      window.removeEventListener('message', onResult);
+      btnAutoPushSiteEl.disabled = false;
+      btnAutoPushSiteEl.textContent = original;
+      showToast(data.ok ? (data.message || '已推送到 asstudiowebsite') : ('推送失敗：' + (data.message || '未知錯誤')));
+      if (data.ok) syncModalOverlay.hidden = true;
+    });
   });
 
   // Reverse direction of buildSyncParts(): each of these takes bracket-

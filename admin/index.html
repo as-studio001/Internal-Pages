@@ -3397,56 +3397,70 @@ class Component extends DCLogic {
 </html>
 `;
 
-const BLANK_SUBPAGE_FALLBACK_SECTIONS_LITERAL = `[
-    { "id": "sc-section-gallery", "type": "gallery-slider", "items": [] },
-    { "id": "sc-section-1", "type": "heading", "text": "" },
-    { "id": "sc-section-1-body", "type": "body", "text": "" },
-    { "id": "sc-section-2", "type": "heading", "text": "" },
-    { "id": "sc-section-2-body", "type": "body", "text": "" },
-    { "id": "sc-section-3", "type": "heading", "text": "" },
-    { "id": "sc-section-3-body", "type": "body", "text": "" }
-  ]`;
+// 直接向 asstudiowebsite（公開 repo）的 GitHub API 抓一個檔案的內容跟 sha，
+// 完全不經過 Netlify／github-proxy，不需要密鑰——跟「圓點位置編輯器」那顆
+// 「自動抓取目前網站內容」按鈕同一個原理。sha 是之後要覆蓋這個檔案時
+// （PUT 帶 sha）一定要有的東西，公開的 raw.githubusercontent.com 沒有
+// 這個資訊，所以用 api.github.com 的 contents 端點，一次拿到內容+sha。
+async function fetchAsstudiowebsitePublic(path){
+  const url = `https://api.github.com/repos/as-studio001/asstudiowebsite/contents/${path.split("/").map(encodeURIComponent).join("/")}?ref=main&_=${Date.now()}`;
+  const res = await fetch(url, { cache: "no-store" });
+  if(!res.ok) throw new Error(`asstudiowebsite 抓不到「${path}」（HTTP ${res.status}）`);
+  const data = await res.json();
+  const content = decodeURIComponent(escape(atob(data.content.replace(/\n/g, ""))));
+  return { content, sha: data.sha };
+}
 
-// 把樣板來源檔裡「原型原點」專屬的三個地方換成新頁面的值：頁名、抓資料
-// 網址（origin.json → <slug>.json）、退回內容（換成跟後台新建子頁面時
-// 一樣的空白骨架）。每一步都先確認樣板裡真的找得到預期的樣式，找不到就
-// 丟出明確的錯誤，不會在樣板檔案格式以後被改掉時，靜默產生一份壞掉的頁面。
-function generateSubpageDcHtml(templateSource, title, slug){
+// 把一份 .dc.html 原始檔裡的 pageTitle 跟 _fallbackSections 換成目前最新的
+// 標題／段落內容——不動其他任何東西（頁首/頁尾/動畫/各段落類型的排版與
+// 互動邏輯，包括原型獲獎那種高度客製化的得獎清單元件，都原封不動保留）。
+// 這個函式刻意不管抓資料網址：新頁面另外處理（見
+// regenerateAndPushSubpageDcHtml），既有頁面的抓資料網址本來就是對的、
+// slug 不會變，不需要也不應該去動它。
+function applyTitleAndFallback(templateSource, title, sections){
   let html = templateSource;
 
   const titleRe = /pageTitle = '[^']*';/;
-  if(!titleRe.test(html)) throw new Error("樣板來源檔找不到 pageTitle 設定，可能樣板檔案格式已變更");
+  if(!titleRe.test(html)) throw new Error("目標檔案找不到 pageTitle 設定，可能檔案格式跟預期的不一樣，請先手動檢查這個檔案");
   html = html.replace(titleRe, `pageTitle = ${JSON.stringify(title)};`);
 
-  const fetchUrlNeedle = `content/subpages/${SUBPAGE_DC_TEMPLATE_SOURCE_SLUG}.json`;
-  if(!html.includes(fetchUrlNeedle)) throw new Error("樣板來源檔找不到抓取資料的網址，可能樣板檔案格式已變更");
-  html = html.split(fetchUrlNeedle).join(`content/subpages/${slug}.json`);
-
   const fallbackRe = /_fallbackSections = \[[\s\S]*?\n  \];\n\n  scrollToSection\(id\)/;
-  if(!fallbackRe.test(html)) throw new Error("樣板來源檔找不到退回內容區塊，可能樣板檔案格式已變更");
-  html = html.replace(fallbackRe, `_fallbackSections = ${BLANK_SUBPAGE_FALLBACK_SECTIONS_LITERAL};\n\n  scrollToSection(id)`);
+  if(!fallbackRe.test(html)) throw new Error("目標檔案找不到退回內容區塊，可能檔案格式跟預期的不一樣，請先手動檢查這個檔案");
+  html = html.replace(fallbackRe, `_fallbackSections = ${JSON.stringify(sections, null, 2)};\n\n  scrollToSection(id)`);
 
   return html;
 }
 
-// 存檔前先確認 asstudiowebsite 沒有同名檔案，避免標題剛好跟既有頁面撞名時
-// 被覆蓋掉（就算漏檢查，GitHub API 本身在 sha 沒帶的情況下對已存在的檔案
-// 也會拒絕寫入，這裡只是為了給一個看得懂的錯誤訊息，不是唯一的防線）。
-async function assertSubpageFilenameAvailable(filename){
-  let exists = false;
-  try{
-    await ghGetFileRaw(filename, "asstudiowebsite");
-    exists = true;
-  }catch(e){ /* 抓不到檔案（通常是 404）代表檔名還沒被用過，是正常情況 */ }
-  if(exists) throw new Error(`asstudiowebsite 已經有同名的「${filename}」，換個標題再試一次，避免覆蓋掉既有頁面`);
-}
+// 不管新增還是更新，都會把 asstudiowebsite 對應的 .dc.html 檔案內容
+// 同步成目前最新的標題／段落——不只是靠子頁面自己在瀏覽器裡即時 fetch
+// JSON 顯示最新內容，是連檔案本身存的內容都跟著更新，避免以後只看檔案
+// 內容以為是舊的、造成混淆（fetch 失敗時的退回內容也才不會跟真正的內容
+// 兜不起來）。
+//   - 新增：套用內嵌的通用樣板（沒有得獎清單這種客製元件），順便換掉抓
+//     資料網址；同時把決定好的檔名記進 ed.item.dcHtmlFile，之後改標題也
+//     不會跟丟要更新哪個檔案。
+//   - 更新：直接抓這個頁面自己「目前」的檔案內容當樣板，只換標題／退回
+//     內容兩處，保留這個頁面原本可能有的任何客製化程式碼跟版面。
+async function regenerateAndPushSubpageDcHtml(ed, isNewSubpage){
+  const title = ed.item.title;
+  const sections = ed.item.sections || [];
+  const filename = ed.item.dcHtmlFile || (SUBPAGE_PAGES[ed.slug] && SUBPAGE_PAGES[ed.slug].file) || `${title}.dc.html`;
 
-async function createSubpageDcHtmlFile(title, slug){
-  if(/[\/\\?#%]/.test(title)) throw new Error("標題不能包含 / \\ ? # % 這些符號，會被當成網址檔名的一部分");
-  const filename = `${title}.dc.html`;
-  await assertSubpageFilenameAvailable(filename);
-  const html = generateSubpageDcHtml(SUBPAGE_DC_TEMPLATE_SOURCE_HTML, title, slug);
-  await ghPutFile(filename, utf8ToBase64(html), `Add new subpage ${filename} via admin`, null, "asstudiowebsite");
+  let templateSource, sha;
+  if(isNewSubpage){
+    templateSource = SUBPAGE_DC_TEMPLATE_SOURCE_HTML;
+    const fetchUrlNeedle = `content/subpages/${SUBPAGE_DC_TEMPLATE_SOURCE_SLUG}.json`;
+    if(!templateSource.includes(fetchUrlNeedle)) throw new Error("樣板來源檔找不到抓取資料的網址，可能樣板檔案格式已變更");
+    templateSource = templateSource.split(fetchUrlNeedle).join(`content/subpages/${ed.slug}.json`);
+    sha = null;
+  } else {
+    const existing = await fetchAsstudiowebsitePublic(filename);
+    templateSource = existing.content;
+    sha = existing.sha;
+  }
+
+  const html = applyTitleAndFallback(templateSource, title, sections);
+  await ghPutFile(filename, utf8ToBase64(html), `${isNewSubpage ? "Add" : "Update"} subpage ${filename} via admin`, sha, "asstudiowebsite");
 }
 
 async function saveSubpageEditor(ed){
@@ -3463,6 +3477,18 @@ async function saveSubpageEditor(ed){
       setLoading(false);
       return;
     }
+    if(/[\/\\?#%]/.test(ed.item.title)){ toast("標題不能包含 / \\ ? # % 這些符號，會被當成網址檔名的一部分", true); setLoading(false); return; }
+    const filename = `${ed.item.title}.dc.html`;
+    try{
+      let exists = false;
+      try{ await fetchAsstudiowebsitePublic(filename); exists = true; }catch(e){ /* 抓不到＝還沒有這個檔名，正常情況 */ }
+      if(exists) throw new Error(`asstudiowebsite 已經有同名的「${filename}」，換個標題再試一次，避免覆蓋掉既有頁面`);
+    }catch(err){
+      toast("建立子頁面失敗：" + err.message, true);
+      setLoading(false);
+      return;
+    }
+    ed.item.dcHtmlFile = filename;
   }
 
   try{
@@ -3473,13 +3499,11 @@ async function saveSubpageEditor(ed){
     const res = await ghPutFile(`content/subpages/${ed.slug}.json`, utf8ToBase64(json), `${isNewSubpage ? "Add" : "Update"} subpage ${ed.slug} via admin`, ed.sha);
     ed.sha = res.content.sha;
 
-    if(isNewSubpage){
-      setLoading(true, "在 asstudiowebsite 建立頁面程式碼中…");
-      await createSubpageDcHtmlFile(ed.item.title, ed.slug);
-    }
+    setLoading(true, "同步 asstudiowebsite 頁面程式碼中…");
+    await regenerateAndPushSubpageDcHtml(ed, isNewSubpage);
 
     ed.isNew = false;
-    toast(isNewSubpage ? "已建立新子頁面，網站幾分鐘內會上線" : "已發布，網站幾分鐘內會更新");
+    toast(isNewSubpage ? "已建立新子頁面，網站幾分鐘內會上線" : "已發布，asstudiowebsite 的頁面程式碼也同步更新了，網站幾分鐘內會上線");
     state.subpages = null; // 下次回到清單時重新讀取，標題可能變了
     rerenderCurrentEditor(); // 新頁面存檔後 slug 才確定，重畫一次讓右側預覽區塊的提示文字跟著更新
   }catch(err){
@@ -3750,7 +3774,41 @@ function bindHomepageListEvents(){
 }
 
 function openHomepageEditor(){ state.editingHomepage = true; render(); }
-function closeHomepageEditor(){ state.editingHomepage = false; render(); }
+function closeHomepageEditor(){
+  window.removeEventListener("message", handleHomepageSyncMessage);
+  state.editingHomepage = false;
+  render();
+}
+
+// 「圓點位置編輯器」自己完全不知道怎麼寫 GitHub（沒有密鑰），它的「自動
+// 推送」按鈕只是把整份更新好的檔案內容用 postMessage 丟過來，實際的寫入
+// 動作在這裡執行——直接覆蓋 asstudiowebsite 的「建築事務所首頁.dc.html」
+// 跟「index.html」兩個檔案（這兩個檔案目前是各自獨立、內容要一致，見
+// asstudiowebsite 的 CLAUDE.md 說明，所以兩個都要一起更新，不能只改一個）。
+// 寫完/失敗都會用 postMessage 把結果傳回 iframe，讓工具自己的 UI 顯示
+// 結果，不是在後台這邊彈提示——使用者的注意力這時候是在 iframe 裡。
+async function handleHomepageSyncMessage(e){
+  const data = e.data || {};
+  if(data.type !== "sc-homepage-sync") return;
+  const iframe = document.getElementById("homepageEditorIframe");
+  const respond = (ok, message) => {
+    if(iframe && iframe.contentWindow) iframe.contentWindow.postMessage({ type: "sc-homepage-sync-result", ok, message }, "*");
+  };
+  const targets = ["建築事務所首頁.dc.html", "index.html"];
+  try{
+    setLoading(true, "推送主網頁程式碼中…");
+    for(const filename of targets){
+      setLoading(true, `推送 ${filename} 中…`);
+      const existing = await fetchAsstudiowebsitePublic(filename);
+      await ghPutFile(filename, utf8ToBase64(data.fileText), `Update homepage ${filename} via 圓點位置編輯器`, existing.sha, "asstudiowebsite");
+    }
+    respond(true, "已推送，建築事務所首頁.dc.html 跟 index.html 都更新了，網站幾分鐘內會上線");
+  }catch(err){
+    respond(false, err.message);
+  }finally{
+    setLoading(false);
+  }
+}
 
 function renderHomepageEditor(){
   app.innerHTML = `
@@ -3761,16 +3819,18 @@ function renderHomepageEditor(){
           <button class="back-link" id="backBtn">← 回到主網頁列表</button>
         </div>
         <div class="field-hint" style="margin-bottom:14px;">
-          這是編輯主網頁（首頁）圓點與連線位置的視覺化工具，跟後台其他編輯畫面不是同一套系統——直接在下面操作就好：
-          先按工具裡的「從主網頁匯入」，貼上目前 asstudiowebsite 這個 repo 裡「建築事務所首頁.dc.html」的完整內容；
-          編輯完再按「同步到主網頁」，複製出更新後的完整檔案內容，貼回去覆蓋原本的檔案。
-          <strong>index.html 也要記得貼一次同樣的內容</strong>（這兩個檔案目前是各自獨立、需要手動保持一致，見該 repo 的 CLAUDE.md 說明）。
+          這是編輯主網頁（首頁）圓點與連線位置的視覺化工具，跟後台其他編輯畫面不是同一套系統：
+          先按工具裡的「從主網頁匯入」→「自動抓取目前網站內容」；編輯完按「同步到主網頁」，
+          裡面會有一顆「自動推送到 asstudiowebsite」，按下去會直接覆蓋
+          <strong>建築事務所首頁.dc.html 跟 index.html 兩個檔案</strong>（兩個一起更新，不用再自己複製貼上兩次）。
+          這一步需要 Netlify 那邊能正常寫入 asstudiowebsite，如果目前額度/部署還沒解決，會推送失敗，退回用「複製全部」手動貼上即可。
         </div>
-        <iframe src="./圓點位置編輯器.html" style="width:100%; height:85vh; min-height:640px; border:1px solid var(--line); border-radius:8px;"></iframe>
+        <iframe id="homepageEditorIframe" src="./圓點位置編輯器.html" style="width:100%; height:85vh; min-height:640px; border:1px solid var(--line); border-radius:8px;"></iframe>
       </div>
     </div>
   `;
   document.getElementById("backBtn").addEventListener("click", closeHomepageEditor);
+  window.addEventListener("message", handleHomepageSyncMessage);
 }
 /* ============================================================
    啟動
