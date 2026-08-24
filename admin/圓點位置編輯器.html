@@ -1,0 +1,3277 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>圓點位置編輯器｜原型結構首頁網絡圖</title>
+<style>
+  :root {
+    --bg: #fcfcfc;
+    --bg-translucent: rgba(252, 252, 252, 0.88);
+    --text: #1a1a1a;
+    --line: #d9d9d9;
+    --dot: #1a1a1a;
+    --special: #808080;
+    --border: #e2e2e2;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #1a1a1a;
+      --bg-translucent: rgba(26, 26, 26, 0.88);
+      --text: #f5f5f5;
+      --line: #444444;
+      --dot: #f5f5f5;
+      --special: #d4af37;
+      --border: #3a3a3a;
+    }
+  }
+  /* Explicit user choice (via the header toggle button) always wins over
+     the OS/browser's own prefers-color-scheme — the attribute selector's
+     extra specificity beats the plain :root inside the media query above,
+     in either direction, regardless of which one the system prefers. */
+  :root[data-theme="light"] {
+    --bg: #fcfcfc;
+    --bg-translucent: rgba(252, 252, 252, 0.88);
+    --text: #1a1a1a;
+    --line: #d9d9d9;
+    --dot: #1a1a1a;
+    --special: #808080;
+    --border: #e2e2e2;
+  }
+  :root[data-theme="dark"] {
+    --bg: #1a1a1a;
+    --bg-translucent: rgba(26, 26, 26, 0.88);
+    --text: #f5f5f5;
+    --line: #444444;
+    --dot: #f5f5f5;
+    --special: #d4af37;
+    --border: #3a3a3a;
+  }
+  * { box-sizing: border-box; }
+  html, body {
+    margin: 0; padding: 0; width: 100%; min-height: 100%;
+    background: var(--bg); color: var(--text);
+    font-family: 'Helvetica Neue', Helvetica, Arial, 'PingFang TC', 'Microsoft JhengHei', sans-serif;
+    -webkit-font-smoothing: antialiased;
+    user-select: none;
+  }
+  /* The diagram (ring + long radial labels) is drawn larger than any single
+     viewport can show at a readable scale — rather than shrinking it to
+     fit, the page itself grows to the diagram's real size and scrolls in
+     both directions to reach the rest, instead of letting the fixed header
+     or the viewport bounds clip it. */
+  html { overflow-y: auto; }
+  body { overflow-x: auto; }
+
+  /* HEADER — only the two requested actions, nothing from the main site's header/footer */
+  header {
+    position: fixed; top: 0; left: 0; right: 0; z-index: 1000;
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 16px 28px;
+    background: var(--bg-translucent);
+    backdrop-filter: blur(10px);
+    border-bottom: 1px solid var(--border);
+  }
+  header h1 {
+    font-size: 14px; font-weight: 700; letter-spacing: 0.04em; margin: 0;
+  }
+  .sc-btns { display: flex; gap: 12px; }
+  button.sc-btn {
+    font-size: 13px; font-weight: 600; letter-spacing: 0.03em;
+    padding: 9px 20px; border-radius: 6px; cursor: pointer;
+    border: 1px solid var(--text); background: none; color: var(--text);
+    transition: opacity 0.2s ease, background-color 0.2s ease, color 0.2s ease;
+  }
+  button.sc-btn:hover { opacity: 0.6; }
+  button.sc-btn.primary { background: var(--text); color: var(--bg); }
+  button.sc-btn.primary:hover { opacity: 0.85; }
+  button.sc-btn:disabled,
+  button.sc-btn:disabled:hover { opacity: 0.3; cursor: not-allowed; }
+  #btnImportSite, #btnLanguages, #btnUndo, #btnRedo, #btnResetSpacing, #btnThemeToggle, #btnSyncSite {
+    padding: 9px 14px; font-size: 15px; line-height: 1;
+    display: flex; align-items: center; justify-content: center;
+  }
+  #btnImportSite svg, #btnLanguages svg, #btnResetSpacing svg, #btnThemeToggle svg, #btnSyncSite svg { width: 15px; height: 15px; display: block; }
+  .sc-divider { width: 1px; align-self: stretch; background: var(--border); margin: 0 4px; }
+
+  /* Hover animation ported from @animate-ui/icons-send (Framer Motion) to
+     plain CSS: the plane flies up-and-right while shrinking slightly, and a
+     flight-trail line draws in behind it. transform-box: fill-box makes the
+     translate/scale apply around the plane's own bounding box, matching
+     Framer's default anchor, rather than the whole 24x24 viewBox's origin. */
+  #btnSyncSite .send-icon-plane {
+    transform-box: fill-box;
+    transform-origin: center;
+    transition: transform 0.5s ease;
+  }
+  #btnSyncSite:hover .send-icon-plane {
+    transform: translate(3px, -3px) scale(0.8);
+  }
+  #btnSyncSite .send-icon-trail {
+    opacity: 0;
+    transition: opacity 0.3s ease, stroke-dashoffset 0.55s ease 0.1s;
+  }
+  #btnSyncSite:hover .send-icon-trail {
+    opacity: 1;
+    stroke-dashoffset: 0 !important;
+  }
+
+  /* Left-side node list — fixed to the viewport (not the page) so it never
+     scrolls away with the oversized diagram. Closed by default; opening it
+     pushes #mainContent over via padding-left rather than overlaying, per
+     the requested "推開版面" behavior. */
+  .list-toggle {
+    position: fixed; left: 0; top: 50%; z-index: 1001;
+    transform: translateY(-50%);
+    padding: 14px 9px; border: none; border-radius: 0 8px 8px 0;
+    background: var(--text); color: var(--bg); cursor: pointer;
+    font-size: 15px; line-height: 1;
+    transition: left 0.25s ease, opacity 0.2s ease;
+  }
+  .list-toggle:hover { opacity: 0.85; }
+  .list-toggle.open { left: 280px; }
+  /* When the per-node edit panel is also open, it starts exactly where the
+     toggle button would otherwise sit (left: 280px) — push the button past
+     it too, or it floats on top of the edit fields (name/angle/size/colour/
+     href) since the button's z-index is intentionally above every panel. */
+  .list-toggle.open.connections-open { left: 540px; }
+  .list-toggle:disabled { opacity: 0.4; cursor: not-allowed; }
+
+  .node-list {
+    position: fixed; left: 0; top: var(--header-h, 71px); bottom: 0; width: 280px;
+    display: flex; flex-direction: column;
+    background: var(--bg);
+    /* border-right only while open — the translateX hide below carries the
+       border along with it, so an always-on border here would still leave
+       a 1px line sitting at the viewport's left edge even while closed. */
+    border-right: 0 solid var(--border);
+    transform: translateX(-100%);
+    transition: transform 0.25s ease, border-right-width 0.25s ease;
+    z-index: 998;
+  }
+  .node-list.open { transform: translateX(0); border-right-width: 1px; }
+  .node-list-head {
+    flex-shrink: 0; padding: 14px 12px 14px 20px;
+    font-size: 13px; font-weight: 700; letter-spacing: 0.05em;
+    border-bottom: 1px solid var(--border);
+  }
+  .node-list-head-view:not([hidden]) { display: flex; align-items: center; justify-content: space-between; }
+  .node-list-pen-btn {
+    flex-shrink: 0; width: 26px; height: 26px; border: none; background: none;
+    color: var(--text); opacity: 0.55; cursor: pointer; font-size: 13px;
+    display: flex; align-items: center; justify-content: center; border-radius: 5px;
+    transition: opacity 0.2s ease, background-color 0.2s ease;
+  }
+  .node-list-pen-btn:hover { opacity: 1; background: var(--border); }
+  /* :not([hidden]) — an unconditional `display: flex` here would outrank
+     the `hidden` attribute's own display:none (author rule beats the UA
+     stylesheet's attribute selector), leaving Cancel/Commit visible even
+     when this element carries `hidden`. */
+  .node-list-head-edit:not([hidden]) { display: flex; gap: 6px; }
+  .node-list-head-edit .sc-btn {
+    padding: 7px 10px; font-size: 14px; min-width: 32px;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .node-list-add-row { flex-shrink: 0; padding: 10px 12px; border-bottom: 1px solid var(--border); }
+  .node-list-add-btn {
+    width: 100%; padding: 8px; border: 1px dashed var(--border); border-radius: 6px;
+    background: none; color: var(--text); cursor: pointer; font-size: 13px; font-weight: 600;
+    transition: background-color 0.2s ease, border-color 0.2s ease;
+  }
+  .node-list-add-btn:hover { background: var(--border); border-color: var(--text); }
+
+  .node-list-items { flex: 1 1 auto; overflow-y: auto; padding: 8px; }
+  .node-list-row {
+    display: flex; align-items: center; border-radius: 5px;
+  }
+  .node-list-row:not(:last-child) { border-bottom: 1px solid var(--border); }
+  .node-list-row.editing { background: rgba(155, 125, 31, 0.14); }
+  .node-list-row.row-selected { background: rgba(155, 125, 31, 0.14); }
+  .node-list-row.row-dragging {
+    opacity: 0.85; background: var(--border);
+    position: relative; z-index: 10;
+  }
+  .node-list-item {
+    flex: 1 1 auto; min-width: 0; display: block; text-align: left;
+    padding: 7px 12px; margin: 0; border: none; background: none;
+    border-radius: 5px; cursor: pointer;
+    font-size: 13px; color: var(--text);
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  .node-list-item:hover { background: var(--border); }
+  .node-list-item.special { color: var(--special); font-weight: 700; }
+  /* Edit-target triangle, on the right of each row. Distinct from clicking
+     the name itself (which just locates/highlights it on the ring) —
+     rotates down when this node is the sole current edit target. */
+  .node-list-edit-target {
+    flex-shrink: 0; width: 24px; height: 24px; margin-left: 2px;
+    border: none; background: none; border-radius: 4px; cursor: pointer;
+    color: var(--text); opacity: 0.45; font-size: 10px;
+    display: flex; align-items: center; justify-content: center;
+    transition: transform 0.2s ease, opacity 0.2s ease, background-color 0.2s ease, color 0.2s ease;
+  }
+  .node-list-edit-target:hover { opacity: 1; background: var(--border); }
+  .node-list-edit-target.active { opacity: 1; color: var(--special); transform: rotate(90deg); }
+
+  /* Drag handle + delete only make sense while restructuring the list, so
+     they're hidden the rest of the time; the edit-target triangle is the
+     reverse (hidden during structure editing, to keep the two modes from
+     overlapping). */
+  .node-list-handle, .node-list-lock, .node-list-delete { display: none; flex-shrink: 0; width: 22px; height: 24px; }
+  .node-list-handle {
+    align-items: center; justify-content: center; color: var(--text); opacity: 0.45;
+    font-size: 13px; cursor: grab; touch-action: none;
+  }
+  .node-list-lock, .node-list-delete {
+    border: none; background: none; border-radius: 4px; color: var(--text);
+    opacity: 0.45; cursor: pointer; font-size: 12px;
+    align-items: center; justify-content: center;
+    transition: opacity 0.2s ease, background-color 0.2s ease, color 0.2s ease;
+  }
+  .node-list-lock svg { width: 12px; height: 12px; fill: currentColor; display: block; }
+  .node-list-lock:hover, .node-list-delete:hover { opacity: 1; background: var(--border); }
+  .node-list-lock.locked { opacity: 1; }
+  .node-list-row.row-locked .node-list-handle { cursor: not-allowed; opacity: 0.25; }
+  .node-list.structure-editing .node-list-handle,
+  .node-list.structure-editing .node-list-lock,
+  .node-list.structure-editing .node-list-delete { display: flex; }
+  .node-list.structure-editing .node-list-edit-target { display: none; }
+
+  /* Edit panel, flyout to the right of the main list for whichever single
+     node is the current edit target — properties (name/position/size/
+     colour) plus its connection list (add/remove). A separate panel (not
+     inline in the row) so picking a target never reflows the list itself. */
+  .node-connections {
+    position: fixed; left: 280px; top: var(--header-h, 71px); bottom: 0; width: 0;
+    overflow: hidden;
+    display: flex; flex-direction: column;
+    background: var(--bg);
+    /* border-right only while open — at width:0 the left and right edges of
+       this box are the same point, so an always-on border here would draw
+       a 1px line at x:280 (right where the panel appears when opened)
+       even while it's fully collapsed and supposedly invisible. */
+    border-right: 0 solid var(--border);
+    transition: width 0.2s ease, border-right-width 0.2s ease;
+    z-index: 997;
+  }
+  .node-connections.open { width: 260px; border-right-width: 1px; }
+  .edit-panel-head {
+    flex-shrink: 0; padding: 16px 16px 8px; width: 260px; box-sizing: border-box;
+    display: flex; align-items: center; gap: 8px;
+  }
+  /* 2026-08-03 新增：欄位變多了（角度/大小/顏色/超連結/連線對象/翻譯），
+     原本只有「連線對象」那份清單自己會捲動（node-connections-items 的
+     flex:1 1 auto + overflow-y:auto），上面那些欄位（尤其後來加的翻譯）
+     沒有捲動機制，面板固定高度、超出的部分被 .node-connections 本身的
+     overflow:hidden 直接裁掉，完全點不到、看不到（使用者回報「東西太多
+     編輯不到太下面的欄位」）。改成把「名稱／刪除」那一列以外的所有東西
+     包進同一個可捲動容器，捲動範圍涵蓋全部欄位，不再只有連線清單那一小
+     段能動。min-height:0 是讓 flex 子元素裡的 overflow-y:auto 真的生效
+     的必要寫法（flex 預設子元素的 min-height 是 auto，會被撐開頂開版面、
+     捲軸出不來，這是常見的 flexbox 陷阱）。 */
+  .edit-panel-scroll { flex: 1 1 auto; overflow-y: auto; min-height: 0; }
+  .edit-name-input {
+    flex: 1 1 auto; min-width: 0; font-size: 14px; font-weight: 700; padding: 7px 9px;
+    border: 1px solid var(--border); border-radius: 5px;
+    background: var(--bg); color: var(--text); box-sizing: border-box;
+  }
+  .edit-delete-btn {
+    flex-shrink: 0; width: 28px; height: 28px; border: none; background: none;
+    color: var(--text); opacity: 0.45; cursor: pointer; font-size: 13px;
+    display: flex; align-items: center; justify-content: center; border-radius: 4px;
+    transition: opacity 0.2s ease, background-color 0.2s ease;
+  }
+  .edit-delete-btn:hover { opacity: 1; background: var(--border); }
+  .edit-panel-fields {
+    flex-shrink: 0; width: 260px; box-sizing: border-box;
+    padding: 0 16px 14px; display: flex; flex-direction: column; gap: 10px;
+    border-bottom: 1px solid var(--border);
+  }
+  .edit-field { display: flex; flex-direction: column; gap: 4px; font-size: 12px; color: var(--text); opacity: 0.8; }
+  .edit-field input, .edit-field select {
+    font-size: 13px; padding: 6px 8px; border: 1px solid var(--border); border-radius: 5px;
+    background: var(--bg); color: var(--text); box-sizing: border-box; font-family: inherit;
+  }
+  .edit-angle-dial-wrap { display: flex; justify-content: center; padding: 2px 0 4px; }
+  .edit-angle-dial { width: 128px; height: 128px; touch-action: none; cursor: grab; }
+  .edit-angle-dial.dial-dragging { cursor: grabbing; }
+  .dial-ring { fill: none; stroke: var(--border); stroke-width: 1.5; }
+  .dial-tick { stroke: var(--border); stroke-width: 1.5; }
+  .dial-tick-label { fill: var(--text); opacity: 0.4; font-size: 10px; }
+  .dial-pointer { stroke: var(--special); stroke-width: 2; stroke-linecap: round; pointer-events: none; }
+  .dial-center { fill: var(--special); pointer-events: none; }
+  .node-connections-subhead {
+    flex-shrink: 0; width: 260px; box-sizing: border-box;
+    padding: 12px 16px 8px; display: flex; align-items: center; justify-content: space-between;
+    font-size: 12px; font-weight: 700; letter-spacing: 0.05em; opacity: 0.85;
+  }
+  .edit-add-btn {
+    width: 22px; height: 22px; border: 1px solid var(--text); border-radius: 5px;
+    background: none; color: var(--text); cursor: pointer; font-size: 13px; line-height: 1;
+    display: flex; align-items: center; justify-content: center;
+    transition: background-color 0.2s ease, color 0.2s ease;
+  }
+  .edit-add-btn:hover { background: var(--text); color: var(--bg); }
+  .add-connection-row { flex-shrink: 0; width: 260px; box-sizing: border-box; padding: 0 16px 10px; }
+  .add-connection-row select {
+    width: 100%; font-size: 13px; padding: 6px 8px;
+    border: 1px solid var(--border); border-radius: 5px; box-sizing: border-box;
+  }
+  .node-connections-items { flex: 1 1 auto; overflow-y: auto; padding: 8px; width: 260px; box-sizing: border-box; }
+  .node-connections-row { display: flex; align-items: center; }
+  .node-connections-remove {
+    flex-shrink: 0; width: 24px; height: 24px; border: none; background: none;
+    color: var(--text); opacity: 0.4; cursor: pointer; font-size: 13px;
+    display: flex; align-items: center; justify-content: center; border-radius: 4px;
+    transition: opacity 0.2s ease, background-color 0.2s ease;
+  }
+  .node-connections-remove:hover { opacity: 1; background: var(--border); }
+
+  main {
+    padding: 128px 16px 80px;
+    box-sizing: border-box;
+    transition: padding-left 0.25s ease;
+  }
+  main.list-open { padding-left: 296px; }
+  main.list-open.connections-open { padding-left: 556px; }
+  /* --content-scale (set by the script below once the diagram's real extent
+     is known) keeps each dot/label at the same on-screen size as the original
+     900-unit design — the stage simply grows past min(92vw, 78vh) instead
+     of shrinking everything to fit, which is what makes it scrollable.
+     margin: 0 auto (not flex centering) so an oversized stage still starts
+     flush at the left edge and every bit of the overflow stays reachable
+     by scrolling, rather than being centered into an unreachable negative
+     offset. */
+  #stage {
+    width: calc(min(92vw, 78vh) * var(--content-scale, 1));
+    max-width: calc(1700px * var(--content-scale, 1));
+    aspect-ratio: 1 / 1;
+    margin: 0 auto;
+  }
+  svg { width: 100%; height: 100%; overflow: visible; display: block; }
+
+  .sc-node { cursor: grab; touch-action: none; }
+  .sc-node.dragging { cursor: grabbing; }
+  .sc-hit { fill: transparent; }
+  .sc-dot { transition: fill 0.2s ease; }
+  .sc-edge { transition: opacity 0.2s ease; }
+  .sc-label { pointer-events: none; }
+  /* A displaced dot slides into its new seat instead of teleporting, so a
+     swap reads clearly — but the dot under the pointer must track it with
+     zero lag, so its own transition is switched off while dragging. */
+  .sc-dot, .sc-hit { transition: cx 0.18s ease-out, cy 0.18s ease-out, fill 0.2s ease; }
+  .sc-edge { transition: x1 0.18s ease-out, y1 0.18s ease-out, x2 0.18s ease-out, y2 0.18s ease-out, opacity 0.2s ease; }
+  .sc-node.dragging .sc-dot, .sc-node.dragging .sc-hit,
+  .sc-edge.sc-drag-live { transition: fill 0.2s ease, opacity 0.2s ease; }
+
+  .toast {
+    position: fixed; bottom: 30px; left: 50%; z-index: 2000;
+    transform: translateX(-50%) translateY(16px);
+    background: #1a1a1a; color: #fff; font-size: 13px;
+    padding: 10px 22px; border-radius: 999px;
+    opacity: 0; pointer-events: none;
+    transition: opacity 0.25s ease, transform 0.25s ease;
+  }
+  .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+  .modal-overlay {
+    position: fixed; inset: 0; z-index: 3000;
+    background: rgba(0,0,0,0.5);
+    display: flex; align-items: center; justify-content: center;
+  }
+  .modal-overlay[hidden] { display: none; }
+  .modal-box {
+    background: var(--bg); color: var(--text); border: 1px solid var(--border);
+    border-radius: 8px; width: min(720px, 92vw); max-height: 82vh;
+    display: flex; flex-direction: column; box-shadow: 0 12px 40px rgba(0,0,0,0.3);
+    /* html/body set user-select:none globally (avoids accidental text
+       selection while dragging dots/rows) — the modals are pure read/copy
+       surfaces with no drag interactions, so text here should select like
+       any normal page (e.g. selecting "specialIds" to search for it in
+       the source). */
+    user-select: text;
+  }
+  .modal-head {
+    flex-shrink: 0; display: flex; align-items: center; justify-content: space-between;
+    padding: 14px 18px; border-bottom: 1px solid var(--border); font-weight: 700; font-size: 14px;
+  }
+  .modal-close {
+    border: none; background: none; color: var(--text); opacity: 0.6; cursor: pointer;
+    font-size: 15px; line-height: 1; padding: 4px 6px; border-radius: 4px;
+    transition: opacity 0.2s ease, background-color 0.2s ease;
+  }
+  .modal-close:hover { opacity: 1; background: var(--border); }
+  .modal-hint { flex-shrink: 0; margin: 12px 18px 0; font-size: 12.5px; color: var(--text); opacity: 0.75; line-height: 1.5; }
+  .sync-sections {
+    flex: 1 1 auto; overflow-y: auto; margin: 10px 18px 18px;
+    display: flex; flex-direction: column; gap: 14px;
+  }
+  .sync-section { display: flex; flex-direction: column; gap: 6px; }
+  .sync-section-head {
+    flex-shrink: 0; display: flex; align-items: center; justify-content: space-between;
+    font-size: 12.5px; font-weight: 700; opacity: 0.85;
+  }
+  .modal-output {
+    min-height: 160px;
+    font-family: ui-monospace, SFMono-Regular, Consolas, 'Courier New', monospace;
+    font-size: 12px; line-height: 1.5; white-space: pre; resize: vertical;
+    background: var(--bg); color: var(--text); border: 1px solid var(--border); border-radius: 5px;
+    padding: 10px; box-sizing: border-box;
+  }
+  .modal-actions { flex-shrink: 0; display: flex; justify-content: flex-end; gap: 8px; padding: 0 18px 18px; }
+</style>
+<script>
+  // Applies a previously saved explicit theme choice before first paint, so
+  // there's no flash of the OS-default theme before the toggle button's own
+  // script (at the bottom of the page) gets a chance to run.
+  (function () {
+    try {
+      var t = localStorage.getItem('dotPositionEditor:theme:v1');
+      if (t === 'light' || t === 'dark') document.documentElement.setAttribute('data-theme', t);
+    } catch (err) {}
+  })();
+</script>
+</head>
+<body>
+
+<header id="pageHeader">
+  <h1>圓點位置編輯器　·　拖曳任意圓點調整位置</h1>
+  <div class="sc-btns">
+    <button type="button" class="sc-btn" id="btnImportSite" aria-label="從主網頁匯入">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+        <polyline points="7 10 12 15 17 10"/>
+        <line x1="12" y1="15" x2="12" y2="3"/>
+      </svg>
+    </button>
+    <button type="button" class="sc-btn" id="btnLanguages" aria-label="語言管理">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <circle cx="12" cy="12" r="10"/>
+        <line x1="2" y1="12" x2="22" y2="12"/>
+        <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/>
+      </svg>
+    </button>
+    <div class="sc-divider"></div>
+    <button type="button" class="sc-btn" id="btnUndo" aria-label="上一步">↶</button>
+    <button type="button" class="sc-btn" id="btnRedo" aria-label="下一步">↷</button>
+    <button type="button" class="sc-btn" id="btnResetSpacing" aria-label="重新整理間距">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M21 12a9 9 0 1 1-9-9c2.52 0 4.93 1 6.74 2.74L21 8"/>
+        <path d="M21 3v5h-5"/>
+      </svg>
+    </button>
+    <button type="button" class="sc-btn" id="btnThemeToggle" aria-label="切換深色/淺色模式"></button>
+    <div class="sc-divider"></div>
+    <button type="button" class="sc-btn" id="btnCancel">Cancel changes</button>
+    <button type="button" class="sc-btn primary" id="btnCommit">Commit changes</button>
+    <button type="button" class="sc-btn" id="btnSyncSite" aria-label="同步至主網頁">
+      <svg class="send-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="overflow:visible;">
+        <g class="send-icon-plane">
+          <path d="M14.536 21.686a.5.5 0 0 0 .937-.024l6.5-19a.496.496 0 0 0-.635-.635l-19 6.5a.5.5 0 0 0-.024.937l7.93 3.18a2 2 0 0 1 1.112 1.11z"/>
+          <path d="m21.854 2.147-10.94 10.939"/>
+        </g>
+        <path class="send-icon-trail" d="M -3 28 C -0.5 26.8 1.6 24.6 3.3 22 C 4.8 19.7 5.2 17.6 4.2 16.1 C 3.2 14.7 1.4 14.5 0.3 15.8 C -0.9 17.2 -0.6 19.4 1.2 20.4 C 3.4 21.5 6.4 19.4 9 15.8" stroke-width="1"/>
+      </svg>
+    </button>
+  </div>
+</header>
+
+<div class="modal-overlay" id="syncModalOverlay" hidden>
+  <div class="modal-box">
+    <div class="modal-head">
+      <span id="syncModalTitle">主網頁同步程式碼</span>
+      <button type="button" id="btnCloseSyncModal" class="modal-close" aria-label="關閉">✕</button>
+    </div>
+    <!-- 2026-08-17：這裡現在有兩種模式，依「從主網頁匯入」時有沒有存到完整
+         的原始檔案文字（SITE_TEMPLATE，見 applyImport()/buildFullSiteText()）
+         決定用哪一種：
+         (a) 有 SITE_TEMPLATE → 直接把 languages/specialIds/nodeData/edgeData
+             這四段換成最新內容、貼回原始文字裡，回傳整份「已經更新好、可以
+             直接整個覆蓋 建築事務所首頁.dc.html」的檔案內容——不用再找任何
+             位置分別貼，複製、整個覆蓋就結束。
+         (b) 還沒 SITE_TEMPLATE（這個瀏覽器分頁還沒匯入過，或匯入時貼的只是
+             片段不是整個檔案）→ 退回舊版分段格式，段落間用「===== 標題
+             =====」註解隔開，各自找主網頁同名陣列的中括號取代。
+             2026-08-17 再次調整：原本這個提示是「先講怎麼分段貼，最後才用
+             括號附註一句可以改用完整匯入」，附註很容易被忽略，讓人以為分段
+             貼是常態做法——改成提示文字直接把「這是退回的備援狀態、原因是
+             什麼」放在最前面當主要訊息，並且新增一顆「改用完整檔案匯入」
+             按鈕（直接關掉這個視窗、開啟匯入視窗），讓修正這件事是一個可以
+             直接點的動作，不是要讀完一段文字才發現的小提醒。分段複製仍然
+             保留在旁邊當退路，給只是想確認片段內容、不想整個換掉的情境用。 -->
+    <p class="modal-hint" id="syncModalHint">按「複製全部」，再依文字裡「===== 標題 =====」的標示，把對應那一段（不含標題本身）分別貼到主網頁同名陣列的中括號［ ］內取代。</p>
+    <textarea id="syncOutputAll" class="modal-output" readonly spellcheck="false" style="flex:1 1 auto; margin:10px 18px 0; min-height:320px;"></textarea>
+    <div class="modal-actions">
+      <button type="button" id="btnGoToFullImport" class="sc-btn" hidden>改用完整檔案匯入</button>
+      <button type="button" id="btnCopyAllSync" class="sc-btn primary" style="display:flex; align-items:center; gap:6px;">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:14px;height:14px;"><rect width="14" height="14" x="8" y="8" rx="2" ry="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></svg>
+        複製全部
+      </button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="importModalOverlay" hidden>
+  <div class="modal-box">
+    <div class="modal-head">
+      <span>從主網頁匯入</span>
+      <button type="button" id="btnCloseImportModal" class="modal-close" aria-label="關閉">✕</button>
+    </div>
+    <!-- 2026-08-17 簡化：原本 specialIds/nodeData/edgeData/languages 四個
+         欄位要求分別貼上，現在合成一個欄位——貼上的內容不用精準只包含這
+         幾個陣列，複製一大段（甚至整個 <script type="text/x-dc"
+         data-dc-script"> 內容）都可以，套用時會用「找 X = [ 用括號配對抓出
+         對應的 [...] 內容」的方式，自己從貼上的文字裡把 specialIds／
+         nodeData／edgeData／languages 分別挖出來，不管它們在貼上的文字裡
+         實際位置在哪、之間夾了什麼其他程式碼都不影響。languages 沒找到就
+         略過（沿用目前既有的語言清單），其餘三個沒找到 nodeData 就無法套用。
+         貼上的原始文字整份會存起來（SITE_TEMPLATE，見 applyImport()）——
+         如果這裡貼的是「建築事務所首頁.dc.html」的完整檔案內容，之後按
+         「同步至主網頁」就能直接拿回一份已經更新好、可以整個覆蓋原檔案的
+         新內容，不用再分別找位置貼；只貼片段（例如只貼 script 區塊內容）一樣
+         能正常匯入節點資料，只是同步時少了「整個檔案」這個好處。 -->
+    <p class="modal-hint">建議直接複製整個「建築事務所首頁.dc.html」檔案內容貼到下面——這樣「同步至主網頁」才能直接給你一份已經更新好、可以整個覆蓋原檔案的新內容，不用再找特定位置分別貼。只貼一部分（例如只貼 specialIds／nodeData／edgeData 所在的那段）也可以正常匯入，不用精準，會自動找出需要的部分（languages 選填，找不到就沿用目前的語言清單）。按「套用」後會<strong>整個取代</strong>目前編輯器裡的順序、名稱、超連結、顏色、連線與翻譯——尚未同步出去的編輯內容會遺失，建議在開始編輯前先做這一步。</p>
+    <textarea id="importBlobInput" class="modal-output" spellcheck="false" placeholder="建議貼上整個 建築事務所首頁.dc.html 檔案內容（至少要包含 specialIds = [...]、nodeData = [...]、edgeData = [...]）" style="flex:1 1 auto; margin:10px 18px 0; min-height:320px;"></textarea>
+    <div class="modal-actions">
+      <button type="button" id="btnApplyImport" class="sc-btn primary">套用</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="languageModalOverlay" hidden>
+  <div class="modal-box">
+    <div class="modal-head">
+      <span>語言管理</span>
+      <button type="button" id="btnCloseLanguageModal" class="modal-close" aria-label="關閉">✕</button>
+    </div>
+    <p class="modal-hint">在這裡新增／刪除主網頁語言切換鈕要出現的語言。新增語言之後，回到左側節點清單逐一點開每個節點，在「翻譯」欄位填入該語言的翻譯文字——沒有填的節點會自動顯示原文（中文），不用每個節點都填滿。編輯完成後一樣要用頁首「同步至主網頁」把結果貼回主網頁。</p>
+    <div class="sync-sections">
+      <div class="sync-section">
+        <div class="sync-section-head"><span>目前的語言</span></div>
+        <div id="languageListItems" style="display:flex; flex-direction:column; gap:6px;"></div>
+      </div>
+      <div class="sync-section">
+        <div class="sync-section-head"><span>新增語言</span></div>
+        <div style="display:flex; gap:8px;">
+          <select id="newLangPreset" style="flex:1; font-size:13px; padding:7px 9px; border:1px solid var(--border); border-radius:5px; background:var(--bg); color:var(--text); box-sizing:border-box;">
+            <option value="en">English</option>
+            <option value="zh-Hans">簡體中文</option>
+            <option value="fr">Français</option>
+            <option value="ja">日本語</option>
+            <option value="ko">한국어</option>
+            <option value="es">Español</option>
+            <option value="custom">＋ 自訂語言…</option>
+          </select>
+          <button type="button" id="btnAddLanguage" class="sc-btn primary" style="flex-shrink:0;">新增</button>
+        </div>
+        <div id="customLangFields" hidden style="display:flex; gap:8px; margin-top:8px;">
+          <input type="text" id="newLangCode" placeholder="代碼，例如 de" style="flex:1; font-size:13px; padding:7px 9px; border:1px solid var(--border); border-radius:5px; background:var(--bg); color:var(--text); box-sizing:border-box;">
+          <input type="text" id="newLangLabel" placeholder="顯示名稱，例如 Deutsch" style="flex:2; font-size:13px; padding:7px 9px; border:1px solid var(--border); border-radius:5px; background:var(--bg); color:var(--text); box-sizing:border-box;">
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<button type="button" id="btnToggleList" class="list-toggle" aria-expanded="false" aria-controls="nodeList">
+  <span id="listToggleIcon">☰</span>
+</button>
+
+<aside id="nodeList" class="node-list">
+  <div class="node-list-head">
+    <div class="node-list-head-view" id="nodeListHeadView">
+      <span>節點清單</span>
+      <button type="button" id="btnPenMode" class="node-list-pen-btn" aria-label="編輯節點清單">✒</button>
+    </div>
+    <div class="node-list-head-edit" id="nodeListHeadEdit" hidden>
+      <button type="button" class="sc-btn" id="btnListUndo" aria-label="上一步">↶</button>
+      <button type="button" class="sc-btn" id="btnListRedo" aria-label="下一步">↷</button>
+      <button type="button" class="sc-btn" id="btnListCancel" aria-label="Cancel changes">✕</button>
+      <button type="button" class="sc-btn primary" id="btnListCommit" aria-label="Commit changes">✓</button>
+    </div>
+  </div>
+  <div class="node-list-add-row" id="nodeListAddRow" hidden>
+    <button type="button" id="btnAddNode" class="node-list-add-btn">＋ 新增節點</button>
+  </div>
+  <div class="node-list-items" id="nodeListItems"></div>
+</aside>
+
+<aside id="nodeConnections" class="node-connections">
+  <div class="edit-panel-head">
+    <input type="text" id="editName" class="edit-name-input" placeholder="圓點名稱">
+    <button type="button" id="btnDeleteEditingNode" class="edit-delete-btn" aria-label="刪除此節點">🗑</button>
+  </div>
+  <div class="edit-panel-scroll">
+    <div class="edit-panel-fields">
+      <label class="edit-field">
+        <span>位置角度（0–360°）</span>
+        <input type="number" id="editAngle" min="0" max="360" step="0.1">
+      </label>
+      <div class="edit-angle-dial-wrap">
+        <svg id="editAngleDial" class="edit-angle-dial" viewBox="0 0 120 120" aria-label="拖曳指針設定位置角度">
+          <circle class="dial-ring" cx="60" cy="60" r="48"></circle>
+          <g id="dialTicks"></g>
+          <line id="dialPointer" class="dial-pointer" x1="60" y1="60" x2="108" y2="60"></line>
+          <circle class="dial-center" cx="60" cy="60" r="2.5"></circle>
+        </svg>
+      </div>
+      <label class="edit-field">
+        <span>大小</span>
+        <input type="number" id="editSize" min="1" max="60" step="0.5">
+      </label>
+      <label class="edit-field">
+        <span>顏色</span>
+        <select id="editColor">
+          <option value="normal">一般</option>
+          <option value="special">特殊</option>
+        </select>
+      </label>
+      <label class="edit-field">
+        <span>超連結（子網頁）</span>
+        <input type="text" id="editHref" placeholder="https:// 或 ./子網頁.dc.html">
+      </label>
+    </div>
+    <div class="node-connections-subhead">
+      <span>連線對象</span>
+      <button type="button" id="btnAddConnection" class="edit-add-btn" aria-label="新增連線">＋</button>
+    </div>
+    <div class="add-connection-row" id="addConnectionRow" hidden>
+      <select id="addConnectionSelect"></select>
+    </div>
+    <div class="node-connections-items" id="nodeConnectionsItems"></div>
+    <!-- 主視覺多語系（2026-08-03 新增）：每個語言一個翻譯輸入框，語言清單
+         本身在「語言管理」（頁首地球圖示）維護，這裡只填當下這個節點的翻譯
+         文字。留空＝這個節點在這個語言底下自動顯示原文（中文），不用每個
+         節點每種語言都填。還沒有新增任何語言的話，這裡不會顯示任何欄位。 -->
+    <div class="node-connections-subhead">
+      <span>翻譯</span>
+    </div>
+    <div id="translationItems" style="padding:0 16px 14px; display:flex; flex-direction:column; gap:10px; width:260px; box-sizing:border-box;"></div>
+  </div>
+</aside>
+
+<main id="mainContent">
+  <div id="stage">
+    <svg id="svg" viewBox="0 0 900 900">
+      <g id="edgesLayer"></g>
+      <g id="nodesLayer"></g>
+      <foreignObject x="240" y="350" width="420" height="200" style="overflow:visible; pointer-events:none;">
+        <div xmlns="http://www.w3.org/1999/xhtml" style="text-align:center;">
+          <div style="font-size:62px; font-weight:600; letter-spacing:0.02em; color:var(--text); font-family:'Noto Serif TC','Source Han Serif TC',serif;">原型 × 未來</div>
+          <div style="font-size:22px; letter-spacing:0.06em; color:var(--text); opacity:0.55; margin-top:10px;">Architecture + Structure</div>
+        </div>
+      </foreignObject>
+    </svg>
+  </div>
+</main>
+
+<div class="toast" id="toast"></div>
+
+<script>
+(function () {
+  // Node names + hrefs copied verbatim from 建築事務所首頁.dc.html's nodeData.
+  // href is editable here (超連結 field in the edit panel) and flows back out
+  // through the "同步至主網頁" export — see buildSyncParts().
+  const NODE_DATA = [
+    { id: 'r104', name: "2024第七屆ADA新銳建築獎展覽", href: "https://iecosyst.com/news/1260", translations: {"en":"2024 7th ADA New Talent Award Exhibition","zh-Hans":"2024第七届ADA新锐建筑奖展览","fr":"2024 7e Exposition ADA New Talent Award","ja":"2024年 第7回ADA新鋭建築賞展","ko":"2024 제7회 ADA 신예건축상 전시","es":"2024 7ª Exposición ADA New Talent Award"} },
+    { id: 'r105', name: "2025成大建築×台南硓𥑮石．芳宅展", href: "https://sdg.ncku.edu.tw/product-956.html", translations: {"en":"2025 NCKU Architecture × Xinyi Street Coral-Stone Huang House Exhibition","zh-Hans":"2025成大建筑×信义街咾咕石黄宅展","fr":"2025 Architecture NCKU × Exposition de la Maison Huang en Pierre de Corail, Rue Xinyi","ja":"2025年 成功大学建築×信義街咾咕石黄邸展","ko":"2025 청쿵대학교 건축×신이가 산호석 황씨 주택전","es":"2025 Arquitectura NCKU × Exposición de la Casa Huang de Piedra Coralina, Calle Xinyi"} },
+    { id: 'r106', name: "2025 台南建築三年展衛星展", href: "https://e64872170.wixsite.com/mysite/%E5%89%AF%E6%9C%AC-%E5%B1%95%E8%A6%BD%E6%B4%BB%E5%8B%95", translations: {"en":"2025 Tainan Architecture Triennial Satellite Exhibition","zh-Hans":"2025 台南建筑三年展卫星展","fr":"2025 Exposition Satellite — Triennale d’Architecture de Tainan","ja":"2025年 台南建築トリエンナーレ サテライト展","ko":"2025 타이난 건축 트리엔날레 위성전시","es":"2025 Exposición Satélite — Trienal de Arquitectura de Tainan"} },
+    { id: 'r107', name: "2025ADA新銳建築獎×台南硓𥑮石．芳宅", href: "https://e64872170.wixsite.com/mysite/%E5%89%AF%E6%9C%AC-%E5%B1%95%E8%A6%BD%E6%B4%BB%E5%8B%95", translations: {"en":"2025 ADA New Talent Award × Xinyi Street Coral-Stone Huang House","zh-Hans":"2025ADA新锐建筑奖×信义街咾咕石黄宅","fr":"2025 ADA New Talent Award × Maison Huang en Pierre de Corail, Rue Xinyi","ja":"2025年 ADA新鋭建築賞×信義街咾咕石黄邸","ko":"2025 ADA 신예건축상×신이가 산호석 황씨 주택","es":"2025 ADA New Talent Award × Casa Huang de Piedra Coralina, Calle Xinyi"} },
+    { id: 'r108', name: "2025台南硓𥑮石．芳宅×原型未來展", href: "https://e64872170.wixsite.com/mysite/%E5%89%AF%E6%9C%AC-%E5%B1%95%E8%A6%BD%E6%B4%BB%E5%8B%95", translations: {"en":"2025 Tainan Coral Stone × Fang House × Prototype Future Exhibition","zh-Hans":"2025台南咾咕石×芳宅×原型未来展","fr":"2025 Tainan Pierre de Corail × Maison Fang × Exposition Prototype Futur","ja":"2025年 台南咾咕石×芳邸×プロトタイプ未来展","ko":"2025 타이난 산호석×팡씨 주택×프로토타입 미래전","es":"2025 Tainan Piedra Coralina × Casa Fang × Exposición Prototipo Futuro"} },
+    { id: 'r116', name: "2025好感空間展", href: "https://www.tnhs.com.tw/", translations: {"en":"2025 \"Good Feeling Space\" Exhibition","zh-Hans":"2025好感空间展","fr":"2025 Exposition « Espace Bienveillant »","ja":"2025年 好感空間展","ko":"2025 호감공간전","es":"2025 Exposición \"Espacio Agradable\""} },
+    { id: 'r101', name: "原型展覽", href: "https://as-studio001.github.io/asarch/", translations: {"en":"Prototype Exhibitions","zh-Hans":"原型展览","fr":"Expositions du Prototype","ja":"プロトタイプ展覧会","ko":"프로토타입 전시","es":"Exposiciones del Prototipo"} },
+    { id: 'r110', name: "2021嘉義實驗木場", href: "https://astaiwan.wixsite.com/website-1", translations: {"en":"2021 Chiayi Experimental Wood Workshop","zh-Hans":"2021嘉义实验木场","fr":"2021 Atelier Expérimental du Bois de Chiayi","ja":"2021年 嘉義実験木材工房","ko":"2021 자이 실험목재공방","es":"2021 Taller Experimental de Madera de Chiayi"} },
+    { id: 'r111', name: "2021馬祖東莒55光影美術館", href: "https://matsu.kyart.tw/project/%E8%A5%BF%E8%8E%9214%E6%93%9A%E9%BB%9E%E3%80%8115%E6%93%9A%E9%BB%9E-%E7%B9%BC%E5%85%89%E5%B7%A5%E5%8B%99%E6%89%80/", translations: {"en":"2021 Matsu Dongju \"55\" Light & Shadow Museum","zh-Hans":"2021马祖东莒55光影美术馆","fr":"2021 Musée de Lumière et d’Ombre « 55 », Dongju, Matsu","ja":"2021年 馬祖東莒55光影美術館","ko":"2021 마쭈 둥쥐 55 빛과그림자 미술관","es":"2021 Museo de Luz y Sombra \"55\", Dongju, Matsu"} },
+    { id: 'r112', name: "南寧老屋", href: "https://as-studio001.github.io/asarch/", translations: {"en":"Nanning Old House","zh-Hans":"南宁老屋","fr":"Vieille Maison de Nanning","ja":"南寧古民家","ko":"난닝 옛집","es":"Casa Antigua de Nanning"} },
+    { id: 'r113', name: "2025原型1號宅", href: "https://asstudio029.wixsite.com/ashouse1", translations: {"en":"2025 Prototype House No. 1","zh-Hans":"2025原型1号宅","fr":"2025 Prototype Maison N° 1","ja":"2025年 プロトタイプ1号邸","ko":"2025 프로토타입 1호 주택","es":"2025 Prototipo Casa N.º 1"} },
+    { id: 'r114', name: "2025台南硓𥑮石．芳宅", href: "https://e64872170.wixsite.com/mysite", translations: {"en":"2025 Tainan Coral-Stone Fang House","zh-Hans":"2025台南咾咕石芳宅","fr":"2025 Maison Fang en Pierre de Corail, Tainan","ja":"2025年 台南咾咕石芳邸","ko":"2025 타이난 산호석 팡씨 주택","es":"2025 Casa Fang de Piedra Coralina, Tainan"} },
+    { id: 'r2', name: "原型教學", href: "./原型教學.dc.html", translations: {"en":"Prototype Teaching","zh-Hans":"原型教学","fr":"Enseignement du Prototype","ja":"プロトタイプ教育","ko":"프로토타입 교육","es":"Enseñanza de Prototipos"} },
+    { id: 'r3', name: "實習", href: "./原型教學.dc.html", translations: {"en":"Internship","zh-Hans":"实习","fr":"Stage","ja":"インターンシップ","ko":"인턴십","es":"Prácticas"} },
+    { id: 'r7', name: "設計方法", href: "./原型教學.dc.html", translations: {"en":"Design Methods","zh-Hans":"设计方法","fr":"Méthodes de conception","ja":"デザイン手法","ko":"디자인 방법","es":"Métodos de Diseño"} },
+    { id: 'r8', name: "工作文化", href: "./原型教學.dc.html", translations: {"en":"Work Culture","zh-Hans":"工作文化","fr":"Culture du travail","ja":"仕事の文化","ko":"업무 문화","es":"Cultura Laboral"} },
+    { id: 'r9', name: "大事記", href: "./原型教學.dc.html", translations: {"en":"Timeline","zh-Hans":"大事记","fr":"Chronologie","ja":"年表","ko":"연혁","es":"Cronología"} },
+    { id: 'r11', name: "原型數位", href: "./原型教學.dc.html", translations: {"en":"Prototype Digital","zh-Hans":"原型数字","fr":"Prototype Numérique","ja":"プロトタイプ・デジタル","ko":"프로토타입 디지털","es":"Prototipo Digital"} },
+    { id: 'r134', name: "專題", href: "https://www.mashup.com.tw/as%20studio/?page=product_shop&p_id=622922", translations: {"zh-Hans":"专题","en":"Project","ja":"課題研究","ko":"특별주제","es":"Proyecto monográfico","fr":"Thème spécial"} },
+    { id: 'r16', name: "SDG(Structural Design Group)", href: "./原型原點.dc.html", translations: {"en":"SDG (Structural Design Group)","zh-Hans":"SDG(Structural Design Group)","fr":"SDG (Structural Design Group)","ja":"SDG（Structural Design Group）","ko":"SDG(Structural Design Group)","es":"SDG (Structural Design Group)"} },
+    { id: 'r28', name: "成 construction", href: "./原型方法.dc.html", translations: {"en":"Chapter · Construction","zh-Hans":"成 construction","fr":"Chapitre · Construction","ja":"成 コンストラクション","ko":"성 건설","es":"Capítulo · Construcción"} },
+    { id: 'r17', name: "1992 海之博物館", href: "./原型原點.dc.html", translations: {"en":"1992 Museum of the Sea","zh-Hans":"1992 海之博物馆","fr":"1992 Musée de la Mer","ja":"1992年 海の博物館","ko":"1992 바다의 박물관","es":"1992 Museo del Mar"} },
+    { id: 'r18', name: "1996 東京國際", href: "./原型原點.dc.html", translations: {"en":"1996 Tokyo International","zh-Hans":"1996 东京国际","fr":"1996 Tokyo International","ja":"1996年 東京国際","ko":"1996 도쿄 국제","es":"1996 Tokio Internacional"} },
+    { id: 'r19', name: "2002橫濱大棧橋", href: "./原型原點.dc.html", translations: {"en":"2002 Yokohama Osanbashi","zh-Hans":"2002 横滨大栈桥","fr":"2002 Quai Osanbashi de Yokohama","ja":"2002年 横浜大さん橋","ko":"2002 요코하마 오산바시","es":"2002 Muelle Osanbashi de Yokohama"} },
+    { id: 'r20', name: "原型三時期", href: "./原型原點.dc.html", translations: {"en":"Three Periods of Prototype","zh-Hans":"原型三时期","fr":"Trois Périodes du Prototype","ja":"プロトタイプの三時期","ko":"프로토타입의 세 시기","es":"Tres Períodos del Prototipo"} },
+    { id: 'r21', name: "一人", href: "./原型原點.dc.html", translations: {"en":"One Person","zh-Hans":"一人","fr":"Une Personne","ja":"一人","ko":"한 사람","es":"Una Persona"} },
+    { id: 'r15', name: "原型原點", href: "./原型原點.dc.html", translations: {"en":"Prototype Origin","zh-Hans":"原型原点","fr":"Origine du Prototype","ja":"プロトタイプの原点","ko":"프로토타입 원점","es":"Origen del Prototipo"} },
+    { id: 'r22', name: "原型建築+原型結構", href: "./原型原點.dc.html", translations: {"en":"Prototype Architecture + Prototype Structure","zh-Hans":"原型建筑+原型结构","fr":"Prototype Architecture + Prototype Structure","ja":"プロトタイプ建築＋プロトタイプ構造","ko":"프로토타입 건축+프로토타입 구조","es":"Prototipo Arquitectura + Prototipo Estructura"} },
+    { id: 'r23', name: "原型結構", href: "./原型結構.dc.html", translations: {"en":"Prototype Structure","zh-Hans":"原型结构","fr":"Prototype Structure","ja":"プロトタイプ構造","ko":"프로토타입 구조","es":"Prototipo Estructura"} },
+    { id: 'r24', name: "木構造", href: "https://www.mashup.com.tw/as%20studio/?page=product_list&group_id=27070", translations: {"en":"Wood Structure","zh-Hans":"木结构","fr":"Structure en Bois","ja":"木構造","ko":"목구조","es":"Estructura de Madera"} },
+    { id: 'r25', name: "竹構造", href: "https://www.mashup.com.tw/as%20studio/?page=product_list&group_id=25396", translations: {"en":"Bamboo Structure","zh-Hans":"竹结构","fr":"Structure en Bambou","ja":"竹構造","ko":"대나무 구조","es":"Estructura de Bambú"} },
+    { id: 'r26', name: "RC構造", href: "https://www.mashup.com.tw/as%20studio/?page=product_list&group_id=25397", translations: {"en":"RC Structure","zh-Hans":"RC结构","fr":"Structure en Béton Armé","ja":"RC構造","ko":"RC 구조","es":"Estructura de Hormigón Armado"} },
+    { id: 'r27', name: "鋼構造", href: "https://www.mashup.com.tw/as%20studio/?page=product_list&group_id=25398", translations: {"en":"Steel Structure","zh-Hans":"钢结构","fr":"Structure en Acier","ja":"鋼構造","ko":"강구조","es":"Estructura de Acero"} },
+    { id: 'r29', name: "媒體報導", href: "https://www.mashup.com.tw/as%20studio/?page=one_page&id=4045", translations: {"en":"Media Coverage","zh-Hans":"媒体报道","fr":"Couverture Médiatique","ja":"メディア報道","ko":"미디어 보도","es":"Cobertura Mediática"} },
+    { id: 'r30', name: "2012 媽祖宗教文化園區眺望台雜誌報導", href: "./原型獲獎.dc.html", translations: {"en":"2012 Mazu Religious Culture Park Observation Tower — Magazine Feature","zh-Hans":"2012 妈祖宗教文化园区瞭望台杂志报道","fr":"2012 Reportage — Tour d’observation du Parc culturel religieux de Mazu","ja":"2012年 媽祖宗教文化園区展望台 雑誌掲載","ko":"2012 마조 종교문화공원 전망대 잡지 보도","es":"2012 Reportaje — Torre Mirador del Parque Cultural Religioso de Mazu"} },
+    { id: 'r32', name: "2013雲林農博微笑餐廳雜誌報導", href: "./原型獲獎.dc.html", translations: {"en":"2013 Yunlin Agricultural Expo \"Smile\" Restaurant — Magazine Feature","zh-Hans":"2013 云林农博微笑餐厅杂志报道","fr":"2013 Reportage — Restaurant « Sourire », Expo Agricole de Yunlin","ja":"2013年 雲林農業博覧会 スマイルレストラン 雑誌掲載","ko":"2013 윈린 농업박람회 스마일 레스토랑 잡지 보도","es":"2013 Reportaje — Restaurante \"Sonrisa\", Expo Agrícola de Yunlin"} },
+    { id: 'r33', name: "2021構竹林鐵新銳展", href: "./原型獲獎.dc.html", translations: {"en":"2021 Bamboo Forest Railway — New Talent Exhibition","zh-Hans":"2021构竹林铁新锐展","fr":"2021 Exposition Émergente « Bambou Forêt Chemin de fer »","ja":"2021年「構竹林鉄」新鋭展","ko":"2021 대나무 숲 철도 신예전","es":"2021 Exposición Emergente \"Bambú Bosque Ferrocarril\""} },
+    { id: 'r35', name: "2015 X-SITE 「未知質域」獲獎", href: "./原型獲獎.dc.html", translations: {"en":"2015 X-SITE \"Unknown Territory\" — Award","zh-Hans":"2015 X-SITE「未知质域」获奖","fr":"2015 X-SITE « Territoire Inconnu » — Lauréat","ja":"2015年 X-SITE「未知の領域」受賞","ko":"2015 X-SITE '미지의 영역' 수상","es":"2015 X-SITE \"Territorio Desconocido\" — Premiado"} },
+    { id: 'r36', name: "2016 X-SITE「浮光之間」獲獎", href: "https://www.mashup.com.tw/as%20studio/?page=product_shop&p_id=622653", translations: {"en":"2016 X-SITE \"Between Floating Light\" — Award","zh-Hans":"2016 X-SITE「浮光之间」获奖","fr":"2016 X-SITE « Entre Lumières Flottantes » — Lauréat","ja":"2016年 X-SITE「浮光之間」受賞","ko":"2016 X-SITE '부유하는 빛 사이' 수상","es":"2016 X-SITE \"Entre Luces Flotantes\" — Premiado"} },
+    { id: 'r37', name: "2020 X-SITE 「膜」獲獎", href: "./原型獲獎.dc.html", translations: {"en":"2020 X-SITE \"Membrane\" — Award","zh-Hans":"2020 X-SITE「膜」获奖","fr":"2020 X-SITE « Membrane » — Lauréat","ja":"2020年 X-SITE「膜」受賞","ko":"2020 X-SITE '막' 수상","es":"2020 X-SITE \"Membrana\" — Premiado"} },
+    { id: 'r38', name: "2021 X-SITE 「爆炸容器」獲獎", href: "./原型獲獎.dc.html", translations: {"en":"2021 X-SITE \"Explosive Container\" — Award","zh-Hans":"2021 X-SITE「爆炸容器」获奖","fr":"2021 X-SITE « Conteneur Explosif » — Lauréat","ja":"2021年 X-SITE「爆発する容器」受賞","ko":"2021 X-SITE '폭발하는 용기' 수상","es":"2021 X-SITE \"Contenedor Explosivo\" — Premiado"} },
+    { id: 'r39', name: "2022 X-SITE 「藍屋」獲獎", href: "https://www.mashup.com.tw/as%20studio/?page=product_shop&p_id=622357", translations: {"en":"2022 X-SITE \"Blue House\" — Award","zh-Hans":"2022 X-SITE「蓝屋」获奖","fr":"2022 X-SITE « Maison Bleue » — Lauréat","ja":"2022年 X-SITE「藍屋」受賞","ko":"2022 X-SITE '블루하우스' 수상","es":"2022 X-SITE \"Casa Azul\" — Premiado"} },
+    { id: 'r40', name: "2023 X-SITE 「途中」獲獎", href: "https://www.mashup.com.tw/as%20studio/?page=product_shop&p_id=609184", translations: {"en":"2023 X-SITE \"En Route\" — Award","zh-Hans":"2023 X-SITE「途中」获奖","fr":"2023 X-SITE « En Chemin » — Lauréat","ja":"2023年 X-SITE「途中」受賞","ko":"2023 X-SITE '도중' 수상","es":"2023 X-SITE \"En Camino\" — Premiado"} },
+    { id: 'r59', name: "法 structure data", href: "./原型方法.dc.html", translations: {"en":"Chapter · Structure Data","zh-Hans":"法 structure data","fr":"Chapitre · Données de Structure","ja":"法 ストラクチャーデータ","ko":"법 구조 데이터","es":"Capítulo · Datos de Estructura"} },
+    { id: 'r117', name: "2024 X-SITE 「林木林」獲獎", href: "https://www.mashup.com.tw/as%20studio/?page=product_shop&p_id=622652", translations: {"en":"Analogue Forest","zh-Hans":"林木林","fr":"Forêt analogique","ja":"アナログの森","ko":"아날로그숲","es":"Bosque analógico"} },
+    { id: 'r41', name: "2015 左鎮菜寮化石文化園區改建", href: "https://www.mashup.com.tw/as%20studio/?page=product_shop&p_id=505964", translations: {"en":"2015 Zuozhen Cailiao Fossil Cultural Park Renovation — Competition Winner","zh-Hans":"2015 左镇菜寮化石文化园区改建工程竞图获胜","fr":"2015 Concours Gagné — Rénovation du Parc Culturel des Fossiles de Cailiao, Zuozhen","ja":"2015年 左鎮菜寮化石文化園区改修コンペ当選","ko":"2015 줘전 차이랴오 화석문화공원 개축공사 설계공모 당선","es":"2015 Concurso Ganado — Renovación del Parque Cultural de Fósiles de Cailiao, Zuozhen"} },
+    { id: 'r43', name: "2016 金門水頭港遊客服務中心新建工程", href: "https://www.mashup.com.tw/as%20studio/?page=product_shop&p_id=622508", translations: {"en":"2016 Kinmen Shuitou Port Visitor Center — New Construction Competition Winner","zh-Hans":"2016 金门水头港游客服务中心新建工程 竞图获胜","fr":"2016 Concours Gagné — Centre d’Accueil du Port de Shuitou, Kinmen","ja":"2016年 金門水頭港ビジターセンター新築 コンペ当選","ko":"2016 진먼 수이터우항 방문자센터 신축공사 설계공모 당선","es":"2016 Concurso Ganado — Centro de Visitantes del Puerto de Shuitou, Kinmen"} },
+    { id: 'r58', name: "2025舊屋力競賽首獎", href: "./原型獲獎.dc.html", translations: {"en":"2025 \"Old House Power\" Competition — Grand Prize","zh-Hans":"2025旧屋力竞赛首奖","fr":"2025 Concours « Renaissance des Vieilles Maisons » — Grand Prix","ja":"2025年 旧屋力コンペティション 大賞","ko":"2025 구옥의 힘 공모전 대상","es":"2025 Concurso \"El Poder de las Casas Antiguas\" — Gran Premio"} },
+    { id: 'r127', name: "2026舊屋力永續創新提案競賽", href: "https://www.mashup.com.tw/as%20studio/?page=product_shop&p_id=622648", translations: {"zh-Hans":"2026旧屋力永续创新提案竞赛","en":"2026 Old House Power Sustainable Innovation Proposal Competition","ja":"2026旧屋力持続可能性イノベーション提案コンペ","ko":"2026 구옥력 지속가능 혁신 제안 공모전","es":"Concurso de Propuestas de Innovación Sostenible Fuerza de Casas Antiguas 2026","fr":"Concours de propositions d'innovation durable « Force des vieilles maisons » 2026"} },
+    { id: 'r115', name: "原型獲獎", href: "./原型獲獎.dc.html", translations: {"en":"Prototype Awards","zh-Hans":"原型获奖","fr":"Prix du Prototype","ja":"プロトタイプ受賞","ko":"프로토타입 수상","es":"Premios del Prototipo"} },
+    { id: 'r60', name: "2013雲林農博", href: "https://www.mashup.com.tw/as%20studio/?page=product_shop&p_id=503916", translations: {"en":"2013 Yunlin Agricultural Expo","zh-Hans":"2013云林农博","fr":"2013 Expo Agricole de Yunlin","ja":"2013年 雲林農業博覧会","ko":"2013 윈린 농업박람회","es":"2013 Expo Agrícola de Yunlin"} },
+    { id: 'r61', name: "2013 新營服務區休息站", href: "https://www.mashup.com.tw/as%20studio/?page=product_shop&p_id=503882", translations: {"en":"2013 Xinying Service Area Rest Stop","zh-Hans":"2013 新营服务区休息站","fr":"2013 Aire de Repos de Xinying","ja":"2013年 新營サービスエリア 休憩所","ko":"2013 신잉 휴게소","es":"2013 Área de Descanso de Xinying"} },
+    { id: 'r62', name: "2014 宜蘭中山小巨蛋", href: "https://www.twarchitect.org.tw/works/%E4%B8%AD%E5%B1%B1%E5%B0%8F%E5%B7%A8%E8%9B%8B%E8%88%87%E5%91%A8%E9%82%8A%E9%80%9A%E5%AD%B8%E5%BB%8A%E9%81%93/", translations: {"en":"2014 Yilan Zhongshan Small Arena","zh-Hans":"2014 宜兰中山小巨蛋","fr":"2014 Petite Arène Zhongshan, Yilan","ja":"2014年 宜蘭中山小巨蛋","ko":"2014 이란 중산소거단","es":"2014 Pequeña Arena Zhongshan, Yilan"} },
+    { id: 'r64', name: "2015 德光教會", href: "https://www.mashup.com.tw/as%20studio/?page=product_shop&p_id=498644", translations: {"en":"2015 Deguang Church","zh-Hans":"2015 德光教会","fr":"2015 Église Deguang","ja":"2015年 徳光教会","ko":"2015 더광교회","es":"2015 Iglesia Deguang"} },
+    { id: 'r66', name: "2016 大溪木構造教堂", href: "https://www.mashup.com.tw/as%20studio/?page=product_shop&p_id=503874", translations: {"en":"2016 Daxi Wood-Structure Church","zh-Hans":"2016 大溪木结构教堂","fr":"2016 Église en Structure Bois de Daxi","ja":"2016年 大渓木構造教会","ko":"2016 다시 목구조 교회","es":"2016 Iglesia de Estructura de Madera de Daxi"} },
+    { id: 'r67', name: "2016 嘉義美術館", href: "https://www.mashup.com.tw/as%20studio/?page=product_shop&p_id=502875", translations: {"en":"2016 Chiayi Museum of Art","zh-Hans":"2016 嘉义美术馆","fr":"2016 Musée d’Art de Chiayi","ja":"2016年 嘉義美術館","ko":"2016 자이미술관","es":"2016 Museo de Arte de Chiayi"} },
+    { id: 'r70', name: "2017 嘉義火車站前雨遮", href: "https://www.mashup.com.tw/as%20studio/?page=product_shop&p_id=608375", translations: {"en":"2017 Chiayi Station Front Canopy","zh-Hans":"2017 嘉义火车站前雨遮","fr":"2017 Auvent devant la Gare de Chiayi","ja":"2017年 嘉義駅前雨よけ屋根","ko":"2017 자이역 앞 차양","es":"2017 Marquesina frente a la Estación de Chiayi"} },
+    { id: 'r71', name: "2017 台中橋", href: "https://www.youtube.com/watch?v=E6ZyKXVKgWU", translations: {"en":"2017 Taichung Bridge","zh-Hans":"2017 台中桥","fr":"2017 Pont de Taichung","ja":"2017年 台中橋","ko":"2017 타이중교","es":"2017 Puente de Taichung"} },
+    { id: 'r72', name: "2017 橘月民宿", href: "https://www.mashup.com.tw/as%20studio/?page=product_shop&p_id=505935", translations: {"en":"2017 Orange Moon Guesthouse","zh-Hans":"2017 橘月民宿","fr":"2017 Auberge Lune Orange","ja":"2017年 橘月民宿","ko":"2017 귤월 민박","es":"2017 Posada Luna Naranja"} },
+    { id: 'r73', name: "2017 ENISHI 澎湖緣宿", href: "https://www.mashup.com.tw/as%20studio/?page=product_shop&p_id=502815", translations: {"en":"2017 ENISHI Penghu Guesthouse","zh-Hans":"2017 ENISHI 澎湖缘宿","fr":"2017 Auberge ENISHI, Penghu","ja":"2017年 ENISHI澎湖縁宿","ko":"2017 ENISHI 펑후 인연숙소","es":"2017 Posada ENISHI, Penghu"} },
+    { id: 'r76', name: "2019 故宮南院_覽月橋", href: "https://www.youtube.com/watch?v=1tgZcoLCGA4", translations: {"en":"2019 National Palace Museum Southern Branch — Moon-Viewing Bridge","zh-Hans":"2019 故宫南院_览月桥","fr":"2019 Musée national du Palais (Antenne Sud) — Pont d’Observation de la Lune","ja":"2019年 故宮南院 覧月橋","ko":"2019 고궁남원_람월교","es":"2019 Museo del Palacio Nacional (Sede Sur) — Puente para Ver la Luna"} },
+    { id: 'r79', name: "獅甲非營利幼兒園", href: "https://www.mashup.com.tw/as%20studio/?page=product_shop&p_id=622930", translations: {"en":"Shijia Non-Profit Kindergarten","zh-Hans":"狮甲非营利幼儿园","ja":"獅甲非営利幼稚園","ko":"스자 비영리 유치원","es":"Jardín de Infancia Sin Fines de Lucro de Shijia","fr":"École maternelle à but non lucratif de ShijiaÉcole maternelle à but non lucratif de Shijia"} },
+    { id: 'r81', name: "2020太平國小", href: "https://www.mashup.com.tw/as%20studio/?page=product_shop&p_id=608372", translations: {"en":"2020 Taiping Elementary School","zh-Hans":"2020太平国小","fr":"2020 École Primaire Taiping","ja":"2020年 太平国民小学校","ko":"2020 타이핑초등학교","es":"2020 Escuela Primaria Taiping"} },
+    { id: 'r82', name: "2020台南市安平樹屋2.0", href: "https://www.mashup.com.tw/as%20studio/?page=product_shop&p_id=608374", translations: {"en":"2020 Tainan Anping Tree House 2.0","zh-Hans":"2020台南市安平树屋2.0","fr":"2020 Maison-Arbre d’Anping 2.0, Tainan","ja":"2020年 台南市安平樹屋2.0","ko":"2020 타이난시 안핑 나무집 2.0","es":"2020 Casa del Árbol de Anping 2.0, Tainan"} },
+    { id: 'r86', name: "2022友愛街立體停車場", href: "https://www.mashup.com.tw/as%20studio/?page=product_shop&p_id=608537", translations: {"en":"2022 Youai Street Multi-Level Parking","zh-Hans":"2022友爱街立体停车场","fr":"2022 Parking à Étages de la Rue Youai","ja":"2022年 友愛街立体駐車場","ko":"2022 유아이가 입체주차장","es":"2022 Estacionamiento de Varios Niveles de la Calle Youai"} },
+    { id: 'r88', name: "2022PARK2草悟廣場", href: "https://www.mashup.com.tw/as%20studio/?page=product_shop&p_id=608381", translations: {"en":"2022 PARK2 Caowu Plaza","zh-Hans":"2022PARK2草悟广场","fr":"2022 PARK2 Place Caowu","ja":"2022年 PARK2草悟広場","ko":"2022 PARK2 차오우광장","es":"2022 PARK2 Plaza Caowu"} },
+    { id: 'r89', name: "2022嘉義火車站前廣場改建", href: "https://www.mashup.com.tw/as%20studio/?page=product_shop&p_id=608375", translations: {"en":"2022 Chiayi Station Front Plaza Renovation","zh-Hans":"2022嘉义火车站前广场改建","fr":"2022 Rénovation de la Place devant la Gare de Chiayi","ja":"2022年 嘉義駅前広場改修","ko":"2022 자이역 앞 광장 개축","es":"2022 Renovación de la Plaza frente a la Estación de Chiayi"} },
+    { id: 'r100', name: "構technics", href: "./原型方法.dc.html", translations: {"en":"Chapter · Technics","zh-Hans":"构technics","fr":"Chapitre · Technique","ja":"構 テクニクス","ko":"구 테크닉스","es":"Capítulo · Técnica"} },
+    { id: 'r92', name: "2023億載金城入口意象", href: "https://www.mashup.com.tw/as%20studio/?page=product_shop&p_id=609194", translations: {"en":"2023 Yizaijincheng Fort Entrance Landmark","zh-Hans":"2023亿载金城入口意象","fr":"2023 Portail d’Entrée du Fort Yizaijincheng","ja":"2023年 億載金城 入口イメージ","ko":"2023 이짜이진청 요새 입구 랜드마크","es":"2023 Entrada Emblemática del Fuerte Yizaijincheng"} },
+    { id: 'r93', name: "2025大阪世博TW館", href: "https://www.ta-mag.net/ta/News.php?id=2515", translations: {"en":"2023 Osaka Expo Taiwan Pavilion","zh-Hans":"2023大阪世博TW馆","fr":"2023 Pavillon Taïwan — Expo Osaka","ja":"2023年 大阪万博 台湾館","ko":"2023 오사카 엑스포 대만관","es":"2023 Pabellón de Taiwán — Expo Osaka"} },
+    { id: 'r94', name: "2023 「弦閣」(KATENARA)", href: "https://www.mashup.com.tw/as%20studio/?page=product_shop&p_id=608538", translations: {"en":"2023 \"Katenara\"","zh-Hans":"2023「弦阁」(KATENARA)","fr":"2023 « Katenara »","ja":"2023年「弦閣」(KATENARA)","ko":"2023 '현각' (KATENARA)","es":"2023 \"Katenara\""} },
+    { id: 'r95', name: "2023萬大電廠辦公大樓新建工程", href: "https://www.mashup.com.tw/as%20studio/?page=product_shop&p_id=608373", translations: {"en":"2023 Wanda Power Plant Office Building — New Construction","zh-Hans":"2023万大电厂办公大楼新建工程","fr":"2023 Nouveau Bâtiment de Bureaux de la Centrale de Wanda","ja":"2023年 万大発電所オフィスビル新築","ko":"2023 완다발전소 사무동 신축공사","es":"2023 Nuevo Edificio de Oficinas de la Central Eléctrica de Wanda"} },
+    { id: 'r96', name: "2024繁花之頂", href: "https://www.mashup.com.tw/as%20studio/?page=product_shop&p_id=608376", translations: {"en":"2024 Blossoming Summit","zh-Hans":"2024繁花之顶","fr":"2024 Sommet Fleuri","ja":"2024年 繁花の頂","ko":"2024 만개의 정상","es":"2024 Cima Florida"} },
+    { id: 'r136', name: "台東舊站櫥窗計畫", href: "https://www.mashup.com.tw/as%20studio/?page=product_shop&p_id=622969", translations: {"zh-Hans":"台东旧站橱窗计划","en":"Taitung Old Station Showcase Project","ja":"台東旧駅ショーウィンドウ計画","ko":"타이둥 옛역 쇼윈도 프로젝트","es":"Proyecto de Vitrinas de la Antigua Estación de Taitung","fr":"Projet de vitrines de l'ancienne gare de Taitung"} },
+    { id: 'r97', name: "2024長榮堂 長榮大學竹構集會堂", href: "https://www.mashup.com.tw/as%20studio/?page=product_shop&p_id=582678", translations: {"en":"2024 Chang Jung Hall — Chang Jung Christian University Bamboo Assembly Hall","zh-Hans":"2024长荣堂 长荣大学竹构集会堂","fr":"2024 Chang Jung Hall — Salle de Réunion en Bambou, Université Chang Jung","ja":"2024年 長栄堂 長栄大学竹構造集会堂","ko":"2024 창룽당 창룽대학교 대나무구조 집회당","es":"2024 Chang Jung Hall — Sala de Reuniones de Bambú, Universidad Chang Jung"} },
+    { id: 'r119', name: "台中馬禮遜美國學校", href: "https://www.mashup.com.tw/as%20studio/?page=product_shop&p_id=622924", translations: {"zh-Hans":"台中马礼逊美国学校","en":"Morrison Academy Taichung","ja":"台中モリソン・アメリカンスクール","ko":"타이중 모리슨 미국학교","es":"Escuela Americana Morrison de Taichung","fr":"École américaine Morrison de Taichung"} },
+    { id: 'r120', name: "見晴竹韻", href: "https://www.mashup.com.tw/as%20studio/?page=product_shop&p_id=622650", translations: {"zh-Hans":"见晴竹韵","en":"Sunny Bamboo Rhyme","ja":"見晴竹韻（みはらしちくいん）","ko":"견청죽운","es":"Rima de bambú en día despejado","fr":"Rime de bambou par temps clair"} },
+    { id: 'r121', name: "招霧亭", href: "https://www.mashup.com.tw/as%20studio/?page=product_shop&p_id=622581", translations: {"zh-Hans":"招雾亭","en":"Mist-Inviting Pavilion","ja":"招霧亭（しょうむてい）","ko":"초무정","es":"Pabellón de atracción de niebla","fr":"Pavillon invitant la brume"} },
+    { id: 'r122', name: "遠雄永續接待中心", href: "https://www.mashup.com.tw/as%20studio/?page=product_shop&p_id=622918", translations: {"zh-Hans":"远雄永续接待中心","en":"Farglory Sustainable Reception Center","ja":"遠雄（ファーグローリー）持続可能性レセプションセンター","ko":"파글로리 지속가능 리셉션 센터","es":"Centro de Recepción Sostenible de Farglory","fr":"Centre d'accueil durable de Farglory"} },
+    { id: 'r123', name: "漂浮會議室", href: "https://www.mashup.com.tw/as%20studio/?page=product_shop&p_id=622651", translations: {"zh-Hans":"漂浮会议室","en":"Floating Meeting Room","ja":"浮遊会議室","ko":"플로팅 회의실","es":"Sala de reuniones flotante","fr":"Salle de réunion flottante"} },
+    { id: 'r124', name: "【旭日東昇】顏水龍壁畫檢測及結構補強", href: "https://www.mashup.com.tw/as%20studio/?page=product_shop&p_id=622649", translations: {"zh-Hans":"【旭日东升】颜水龙壁画检测及结构补强","en":"\"Sunrise\" Yen Shui-lung Mural Inspection and Structural Reinforcement","ja":"【旭日東昇】顔水龍壁画の検査および構造補強【旭日東昇】顔水龍壁画の検査および構造補強","ko":"【욱일동승】 옌수이룽 벽화 검사 및 구조 보강","es":"\"Salida del sol\": Inspección del mural y refuerzo estructural de Yen Shui-lung\"Salida del sol\": Inspección del mural y refuerzo estructural de Yen Shui-lung","fr":"« Lever de soleil » : Inspection de la fresque murale et renforcement structurel de Yen Shui-lung"} },
+    { id: 'r109', name: "原型建築", href: "https://as-studio001.github.io/asarch/", translations: {"en":"Prototype Architecture","zh-Hans":"原型建筑","fr":"Prototype Architecture","ja":"プロトタイプ建築","ko":"프로토타입 건축","es":"Prototipo Arquitectura"} },
+    { id: 'r135', name: "台南硓𥑮石．芳宅", href: "https://www.mashup.com.tw/as%20studio/?page=product_shop&p_id=622507", translations: {"zh-Hans":"台南信义街芳宅","en":"The Fancy House, Xinyi Street, Tainan","ja":"台南信義街芳宅（ほうたく）","ko":"타이난 신이거리 방택 (팡하우스)","es":"Residencia Fang de la Calle Xinyi de Tainan","fr":"Résidence Fang de la rue Xinyi à Tainan"} },
+    { id: 'r125', name: "石壁竹創森二期－杉嵐景觀台", href: "https://www.mashup.com.tw/as%20studio/?page=product_shop&p_id=622500", translations: {"zh-Hans":"石壁竹创森二期－杉岚景观台","en":"Shibi Bamboo Forest Creation Phase II – Shanlan Viewing Platform","ja":"石壁竹創森第2期－杉嵐展望台","ko":"스비 죽창삼 2기－삼람 전망대","es":"Shibi Creación de Bosque de Bambú Fase II – Mirador Shanlan","fr":"Shibi Création de Forêt de Bambou Phase II – Belvédère Shanlan"} },
+    { id: 'r126', name: "鹽埔漁港公廁", href: "https://www.mashup.com.tw/as%20studio/?page=product_shop&p_id=622358", translations: {"zh-Hans":"盐埔渔港公厕","en":"Yanpu Fishing Port Public Toilet","ja":"塩埔漁港公衆トイレ","ko":"옌푸 어항 공중화장실","es":"Baño público del puerto pesquero de Yanpu","fr":"Toilettes publiques du port de pêche de Yanpu"} },
+    { id: 'r128', name: "夢湖湧泉", href: "https://www.mashup.com.tw/as%20studio/?page=product_shop&p_id=622584", translations: {"zh-Hans":"梦湖涌泉","en":"Dream Lake Spring","ja":"夢湖湧泉（ゆめこゆうせん）","ko":"몽호 용천","es":"Manantial del Lago del Sueño","fr":"Source du lac des Rêves"} },
+    { id: 'r129', name: "新竹圖書館競圖", href: "https://www.mashup.com.tw/as%20studio/?page=product_shop&p_id=498645", translations: {"zh-Hans":"新竹图书馆竞图","en":"Hsinchu Library Architectural Design Competition","ja":"新竹図書館設計コンペ","ko":"신주 도서관 설계공모","es":"Concurso de diseño de la Biblioteca de Hsinchu","fr":"Concours d'architecture de la bibliothèque de Hsinchu"} },
+    { id: 'r130', name: "原型結構事務所", href: "https://www.mashup.com.tw/as%20studio/?page=product_shop&p_id=506003", translations: {"zh-Hans":"原型结构事务所","en":"AS studio (Archetype Structural Studio)","ja":"原型構造事務所（AS studio）","ko":"원형구조사무소 (AS studio)","es":"Estudio de Estructuras Arquetipo (AS studio)","fr":"Cabinet d'ingénierie des structures archétypes (AS studio)"} },
+    { id: 'r131', name: "石壁竹創森二期－圓竹", href: "https://www.mashup.com.tw/as%20studio/?page=product_shop&p_id=622516", translations: {"zh-Hans":"石壁竹创森二期－圆竹","en":"Shibi Bamboo Forest Creation Phase II – Round Bamboo","ja":"石壁竹創森第2期－丸竹","ko":"스비 죽창삼 2기－원죽","es":"Shibi Creación de Bosque de Bambú Fase II – Bambú Redondo","fr":"Shibi Création de Forêt de Bambou Phase II – Bambou Rond"} },
+    { id: 'r132', name: "石壁竹創森二期－竹虹", href: "https://www.mashup.com.tw/as%20studio/?page=product_shop&p_id=622505", translations: {"zh-Hans":"石壁竹创森二期－竹虹","en":"Shibi Bamboo Forest Creation Phase II – Bamboo Rainbow","ja":"石壁竹創森第2期－竹虹","ko":"스비 죽창삼 2기－죽홍","es":"Shibi Creación de Bosque de Bambú Fase II – Arcoíris de Bambú","fr":"Shibi Création de Forêt de Bambou Phase II – Arc-en-ciel de Bambou"} },
+    { id: 'r133', name: "竹行動展覽館", href: "https://www.mashup.com.tw/as%20studio/?page=product_shop&p_id=498643", translations: {"zh-Hans":"竹行动展览馆","en":"Bamboo Mobile Pavilion","ja":"竹のモバイルパビリオン","ko":"대나무 이동식 전시장","es":"Pabellón móvil de bambú","fr":"Pavillon d'exposition mobile en bambou"} },
+    { id: 'r98', name: "2024國立歷史博物館修復及再利用", href: "https://www.mashup.com.tw/as%20studio/?page=product_shop&p_id=609197", translations: {"en":"2024 National Museum of History — Restoration & Adaptive Reuse","zh-Hans":"2024国立历史博物馆修复及再利用","fr":"2024 Restauration et Réutilisation du Musée National d’Histoire","ja":"2024年 国立歴史博物館 修復及び再利用","ko":"2024 국립역사박물관 수리 및 재활용","es":"2024 Restauración y Reutilización del Museo Nacional de Historia"} },
+    { id: 'r99', name: "2024大巨蛋公共藝術「雨生光芽」", href: "https://www.mashup.com.tw/as%20studio/?page=product_shop&p_id=609185", translations: {"en":"2024 Taipei Dome Public Art — \"Rain-Born Light Sprout\"","zh-Hans":"2024大巨蛋公共艺术「雨生光芽」","fr":"2024 Art Public du Taipei Dome — « Pousse de Lumière Née de la Pluie »","ja":"2024年 大巨蛋パブリックアート「雨生光芽」","ko":"2024 다쥐단 공공예술 '우생광아'","es":"2024 Arte Público del Taipei Dome — \"Brote de Luz Nacido de la Lluvia\""} },
+    { id: 'r91', name: "2023 構竹林鐵Ⅱ", href: "https://astaiwan.wixsite.com/bamboo-newfield", translations: {"en":"2023 Bamboo Forest Railway II","zh-Hans":"2023 构竹林铁Ⅱ","fr":"2023 Bambou Forêt Chemin de fer II","ja":"2023年 構竹林鉄Ⅱ","ko":"2023 대나무 숲 철도 Ⅱ","es":"2023 Bambú Bosque Ferrocarril II"} },
+    { id: 'r84', name: "2021構竹林鐵Ⅰ", href: "https://greenmedia.today/article_category.php?cid=54", translations: {"en":"2021 Bamboo Forest Railway I","zh-Hans":"2021构竹林铁Ⅰ","fr":"2021 Bambou Forêt Chemin de fer I","ja":"2021年 構竹林鉄Ⅰ","ko":"2021 대나무 숲 철도 Ⅰ","es":"2021 Bambú Bosque Ferrocarril I"} },
+    { id: 'r1', name: "章 architecture design", href: "./原型方法.dc.html", translations: {"en":"Chapter · Architecture Design","zh-Hans":"章 architecture design","fr":"Chapitre · Architecture Design","ja":"章 アーキテクチャー・デザイン","ko":"장 건축 디자인","es":"Capítulo · Diseño Arquitectónico"} },
+    { id: 'r118', name: "嘉義城市博覽會生態牆：重生", href: "https://www.mashup.com.tw/as%20studio/?page=product_shop&p_id=622654", translations: {"zh-Hans":"嘉义城市博览会生态墙：重生","en":"Chiayi City Expo Eco-Wall: Rebirth","ja":"嘉義都市博覧会エコウォール：再生","ko":"자이 도시 박람회 생태벽: 재생","es":"Muro ecológico de la Expo Ciudad de Chiayi: Renacimiento","fr":"Mur écologique de l'Expo Ville de Chiayi : Renaissance"} }
+  ];
+
+  const EDGE_DATA = [
+    ['r105', 'r101'],
+    ['r106', 'r101'],
+    ['r107', 'r101'],
+    ['r108', 'r101'],
+    ['r116', 'r23'],
+    ['r116', 'r24'],
+    ['r116', 'r67'],
+    ['r116', 'r101'],
+    ['r116', 'r114'],
+    ['r101', 'r118'],
+    ['r101', 'r111'],
+    ['r101', 'r113'],
+    ['r101', 'r114'],
+    ['r101', 'r112'],
+    ['r101', 'r133'],
+    ['r110', 'r109'],
+    ['r111', 'r109'],
+    ['r112', 'r109'],
+    ['r113', 'r109'],
+    ['r114', 'r24'],
+    ['r114', 'r109'],
+    ['r2', 'r3'],
+    ['r2', 'r7'],
+    ['r2', 'r8'],
+    ['r2', 'r9'],
+    ['r134', 'r109'],
+    ['r134', 'r23'],
+    ['r134', 'r24'],
+    ['r134', 'r25'],
+    ['r134', 'r26'],
+    ['r134', 'r27'],
+    ['r16', 'r15'],
+    ['r17', 'r15'],
+    ['r18', 'r15'],
+    ['r19', 'r15'],
+    ['r20', 'r15'],
+    ['r21', 'r15'],
+    ['r15', 'r23'],
+    ['r15', 'r22'],
+    ['r23', 'r24'],
+    ['r23', 'r25'],
+    ['r23', 'r26'],
+    ['r23', 'r27'],
+    ['r23', 'r61'],
+    ['r23', 'r62'],
+    ['r23', 'r64'],
+    ['r23', 'r67'],
+    ['r23', 'r70'],
+    ['r23', 'r71'],
+    ['r23', 'r72'],
+    ['r23', 'r73'],
+    ['r23', 'r76'],
+    ['r23', 'r79'],
+    ['r23', 'r86'],
+    ['r23', 'r91'],
+    ['r23', 'r94'],
+    ['r23', 'r95'],
+    ['r23', 'r60'],
+    ['r23', 'r66'],
+    ['r23', 'r81'],
+    ['r23', 'r82'],
+    ['r23', 'r88'],
+    ['r23', 'r89'],
+    ['r23', 'r92'],
+    ['r23', 'r93'],
+    ['r23', 'r96'],
+    ['r23', 'r97'],
+    ['r23', 'r98'],
+    ['r23', 'r99'],
+    ['r23', 'r119'],
+    ['r23', 'r120'],
+    ['r23', 'r121'],
+    ['r23', 'r122'],
+    ['r23', 'r123'],
+    ['r23', 'r126'],
+    ['r23', 'r130'],
+    ['r23', 'r131'],
+    ['r23', 'r132'],
+    ['r23', 'r133'],
+    ['r23', 'r135'],
+    ['r23', 'r136'],
+    ['r24', 'r118'],
+    ['r24', 'r64'],
+    ['r24', 'r67'],
+    ['r24', 'r71'],
+    ['r24', 'r39'],
+    ['r24', 'r41'],
+    ['r24', 'r66'],
+    ['r24', 'r81'],
+    ['r24', 'r95'],
+    ['r24', 'r119'],
+    ['r24', 'r127'],
+    ['r24', 'r130'],
+    ['r24', 'r135'],
+    ['r24', 'r79'],
+    ['r24', 'r136'],
+    ['r25', 'r91'],
+    ['r25', 'r92'],
+    ['r25', 'r60'],
+    ['r25', 'r84'],
+    ['r25', 'r96'],
+    ['r25', 'r97'],
+    ['r25', 'r120'],
+    ['r25', 'r121'],
+    ['r25', 'r122'],
+    ['r25', 'r125'],
+    ['r25', 'r131'],
+    ['r25', 'r132'],
+    ['r25', 'r133'],
+    ['r26', 'r72'],
+    ['r26', 'r76'],
+    ['r26', 'r73'],
+    ['r26', 'r130'],
+    ['r26', 'r135'],
+    ['r27', 'r37'],
+    ['r27', 'r38'],
+    ['r27', 'r40'],
+    ['r27', 'r43'],
+    ['r27', 'r61'],
+    ['r27', 'r70'],
+    ['r27', 'r94'],
+    ['r27', 'r35'],
+    ['r27', 'r36'],
+    ['r27', 'r62'],
+    ['r27', 'r82'],
+    ['r27', 'r86'],
+    ['r27', 'r88'],
+    ['r27', 'r89'],
+    ['r27', 'r93'],
+    ['r27', 'r98'],
+    ['r27', 'r99'],
+    ['r27', 'r117'],
+    ['r27', 'r123'],
+    ['r27', 'r124'],
+    ['r27', 'r126'],
+    ['r27', 'r128'],
+    ['r27', 'r129'],
+    ['r27', 'r130'],
+    ['r27', 'r135'],
+    ['r27', 'r79'],
+    ['r30', 'r115'],
+    ['r32', 'r115'],
+    ['r33', 'r115'],
+    ['r35', 'r115'],
+    ['r36', 'r115'],
+    ['r37', 'r115'],
+    ['r38', 'r115'],
+    ['r39', 'r115'],
+    ['r40', 'r115'],
+    ['r117', 'r115'],
+    ['r41', 'r115'],
+    ['r43', 'r115'],
+    ['r58', 'r115'],
+    ['r127', 'r109'],
+    ['r127', 'r115'],
+    ['r115', 'r128'],
+    ['r115', 'r129'],
+    ['r70', 'r109'],
+    ['r120', 'r109'],
+    ['r121', 'r109'],
+    ['r124', 'r109'],
+    ['r109', 'r125'],
+    ['r109', 'r128'],
+    ['r109', 'r129'],
+    ['r109', 'r130'],
+    ['r109', 'r135']
+  ];
+
+  const SPECIAL_IDS = new Set(['r15', 'r23', 'r28', 'r115', 'r59', 'r100', 'r101', 'r109', 'r1', 'r2']);
+
+  // 主視覺多語系（2026-08-03 新增）：可切換的語言清單，跟 specialIds／
+  // nodeData／edgeData 一樣用複製貼上手動同步到主網頁（見 buildSyncParts()／
+  // 語言管理彈窗）。每個節點的翻譯文字存在該節點物件自己的 `translations`
+  // 欄位（{ code: '翻譯文字' }），不是另外存在這裡——這裡只放「有哪些語言
+  // 可以選」這件事本身。
+  const LANGUAGES = [
+    { code: 'en', label: 'English' },
+    { code: 'zh-Hans', label: '簡體中文' },
+    { code: 'fr', label: 'Français' },
+    { code: 'ja', label: '日本語' },
+    { code: 'ko', label: '한국어' },
+    { code: 'es', label: 'Español' }
+  ];
+
+  const CX = 450, CY = 450;
+  const NS = 'http://www.w3.org/2000/svg';
+  // v4: gaps are now computed dynamically from each pair's actual radii
+  // (edge-to-edge), not a fixed per-slot table — bumped so any old-format
+  // save is ignored (falls back to the default layout) rather than reused.
+  const STORAGE_KEY = 'dotPositionEditor:committedPositions:v4';
+
+  const svgEl = document.getElementById('svg');
+  const edgesLayer = document.getElementById('edgesLayer');
+  const nodesLayer = document.getElementById('nodesLayer');
+  const toastEl = document.getElementById('toast');
+
+  // Adjacency (for hover highlight) + degree (for dot sizing) — same derivation as the source page.
+  const adjacency = {};
+  NODE_DATA.forEach(d => { adjacency[d.id] = new Set(); });
+  EDGE_DATA.forEach(([a, b]) => {
+    if (adjacency[a]) adjacency[a].add(b);
+    if (adjacency[b]) adjacency[b].add(a);
+  });
+  const degree = {};
+  NODE_DATA.forEach(d => { degree[d.id] = adjacency[d.id].size; });
+  const maxDegree = Math.max(1, ...Object.values(degree));
+
+  const R_MIN = 4, R_MAX = 24, DOT_SCALE = 1.18, LABEL_GAP = 20;
+  const nodeRadius = {};
+  NODE_DATA.forEach(d => {
+    nodeRadius[d.id] = R_MIN + (degree[d.id] / maxDegree) * (R_MAX - R_MIN);
+  });
+
+  // Same ring-packing walk as the source page, but the radius it derives is now
+  // load-bearing: every dot is constrained to stay on this single circle, so
+  // dragging can only ever change a dot's angle, never its distance from center
+  // ("很多小圓排成一個大圓" — the small circles only travel along the big circle's
+  // edge).
+  function computeRingLayout() {
+    const n = NODE_DATA.length;
+    const gapVB = 2.5;
+    const diameterSum = NODE_DATA.reduce((sum, d) => sum + 2 * nodeRadius[d.id], 0);
+    const circumference = diameterSum + n * gapVB;
+    const radius = Math.max(circumference / (2 * Math.PI), 420);
+    const effectiveGap = (2 * Math.PI * radius - diameterSum) / n;
+    const pos = {};
+    let arc = 0;
+    NODE_DATA.forEach(d => {
+      const r = nodeRadius[d.id];
+      const angle = ((arc + r) / radius) - Math.PI / 2;
+      pos[d.id] = { x: CX + radius * Math.cos(angle), y: CY + radius * Math.sin(angle) };
+      arc += 2 * r + effectiveGap;
+    });
+    return { positions: pos, radius };
+  }
+
+  function clonePositions(obj) {
+    const out = {};
+    Object.keys(obj).forEach(k => { out[k] = { x: obj[k].x, y: obj[k].y }; });
+    return out;
+  }
+
+  const ringLayout = computeRingLayout();
+  const DEFAULT_LAYOUT = ringLayout.positions;
+  const RING_RADIUS = ringLayout.radius;
+  // Mutable: adding/deleting a node in the list editor changes the node
+  // count, but RING_RADIUS itself is never recomputed (matches the size
+  // field's behaviour) — the ring's total circumference stays fixed, only
+  // SLACK_PER_GAP absorbs the change.
+  let n = NODE_DATA.length;
+
+  function angleOf(pos) {
+    return Math.atan2(pos.y - CY, pos.x - CX);
+  }
+
+  function ringPositionAtAngle(angle) {
+    return { x: CX + RING_RADIUS * Math.cos(angle), y: CY + RING_RADIUS * Math.sin(angle) };
+  }
+
+  // Re-projects any stored {x,y} onto the ring by keeping only its angle —
+  // guards against drift from floating point round-trips through localStorage.
+  function snapToRing(pos) {
+    return ringPositionAtAngle(angleOf(pos));
+  }
+
+  // Required angular gap between two SPECIFIC dots, edge-to-edge — computed
+  // from each one's OWN actual drawn radius (precomputed once below), not a
+  // shared/precomputed-per-pair value. This is what makes spacing stay
+  // correct after a reorder: whoever ends up next to whoever, the gap comes
+  // from their real sizes right then.
+  const GAP_PADDING = 2.5;
+  const scaledRadius = {};
+  NODE_DATA.forEach(d => { scaledRadius[d.id] = nodeRadius[d.id] * DOT_SCALE; });
+  function edgeGap(idA, idB) {
+    return (scaledRadius[idA] + scaledRadius[idB] + GAP_PADDING) / RING_RADIUS;
+  }
+
+  // The total of every gap's minimum around a closed ring is the same no
+  // matter the order (each dot's radius contributes to exactly two gaps
+  // either way), so the leftover slack — and each gap's equal share of it —
+  // is a constant, cheap to recompute (pure arithmetic, no DOM) whenever a
+  // manual size edit changes some node's scaledRadius, but otherwise never
+  // touched during a drag.
+  let TOTAL_MIN_GAP, SLACK_PER_GAP;
+  function recomputeSlack() {
+    TOTAL_MIN_GAP = (2 * NODE_DATA.reduce((sum, d) => sum + scaledRadius[d.id], 0) + n * GAP_PADDING) / RING_RADIUS;
+    SLACK_PER_GAP = (2 * Math.PI - TOTAL_MIN_GAP) / n;
+  }
+  recomputeSlack();
+
+  // Picks whichever representation of `rawAngle` (mod 2π) sits closest to
+  // `reference` — lets us compare/combine angles that may have wound past
+  // ±π without a false discontinuity at the wrap point.
+  function unwrapNear(rawAngle, reference) {
+    return rawAngle + 2 * Math.PI * Math.round((reference - rawAngle) / (2 * Math.PI));
+  }
+
+  // order[i] = id currently in the i-th position around the ring; slotOf[id]
+  // = that id's index in `order`. Purely a sequence — NOT tied to any fixed
+  // angle — reconstructed from `current` any time `current` is replaced
+  // wholesale (load, cancel, undo, redo). Position data itself always lives
+  // only in `current`.
+  const order = new Array(n);
+  const slotOf = {};
+  function rebuildOrderFromCurrent() {
+    const sortedIds = NODE_DATA.map(d => d.id).sort((a, b) => angleOf(current[a]) - angleOf(current[b]));
+    sortedIds.forEach((id, i) => { order[i] = id; slotOf[id] = i; });
+  }
+
+  function loadCommitted() {
+    try {
+      const raw = localStorage.getItem(STORAGE_KEY);
+      if (!raw) return clonePositions(DEFAULT_LAYOUT);
+      const parsed = JSON.parse(raw);
+      const merged = {};
+      NODE_DATA.forEach(d => {
+        merged[d.id] = (parsed[d.id] && typeof parsed[d.id].x === 'number')
+          ? snapToRing({ x: parsed[d.id].x, y: parsed[d.id].y })
+          : { x: DEFAULT_LAYOUT[d.id].x, y: DEFAULT_LAYOUT[d.id].y };
+      });
+      return merged;
+    } catch (err) {
+      return clonePositions(DEFAULT_LAYOUT);
+    }
+  }
+
+  let committed = loadCommitted();
+  let current = clonePositions(committed);
+  rebuildOrderFromCurrent();
+
+  // Undo/redo history — a stack of full position snapshots plus a pointer into
+  // it. New actions (a finished drag, a Cancel revert) truncate any redo tail
+  // and push a fresh snapshot; Undo/Redo just move the pointer.
+  let history = [clonePositions(current)];
+  let historyIndex = 0;
+
+  function statesEqual(a, b) {
+    return NODE_DATA.every(d => a[d.id].x === b[d.id].x && a[d.id].y === b[d.id].y);
+  }
+
+  function pushHistory() {
+    if (statesEqual(current, history[historyIndex])) return;
+    history = history.slice(0, historyIndex + 1);
+    history.push(clonePositions(current));
+    historyIndex = history.length - 1;
+    updateHistoryButtons();
+  }
+
+  function undo() {
+    if (historyIndex <= 0) return;
+    historyIndex--;
+    current = clonePositions(history[historyIndex]);
+    rebuildOrderFromCurrent();
+    renderAll();
+    updateHistoryButtons();
+  }
+
+  function redo() {
+    if (historyIndex >= history.length - 1) return;
+    historyIndex++;
+    current = clonePositions(history[historyIndex]);
+    rebuildOrderFromCurrent();
+    renderAll();
+    updateHistoryButtons();
+  }
+
+  function updateHistoryButtons() {
+    // Position undo/redo is meaningless mid list-structure-edit (the node
+    // set itself is in flux) — disabled for the duration, same as the
+    // header's own Commit/Cancel. Reset-spacing touches every node's
+    // position too, so it's held to the same rule.
+    btnUndo.disabled = structureEditing || historyIndex <= 0;
+    btnRedo.disabled = structureEditing || historyIndex >= history.length - 1;
+    btnResetSpacing.disabled = structureEditing;
+    btnImportSite.disabled = structureEditing;
+  }
+
+  const nodeEls = {};
+  const edgesByNode = {};
+  const edgeEls = [];
+
+  // Shared by initial load, adding a connection, and rebuilding after a
+  // cancelled list-structure edit. `edgesByNode[a]`/`[b]` must already
+  // exist before this runs.
+  function createEdgeElement(a, b) {
+    const line = document.createElementNS(NS, 'line');
+    line.setAttribute('class', 'sc-edge');
+    line.setAttribute('stroke', 'var(--line)');
+    line.setAttribute('stroke-width', '1');
+    edgesLayer.appendChild(line);
+    const rec = { el: line, a, b };
+    edgeEls.push(rec);
+    edgesByNode[a].push(rec);
+    edgesByNode[b].push(rec);
+    return rec;
+  }
+
+  // Builds one node's dot/hit-target/label + drag/hover listeners. Shared
+  // by initial load, adding a new node, and rebuilding after a cancelled
+  // list-structure edit. Assumes nodeRadius[d.id]/scaledRadius[d.id] and
+  // edgesByNode[d.id] are already set before this runs.
+  function createNodeElements(d) {
+    const isSpecial = SPECIAL_IDS.has(d.id);
+
+    const g = document.createElementNS(NS, 'g');
+    g.setAttribute('class', 'sc-node');
+    g.dataset.id = d.id;
+
+    // Generous invisible hit target so small dots are still easy to grab.
+    const hit = document.createElementNS(NS, 'circle');
+    hit.setAttribute('class', 'sc-hit');
+    hit.setAttribute('r', '26');
+    g.appendChild(hit);
+
+    const dot = document.createElementNS(NS, 'circle');
+    dot.setAttribute('class', 'sc-dot');
+    dot.setAttribute('fill', isSpecial ? 'var(--special)' : 'var(--dot)');
+    dot.setAttribute('r', String(scaledRadius[d.id]));
+    g.appendChild(dot);
+
+    // Plain SVG text instead of a foreignObject+div: same visual result
+    // (position, rotation-flip, color/weight), but repositioning a <text>
+    // is a native SVG attribute write with no embedded HTML layout pass —
+    // foreignObject reflow was the dominant per-frame cost during a
+    // swap-heavy drag, when relayoutRing() repositions every other node's
+    // label in one synchronous batch.
+    const label = document.createElementNS(NS, 'text');
+    label.setAttribute('class', 'sc-label');
+    label.setAttribute('font-size', '15');
+    label.setAttribute('font-weight', isSpecial ? '700' : '400');
+    label.setAttribute('fill', isSpecial ? 'var(--special)' : 'var(--text)');
+    label.setAttribute('dominant-baseline', 'middle');
+    label.textContent = d.name;
+    g.appendChild(label);
+
+    nodesLayer.appendChild(g);
+
+    nodeEls[d.id] = { g, hit, dot, label };
+
+    g.addEventListener('mouseenter', () => setHover(d.id));
+    g.addEventListener('mouseleave', () => setHover(null));
+    g.addEventListener('pointerdown', (e) => startDrag(e, d.id));
+  }
+
+  NODE_DATA.forEach(d => { edgesByNode[d.id] = []; });
+  // Edges first so nodes/labels always render on top of the lines.
+  EDGE_DATA.forEach(([a, b]) => createEdgeElement(a, b));
+  NODE_DATA.forEach(d => createNodeElements(d));
+
+  // Labels are drawn radially outward from wherever a dot ends up, and any
+  // node can be dragged to any angle — so the box has to fit the longest
+  // possible label in every direction, not just the default layout's.
+  // Sized from each label's actual rendered width (not a guessed estimate)
+  // so nothing can bleed past the box edge, where "overflow: visible" would
+  // let it end up hidden behind the fixed header or clipped by the viewport
+  // instead of just being fully contained. Kept live (not just at load) so
+  // an edited name/size can only ever grow this, never leaves something
+  // clipped after a rename or resize.
+  let halfExtent = 0;
+  function applyHalfExtent(newHalf) {
+    halfExtent = newHalf;
+    svgEl.setAttribute('viewBox', (CX - halfExtent) + ' ' + (CY - halfExtent) + ' ' + (2 * halfExtent) + ' ' + (2 * halfExtent));
+    // Keep every dot/label at the same on-screen size as the original
+    // 900-unit design (halfExtent 450) by growing the STAGE element itself
+    // past the viewport instead of shrinking the drawing to fit it — the
+    // extra room becomes ordinary scrollable page, not clipped overflow.
+    document.getElementById('stage').style.setProperty('--content-scale', halfExtent / 450);
+  }
+  function nodeReach(id) {
+    return RING_RADIUS + scaledRadius[id] + LABEL_GAP + nodeEls[id].label.getBBox().width + 12;
+  }
+  function ensureViewBoxFits(id) {
+    const reach = nodeReach(id);
+    if (reach > halfExtent) applyHalfExtent(reach);
+  }
+  applyHalfExtent(Math.max(...NODE_DATA.map(d => nodeReach(d.id))));
+
+  function setHover(id) {
+    const related = id ? new Set([id, ...adjacency[id]]) : null;
+    NODE_DATA.forEach(d => {
+      const dim = related && !related.has(d.id);
+      nodeEls[d.id].g.style.opacity = dim ? '0.3' : '1';
+    });
+    edgeEls.forEach(rec => {
+      const dim = !!id && !(rec.a === id || rec.b === id);
+      rec.el.style.opacity = dim ? '0.3' : '1';
+    });
+  }
+
+  function svgPoint(evt) {
+    const pt = svgEl.createSVGPoint();
+    pt.x = evt.clientX;
+    pt.y = evt.clientY;
+    return pt.matrixTransform(svgEl.getScreenCTM().inverse());
+  }
+
+  let dragId = null, dragAngleOffset = 0, dragUnwrappedAngle = 0;
+  let dragStartClientX = 0, dragStartClientY = 0;
+  const CLICK_MOVE_THRESHOLD = 5;
+  // Raw pointermove can fire faster than the browser can paint, especially
+  // during a long, fast drag where nearly every event crosses a swap
+  // boundary and triggers a full relayoutRing(). Processing every single raw
+  // event synchronously lets that work pile up faster than it can be drawn,
+  // which is what reads as the dragged dot "fake-freezing" then jumping to
+  // catch up. Instead, only the latest event is kept and the real work runs
+  // once per animation frame — display-rate-capped, never backlogged.
+  let pendingMoveEvent = null, moveFrameRequested = false;
+
+  function startDrag(e, id) {
+    if (lockedIds.has(id)) return;
+    e.preventDefault();
+    dragId = id;
+    dragStartClientX = e.clientX;
+    dragStartClientY = e.clientY;
+    const p = svgPoint(e);
+    const pointerAngle = Math.atan2(p.y - CY, p.x - CX);
+    dragAngleOffset = angleOf(current[id]) - pointerAngle;
+    dragUnwrappedAngle = angleOf(current[id]);
+    const g = nodeEls[id].g;
+    g.classList.add('dragging');
+    edgesByNode[id].forEach(rec => rec.el.classList.add('sc-drag-live'));
+    g.setPointerCapture(e.pointerId);
+    g.addEventListener('pointermove', onDragMove);
+    g.addEventListener('pointerup', onDragEnd);
+    g.addEventListener('pointercancel', onDragEnd);
+  }
+
+  // A hair of extra room (way below anything visible), used only for the
+  // placeholder position a just-swapped dot gets mid-cascade — see below.
+  const TIE_BREAK_MARGIN = 1e-6;
+
+  // The dragged dot always tracks the pointer exactly, free of any spacing
+  // constraint — it is never blocked. Every OTHER dot stays exactly where it
+  // is until the dragged dot's edge actually reaches it (not just its
+  // center — with a real edge-to-edge gap required, waiting for the exact
+  // center-crossing point would let them visibly overlap in the narrow
+  // window just before it), at which point it swaps with the dragged dot.
+  // A fast flick can cross several dots in one frame, cascading multiple
+  // swaps — each one gets a cheap placeholder position (just enough so the
+  // *next* crossing check, possibly in the other loop, isn't comparing
+  // against a stale pre-swap spot), and the full, real redistribution across
+  // every dot on the ring runs exactly once at the end, however many swaps
+  // just happened, not once per swap.
+  function onDragMove(e) {
+    if (!dragId) return;
+    pendingMoveEvent = e;
+    if (!moveFrameRequested) {
+      moveFrameRequested = true;
+      requestAnimationFrame(processPendingMove);
+    }
+  }
+
+  function processPendingMove() {
+    moveFrameRequested = false;
+    const e = pendingMoveEvent;
+    pendingMoveEvent = null;
+    if (!dragId || !e) return;
+    applyDragMove(e);
+  }
+
+  // Moves `dragId` to `dragUnwrappedAngle`, cascading any swaps this
+  // crosses and doing one full relayout if it did. Shared by live pointer
+  // dragging and by the edit panel's angle field jumping straight to a
+  // typed value — both are just "put dragId at this angle," so both reuse
+  // the exact same tested swap/relayout logic.
+  function resolveDragPosition() {
+    current[dragId] = ringPositionAtAngle(dragUnwrappedAngle);
+
+    let swapped = false;
+
+    // Bounded (never while(true)) as a hard safety net — a full cascade
+    // can touch at most every other node once, so n is always enough, and
+    // this guarantees the browser can never lock up here no matter what.
+    for (let guard = 0; guard < n; guard++) {
+      const k = slotOf[dragId];
+      const nextId = order[(k + 1) % n];
+      const boundary = unwrapNear(angleOf(current[nextId]), dragUnwrappedAngle) - edgeGap(dragId, nextId);
+      if (dragUnwrappedAngle < boundary - 1e-9) break;
+      order[k] = nextId; slotOf[nextId] = k;
+      order[(k + 1) % n] = dragId; slotOf[dragId] = (k + 1) % n;
+      swapped = true;
+      // A locked neighbour's own coordinate is never reassigned (it's a
+      // fixed pin, not a swap partner) — but the drag still passes it, so
+      // the cascade keeps going to check whatever comes after it.
+      if (!lockedIds.has(nextId)) {
+        current[nextId] = ringPositionAtAngle(dragUnwrappedAngle - edgeGap(dragId, nextId) - TIE_BREAK_MARGIN);
+      }
+    }
+    for (let guard = 0; guard < n; guard++) {
+      const k = slotOf[dragId];
+      const prevId = order[(k - 1 + n) % n];
+      const boundary = unwrapNear(angleOf(current[prevId]), dragUnwrappedAngle) + edgeGap(dragId, prevId);
+      if (dragUnwrappedAngle > boundary + 1e-9) break;
+      order[k] = prevId; slotOf[prevId] = k;
+      order[(k - 1 + n) % n] = dragId; slotOf[dragId] = (k - 1 + n) % n;
+      swapped = true;
+      if (!lockedIds.has(prevId)) {
+        current[prevId] = ringPositionAtAngle(dragUnwrappedAngle + edgeGap(dragId, prevId) + TIE_BREAK_MARGIN);
+      }
+    }
+
+    // Only re-even spacing around the whole ring when this call actually
+    // crossed a swap boundary (order[] changed) — plain movement within
+    // dragId's own gap doesn't change who's adjacent to whom, so there's
+    // nothing for the rest of the ring to react to. Re-running it on every
+    // micro-movement made spacing visibly twitch on the slightest nudge;
+    // gating it on `swapped` keeps everyone else still until a real
+    // reshuffle happens. dragId itself is always the pin (it must stay
+    // exactly under the pointer); every locked node elsewhere is pinned
+    // too, so it never moves (see the "reset spacing" header button for a
+    // full re-even including locks).
+    if (swapped) relayoutRing(dragId);
+    updateNode(dragId);
+  }
+
+  function applyDragMove(e) {
+    const p = svgPoint(e);
+    const rawAngle = Math.atan2(p.y - CY, p.x - CX) + dragAngleOffset;
+    // Unwrap nearest to the running total so a full-turn drag is tracked
+    // continuously instead of snapping back at the ±180° seam.
+    dragUnwrappedAngle = unwrapNear(rawAngle, dragUnwrappedAngle);
+    resolveDragPosition();
+  }
+
+  // Moves a node's ring angle directly, without an actual pointer drag on
+  // the ring — reuses resolveDragPosition() by briefly borrowing the drag
+  // state, so it goes through the identical swap-cascade + relayout as a
+  // real drag to that angle. No history push (callers that fire this
+  // repeatedly, like list-row dragging, push once at gesture-end instead).
+  function moveNodeToRingSlot(id, targetRad) {
+    const prevDragId = dragId, prevAngle = dragUnwrappedAngle;
+    dragId = id;
+    dragUnwrappedAngle = unwrapNear(targetRad, angleOf(current[id]));
+    resolveDragPosition();
+    dragId = prevDragId;
+    dragUnwrappedAngle = prevAngle;
+  }
+
+  // The edit panel's position field: one-shot angle set, so it pushes
+  // history immediately like any other completed position edit. A locked
+  // node's position is fixed everywhere, not just against being dragged —
+  // this is the other direct way to move a node, so it's guarded too.
+  function setNodeAngle(id, targetRad) {
+    if (lockedIds.has(id)) return;
+    moveNodeToRingSlot(id, targetRad);
+    pushHistory();
+    syncListToRingOrder();
+  }
+
+  function onDragEnd(e) {
+    if (!dragId) return;
+    const id = dragId;
+    const g = nodeEls[id].g;
+    g.classList.remove('dragging');
+    edgesByNode[id].forEach(rec => rec.el.classList.remove('sc-drag-live'));
+    g.releasePointerCapture(e.pointerId);
+    g.removeEventListener('pointermove', onDragMove);
+    g.removeEventListener('pointerup', onDragEnd);
+    g.removeEventListener('pointercancel', onDragEnd);
+    dragId = null;
+    pendingMoveEvent = null;
+    // resolveDragPosition() only re-evens spacing on frames that crossed a
+    // swap — if the drag ends mid-gap without a final swap, nothing further
+    // needs settling (no pin/topology changed since the last relayout).
+    pushHistory();
+    if (id === editingId) refreshEditAngleField();
+    // Keeps the list's own row order matching the ring's actual sequence
+    // at all times (not just when pen mode opens), so entering list-edit
+    // mode never surprises with a sudden reorder of what was just showing.
+    syncListToRingOrder();
+
+    const moved = Math.hypot(e.clientX - dragStartClientX, e.clientY - dragStartClientY);
+
+    // Now reachable during pen mode too (locked nodes aside) — record real
+    // moves as a structure-history step so the pen-mode ↶/↷ buttons can
+    // undo/redo a canvas reposition exactly like a list-row drag. A plain
+    // click (no real movement) leaves the ring untouched, so it's not a step.
+    if (structureEditing && moved >= CLICK_MOVE_THRESHOLD) pushStructureHistory();
+
+    // A plain click (negligible movement, not an actual drag) on a dot,
+    // while the node list is open, targets that node for editing — the
+    // same action as clicking its row's triangle, just reachable straight
+    // from the diagram.
+    if (listOpen && !structureEditing && moved < CLICK_MOVE_THRESHOLD) toggleEditTarget(id);
+  }
+
+  // Moves one dot + its bound title together, and re-anchors every line
+  // touching it so the connections never visually detach mid-drag.
+  function updateNode(id) {
+    const pos = current[id];
+    const rec = nodeEls[id];
+
+    rec.dot.setAttribute('cx', pos.x);
+    rec.dot.setAttribute('cy', pos.y);
+    rec.hit.setAttribute('cx', pos.x);
+    rec.hit.setAttribute('cy', pos.y);
+
+    const r = nodeRadius[id];
+    const angle = Math.atan2(pos.y - CY, pos.x - CX);
+    const isRight = Math.cos(angle) >= 0;
+    const labelPointX = pos.x + Math.cos(angle) * (r + LABEL_GAP);
+    const labelPointY = pos.y + Math.sin(angle) * (r + LABEL_GAP);
+    const angleDeg = angle * 180 / Math.PI;
+    const rotateDeg = isRight ? angleDeg : angleDeg + 180;
+
+    rec.label.setAttribute('x', labelPointX);
+    rec.label.setAttribute('y', labelPointY);
+    rec.label.setAttribute('text-anchor', isRight ? 'start' : 'end');
+    rec.label.setAttribute('transform', 'rotate(' + rotateDeg + ' ' + labelPointX + ' ' + labelPointY + ')');
+
+    edgesByNode[id].forEach(erec => {
+      if (erec.a === id) { erec.el.setAttribute('x1', pos.x); erec.el.setAttribute('y1', pos.y); }
+      if (erec.b === id) { erec.el.setAttribute('x2', pos.x); erec.el.setAttribute('y2', pos.y); }
+    });
+  }
+
+  function renderAll() {
+    NODE_DATA.forEach(d => updateNode(d.id));
+  }
+
+  renderAll();
+
+  let toastTimer = null;
+  function showToast(msg) {
+    toastEl.textContent = msg;
+    toastEl.classList.add('show');
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => toastEl.classList.remove('show'), 1800);
+  }
+
+  document.getElementById('btnCommit').addEventListener('click', () => {
+    committed = clonePositions(current);
+    try { localStorage.setItem(STORAGE_KEY, JSON.stringify(committed)); } catch (err) {}
+    showToast('已儲存目前的圓點位置');
+  });
+
+  document.getElementById('btnCancel').addEventListener('click', () => {
+    current = clonePositions(committed);
+    rebuildOrderFromCurrent();
+    renderAll();
+    pushHistory();
+    showToast('已還原至上次儲存的位置');
+  });
+
+  // Builds the specialIds/nodeData/edgeData text block the maintainer pastes
+  // into 建築事務所首頁.dc.html, straight from this tool's live state — ring
+  // order (order[]), names, hrefs, special/colour flags (SPECIAL_IDS) and
+  // connections (adjacency, deduped since it's stored symmetrically). This
+  // editor has no server/git access of its own, so "sync" here means
+  // generate-and-copy, not a direct file write.
+  //
+  // order[0] is whatever the raw atan2 sort in rebuildOrderFromCurrent()
+  // happened to land on (an arbitrary artifact of where its ±π wraparound
+  // falls) — but the production page always pins nodeData[0] to a FIXED
+  // angle, -90°/12-o'clock (see its `angle = arcPos/radius - Math.PI/2`
+  // with arcPos starting at 0). Exporting order[] as-is would force whatever
+  // node sits at order[0] to jump to 12-o'clock on production, rotating the
+  // *entire* ring away from what this editor is showing, even though every
+  // node's neighbours (the part order[] actually encodes) stay correct.
+  // Fix: cyclically rotate the exported sequence so whichever node is
+  // CURRENTLY closest to 12-o'clock here becomes first — a pure relabeling
+  // of the same cycle, so it lines up with production's fixed anchor.
+  function angularDistance(a, b) {
+    let d = Math.abs(a - b) % (2 * Math.PI);
+    if (d > Math.PI) d = 2 * Math.PI - d;
+    return d;
+  }
+
+  // Returns just the INSIDE of each array's [ ] — not the `specialIds = [`
+  // wrapper or trailing `];` — so each can be copied separately and pasted
+  // straight between the brackets already sitting in the production file,
+  // without the maintainer having to touch the brackets themselves.
+  function buildSyncParts() {
+    const topAngle = -Math.PI / 2;
+    let startIdx = 0;
+    let bestDist = Infinity;
+    order.forEach((id, i) => {
+      const dist = angularDistance(angleOf(current[id]), topAngle);
+      if (dist < bestDist) { bestDist = dist; startIdx = i; }
+    });
+    const rotatedOrder = order.slice(startIdx).concat(order.slice(0, startIdx));
+
+    const specialIdsInner = rotatedOrder.filter(id => SPECIAL_IDS.has(id)).map(id => `'${id}'`).join(', ');
+
+    // 2026-08-03 修正＋擴充：原本這裡只輸出 id/name/href 三個欄位，會把
+    // 主網頁節點原本可能有的 mobileName（手機版縮寫名稱）整個蓋掉——這是
+    // 比這次新增翻譯功能更早就存在的既有落差，跟 parseImportNodeData() 那
+    // 半的既有 bug 是同一組問題，一起修：有 mobileName 的話比照主網頁的
+    // 欄位順序（id/name/mobileName/href）輸出；有翻譯的話在 href 後面加上
+    // translations（跟主網頁 nodeData 項目的欄位順序一致，方便使用者比對）。
+    const nodeDataInner = rotatedOrder.map(id => {
+      const d = NODE_DATA.find(x => x.id === id);
+      let extra = '';
+      if (d.mobileName) extra += `, mobileName: ${JSON.stringify(d.mobileName)}`;
+      extra += `, href: ${JSON.stringify(d.href || '')}`;
+      if (d.translations && Object.keys(d.translations).length) extra += `, translations: ${JSON.stringify(d.translations)}`;
+      return `    { id: '${id}', name: ${JSON.stringify(d.name)}${extra} }`;
+    }).join(',\n');
+
+    const seenPairs = new Set();
+    const pairs = [];
+    rotatedOrder.forEach(id => {
+      adjacency[id].forEach(other => {
+        const key = id < other ? id + '|' + other : other + '|' + id;
+        if (seenPairs.has(key)) return;
+        seenPairs.add(key);
+        pairs.push([id, other]);
+      });
+    });
+    const edgeDataInner = '    ' + pairs.map(([a, b]) => `['${a}', '${b}']`).join(',\n    ');
+
+    const languagesInner = LANGUAGES.map(l => `    { code: '${l.code}', label: ${JSON.stringify(l.label)} }`).join(',\n');
+
+    return { specialIdsInner, nodeDataInner, edgeDataInner, languagesInner };
+  }
+
+  // Sets up the send-icon's flight-trail path to "draw in" on hover: measure
+  // its real length once, park it fully hidden via dash offset, then the
+  // :hover rule (stroke-dashoffset: 0) animates it revealing end-to-end —
+  // the plain-CSS equivalent of the reference icon's pathLength 0→1 tween.
+  const sendTrailPath = document.querySelector('#btnSyncSite .send-icon-trail');
+  if (sendTrailPath) {
+    const trailLen = sendTrailPath.getTotalLength();
+    sendTrailPath.style.strokeDasharray = trailLen;
+    sendTrailPath.style.strokeDashoffset = trailLen;
+  }
+
+  const syncModalOverlay = document.getElementById('syncModalOverlay');
+  const syncOutputAllEl = document.getElementById('syncOutputAll');
+  const syncModalTitleEl = document.getElementById('syncModalTitle');
+  const syncModalHintEl = document.getElementById('syncModalHint');
+  const btnGoToFullImportEl = document.getElementById('btnGoToFullImport');
+  document.getElementById('btnSyncSite').addEventListener('click', () => {
+    const fullText = buildFullSiteText();
+    if (fullText) {
+      syncOutputAllEl.value = fullText;
+      syncModalTitleEl.textContent = '完整主網頁檔案內容';
+      syncModalHintEl.textContent = '按「複製全部」，直接整個覆蓋「建築事務所首頁.dc.html」這個檔案即可——已經是更新好 specialIds／nodeData／edgeData／languages 之後的完整檔案內容，不用再找特定位置分別貼。';
+      btnGoToFullImportEl.hidden = true;
+    } else {
+      const parts = buildSyncParts();
+      syncOutputAllEl.value =
+        '// ===== languages =====\n' + parts.languagesInner + '\n\n' +
+        '// ===== specialIds =====\n' + parts.specialIdsInner + '\n\n' +
+        '// ===== nodeData =====\n' + parts.nodeDataInner + '\n\n' +
+        '// ===== edgeData =====\n' + parts.edgeDataInner;
+      syncModalTitleEl.textContent = '尚未匯入完整檔案，暫時只能分段複製';
+      syncModalHintEl.textContent = '這個瀏覽器分頁還沒用「從主網頁匯入」貼過完整的 建築事務所首頁.dc.html 檔案內容（或上次貼的只是片段），所以沒辦法直接給你整份可以覆蓋的新檔案——按下面「改用完整檔案匯入」，貼上整個檔案內容，之後這裡就會直接產生整份新檔案。如果現在就是想要分段內容，可以繼續往下複製：依文字裡「===== 標題 =====」的標示，把對應那一段（不含標題本身）分別貼到主網頁同名陣列的中括號［ ］內取代。';
+      btnGoToFullImportEl.hidden = false;
+    }
+    syncModalOverlay.hidden = false;
+  });
+  btnGoToFullImportEl.addEventListener('click', () => {
+    syncModalOverlay.hidden = true;
+    importModalOverlay.hidden = false;
+  });
+  document.getElementById('btnCloseSyncModal').addEventListener('click', () => {
+    syncModalOverlay.hidden = true;
+  });
+  syncModalOverlay.addEventListener('click', (e) => {
+    if (e.target === syncModalOverlay) syncModalOverlay.hidden = true;
+  });
+  document.getElementById('btnCopyAllSync').addEventListener('click', async () => {
+    const isFullFile = !!SITE_TEMPLATE;
+    try {
+      await navigator.clipboard.writeText(syncOutputAllEl.value);
+      showToast(isFullFile ? '已複製，可直接整個覆蓋主網頁檔案' : '已複製，依「===== 標題 =====」分別貼到主網頁對應中括號內');
+    } catch (err) {
+      syncOutputAllEl.focus();
+      syncOutputAllEl.select();
+      showToast('自動複製失敗，已選取內容，請手動複製（Ctrl+C）');
+    }
+  });
+
+  // Reverse direction of buildSyncParts(): each of these takes bracket-
+  // INTERIOR text (same literal format the production file uses — and the
+  // same format the sync-out modal produces) and parses it back into plain
+  // JS values, so this editor can be reset to whatever's actually live on
+  // the main site before editing starts. Since 2026-08-17 the import modal
+  // is a single paste-anything textarea instead of one field per array —
+  // extractBracketInner() (below parseImportEdgeData) locates each of
+  // these sections' bracket-interior text inside that one blob first, then
+  // hands it to the matching function here.
+  function parseImportSpecialIds(text) {
+    const ids = [];
+    const re = /'([^']+)'/g;
+    let m;
+    while ((m = re.exec(text))) ids.push(m[1]);
+    return ids;
+  }
+
+  // 2026-08-03 修正＋擴充：原本用單一個嚴格的正規表示式一次比對整個
+  // `{ id: ..., name: ..., href: ... }`，要求欄位「剛好照這個順序、中間
+  // 不能有別的東西」——但主網頁實際上很多節點在 name 跟 href 之間還有
+  // 一個 mobileName 欄位（手機版縮寫名稱），只要有 mobileName 的節點就會
+  // 完全比對不到、整個從匯入結果裡消失（不是欄位漏掉，是整個節點都不見）。
+  // 這是比這次新增翻譯功能更早就存在的既有 bug，因為現在要新增
+  // `translations` 這個「順序不固定、有沒有都可以」的欄位，一起改成先用
+  // 「抓出每一個 { ... } 區塊」＋「區塊裡面各自找 id/name/mobileName/href/
+  // translations」的做法，不管欄位順序、有沒有齊全都不影響比對到其他欄位。
+  // `\{(?:[^{}]|\{[^{}]*\})*\}` 允許剛好一層巢狀大括號，剛好夠比對
+  // `translations: { code: "..." }` 這種內嵌物件。
+  function parseImportNodeData(text) {
+    const nodes = [];
+    const blockRe = /\{(?:[^{}]|\{[^{}]*\})*\}/g;
+    let m;
+    while ((m = blockRe.exec(text))) {
+      const block = m[0];
+      const idMatch = block.match(/id:\s*'([^']+)'/);
+      const nameMatch = block.match(/name:\s*"((?:[^"\\]|\\.)*)"/);
+      if (!idMatch || !nameMatch) continue;
+      const hrefMatch = block.match(/href:\s*"((?:[^"\\]|\\.)*)"/);
+      const mobileNameMatch = block.match(/mobileName:\s*"((?:[^"\\]|\\.)*)"/);
+      const translationsMatch = block.match(/translations:\s*(\{[^{}]*\})/);
+      const unescape = (s) => { try { return JSON.parse('"' + s + '"'); } catch (err) { return s; } };
+      const node = {
+        id: idMatch[1],
+        name: unescape(nameMatch[1]),
+        href: hrefMatch ? unescape(hrefMatch[1]) : ''
+      };
+      if (mobileNameMatch) node.mobileName = unescape(mobileNameMatch[1]);
+      if (translationsMatch) {
+        // buildSyncParts() 輸出的 translations 是 JSON.stringify() 產生的
+        // 標準 JSON（雙引號 key/value），可以直接 JSON.parse()。
+        try { node.translations = JSON.parse(translationsMatch[1]); } catch (err) {}
+      }
+      nodes.push(node);
+    }
+    return nodes;
+  }
+
+  // 2026-08-17 修正：原本用正規表示式硬性要求 label 是雙引號
+  // (`label:\s*"..."`)，但主網頁實際的 languages 陣列裡 label 是單引號
+  // （`{ code: 'en', label: 'English' }`）——buildSyncParts() 匯出時用
+  // JSON.stringify() 產生雙引號，所以「編輯器匯出→重新匯入」這種自我循環
+  // 測試不會發現這個問題，但「直接從主網頁複製貼上」（這個功能真正的使用
+  // 情境）永遠比對不到，靜默回傳 0 筆語言。改成直接把每個 { ... } 區塊當
+  // 一段合法的 JS 物件字面值執行，不管單引號雙引號都能正確讀出。
+  function parseImportLanguages(text) {
+    const languages = [];
+    const blockRe = /\{[^{}]*\}/g;
+    let m;
+    while ((m = blockRe.exec(text))) {
+      try {
+        const obj = Function('"use strict"; return (' + m[0] + ');')();
+        if (obj && typeof obj.code === 'string' && typeof obj.label === 'string') {
+          languages.push({ code: obj.code, label: obj.label });
+        }
+      } catch (err) { /* 不是合法物件字面值就跳過這一塊 */ }
+    }
+    return languages;
+  }
+
+  function parseImportEdgeData(text) {
+    const edges = [];
+    const re = /\[\s*'([^']+)'\s*,\s*'([^']+)'\s*\]/g;
+    let m;
+    while ((m = re.exec(text))) edges.push([m[1], m[2]]);
+    return edges;
+  }
+
+  // 2026-08-17 新增：找出貼上文字裡 `<varName> = [` 之後、用括號配對抓到
+  // 對應那個 `]` 為止的內容（不含頭尾中括號本身）——不管貼上的文字裡這個
+  // 陣列前後夾了什麼其他程式碼，只要 `varName = [ ... ]` 這個賦值本身完整
+  // 存在就抓得到。這是「匯入欄位從四個合成一個」的核心：使用者不用再精準
+  // 只複製 specialIds/nodeData/edgeData/languages 這幾行，貼一大段甚至整個
+  // script 區塊內容進來，這裡會自己把需要的四段挖出來，交給上面既有的
+  // parseImport* 系列函式（它們本來就是設計成吃「中括號內」的文字）。找不到
+  // 就回傳 null，呼叫端自行決定是「必要欄位、擋下匯入」還是「選填、略過」。
+  // Shared by extractBracketInner() (匯入：只要中括號「裡面」的文字) and
+  // buildFullSiteText() below（整段替換：需要連中括號本身的位置，才能在
+  // 原始檔案文字裡精準切開再貼回新內容）。
+  function findBracketSpan(text, varName) {
+    const marker = varName + ' = [';
+    const idx = text.indexOf(marker);
+    if (idx === -1) return null;
+    const bracketStart = idx + marker.length - 1; // '[' 本身的位置
+    let depth = 0;
+    for (let i = bracketStart; i < text.length; i++) {
+      if (text[i] === '[') depth++;
+      else if (text[i] === ']') { depth--; if (depth === 0) return { start: bracketStart, end: i + 1 }; }
+    }
+    return null;
+  }
+
+  function extractBracketInner(text, varName) {
+    const span = findBracketSpan(text, varName);
+    return span ? text.slice(span.start + 1, span.end - 1) : null;
+  }
+
+  // Lays out the imported node list exactly the way the production page
+  // (and this editor's own initial computeRingLayout()) does: walk forward
+  // from a fixed 12-o'clock start (-90°), each gap = real edge-to-edge
+  // minimum + an equal share of the ring's leftover slack. RING_RADIUS
+  // itself is never recomputed here either, matching the established
+  // "add/delete node" behaviour elsewhere in this file — only the per-gap
+  // slack absorbs however many nodes/edges came in.
+  function computeImportLayout(nodesList, edgesList) {
+    const degree = {};
+    nodesList.forEach(d => { degree[d.id] = 0; });
+    edgesList.forEach(([a, b]) => {
+      if (degree[a] !== undefined) degree[a]++;
+      if (degree[b] !== undefined) degree[b]++;
+    });
+    const maxDeg = Math.max(1, ...Object.values(degree));
+    const radius = {};
+    const scaled = {};
+    nodesList.forEach(d => {
+      radius[d.id] = R_MIN + (degree[d.id] / maxDeg) * (R_MAX - R_MIN);
+      scaled[d.id] = radius[d.id] * DOT_SCALE;
+    });
+    const gap = (a, b) => (scaled[a] + scaled[b] + GAP_PADDING) / RING_RADIUS;
+
+    const nn = nodesList.length;
+    const totalMinGap = (2 * nodesList.reduce((s, d) => s + scaled[d.id], 0) + nn * GAP_PADDING) / RING_RADIUS;
+    const slackPerGap = (2 * Math.PI - totalMinGap) / nn;
+
+    const cumOffset = [0];
+    for (let i = 1; i < nn; i++) {
+      cumOffset[i] = cumOffset[i - 1] + gap(nodesList[i - 1].id, nodesList[i].id) + slackPerGap;
+    }
+    const theta = -Math.PI / 2;
+    const positions = {};
+    nodesList.forEach((d, i) => {
+      const angle = theta + cumOffset[i];
+      positions[d.id] = { x: CX + RING_RADIUS * Math.cos(angle), y: CY + RING_RADIUS * Math.sin(angle) };
+    });
+    return { radius, positions };
+  }
+
+  // 2026-08-17 新增：貼進「從主網頁匯入」的原始文字整份留著（不只是解析出
+  // 來的資料），讓「同步至主網頁」能直接在這份原始文字裡精準切開
+  // specialIds/nodeData/edgeData/languages 這幾段、貼回更新後的內容，其餘
+  // 文字（HTML 樣板、CSS、球體/搜尋/語言切換等其他程式碼）原封不動——這樣
+  // 使用者只要一開始貼的是「整個 建築事務所首頁.dc.html 檔案內容」，同步
+  // 時就能直接拿回一份可以整個覆蓋原檔案的完整新內容，不用再分別找 4 個
+  // 位置貼。只貼一部分（例如只貼 script 區塊內容）也一樣運作，只是同步時
+  // 拿回的就是那個部分更新後的版本，不是整個檔案。
+  //
+  // 存進 localStorage（跟 committed 位置用同一套既有機制）——這份文字動輒
+  // 十幾萬字元，光存在記憶體變數裡的話，只要重新整理頁面就會消失，變成
+  // 「明明剛匯入過，同步時卻退回分段格式」，使用者會以為功能沒生效，其實
+  // 只是被重新整理洗掉了。這個編輯器在每次改版後都需要使用者手動重新整理
+  // 才能看到更新（見既有慣例），這件事本身就會很頻繁地觸發這個問題，所以
+  // 用 localStorage 讓它撐過重新整理。
+  const SITE_TEMPLATE_STORAGE_KEY = 'dotPositionEditor:siteTemplate:v1';
+  let SITE_TEMPLATE = null;
+  try { SITE_TEMPLATE = localStorage.getItem(SITE_TEMPLATE_STORAGE_KEY); } catch (err) {}
+
+  function applyImport() {
+    const blob = document.getElementById('importBlobInput').value;
+    const nodeDataText = extractBracketInner(blob, 'nodeData');
+    if (nodeDataText == null) {
+      showToast('找不到 nodeData = [ ... ]，請確認貼上的內容有包含完整的 nodeData 陣列');
+      return;
+    }
+    const parsedNodes = parseImportNodeData(nodeDataText);
+    if (parsedNodes.length === 0) {
+      showToast('nodeData 內容無法解析，請確認格式');
+      return;
+    }
+    const specialText = extractBracketInner(blob, 'specialIds');
+    const edgeText = extractBracketInner(blob, 'edgeData');
+    const parsedSpecial = specialText ? parseImportSpecialIds(specialText) : [];
+    const parsedEdges = edgeText ? parseImportEdgeData(edgeText) : [];
+
+    const validIds = new Set(parsedNodes.map(d => d.id));
+    const filteredEdges = parsedEdges.filter(([a, b]) => validIds.has(a) && validIds.has(b));
+    const specialSet = new Set(parsedSpecial.filter(id => validIds.has(id)));
+
+    if (!window.confirm('這會用貼上的內容整個取代目前編輯器裡的順序、名稱、超連結、顏色與連線，尚未同步出去的編輯內容會遺失。確定要套用嗎？')) {
+      return;
+    }
+
+    const { radius, positions } = computeImportLayout(parsedNodes, filteredEdges);
+    const snap = {
+      nodes: parsedNodes.map(d => ({
+        id: d.id, name: d.name, href: d.href,
+        mobileName: d.mobileName,
+        translations: d.translations,
+        radius: radius[d.id],
+        special: specialSet.has(d.id),
+        x: positions[d.id].x, y: positions[d.id].y
+      })),
+      edges: filteredEdges
+    };
+
+    closeEditPanel();
+    restoreFromStructureSnapshot(snap);
+    // Position undo history is meaningless across a wholesale node-set
+    // replacement (same reasoning as exitStructureEditing() after an
+    // add/delete session) — reset to a single fresh snapshot of the result.
+    history = [clonePositions(current)];
+    historyIndex = 0;
+    updateHistoryButtons();
+
+    // languages 是選填的——貼上的內容裡沒找到就保留目前編輯器裡既有的語言
+    // 清單，不強制每次匯入都要一起帶語言設定。
+    const languagesText = extractBracketInner(blob, 'languages');
+    if (languagesText) {
+      const parsedLanguages = parseImportLanguages(languagesText);
+      if (parsedLanguages.length) {
+        LANGUAGES.length = 0;
+        parsedLanguages.forEach(l => LANGUAGES.push(l));
+        renderLanguageList();
+      }
+    }
+
+    SITE_TEMPLATE = blob;
+    try { localStorage.setItem(SITE_TEMPLATE_STORAGE_KEY, blob); } catch (err) {}
+
+    importModalOverlay.hidden = true;
+    showToast('已從主網頁內容更新（' + parsedNodes.length + ' 個節點）');
+  }
+
+  // 把貼進來的原始文字（SITE_TEMPLATE）裡的 languages/specialIds/nodeData/
+  // edgeData 這四段，換成目前編輯器算出來的最新內容，其餘文字不動，回傳
+  // 整份文字。找不到 SITE_TEMPLATE（還沒匯入過）就回傳 null，由呼叫端決定
+  // 要退回舊的「分段複製」畫面還是請使用者先去匯入。由後往前替換（依起始
+  // 位置由大到小排序）——這樣替換前面的段落時，後面段落已經算好的位置不會
+  // 因為前面文字長度改變而跟著位移。
+  function buildFullSiteText() {
+    if (!SITE_TEMPLATE) return null;
+    const parts = buildSyncParts();
+    const targets = [
+      { varName: 'languages', inner: parts.languagesInner },
+      { varName: 'specialIds', inner: parts.specialIdsInner },
+      { varName: 'nodeData', inner: parts.nodeDataInner },
+      { varName: 'edgeData', inner: parts.edgeDataInner }
+    ];
+    const spans = targets
+      .map(t => {
+        const span = findBracketSpan(SITE_TEMPLATE, t.varName);
+        return span ? { start: span.start, end: span.end, inner: t.inner } : null;
+      })
+      .filter(Boolean)
+      .sort((a, b) => b.start - a.start);
+    if (spans.length === 0) return null;
+
+    let text = SITE_TEMPLATE;
+    spans.forEach(({ start, end, inner }) => {
+      text = text.slice(0, start) + '[' + inner + ']' + text.slice(end);
+    });
+    return text;
+  }
+
+  const importModalOverlay = document.getElementById('importModalOverlay');
+  const btnImportSite = document.getElementById('btnImportSite');
+  btnImportSite.addEventListener('click', () => {
+    importModalOverlay.hidden = false;
+  });
+  document.getElementById('btnCloseImportModal').addEventListener('click', () => {
+    importModalOverlay.hidden = true;
+  });
+  importModalOverlay.addEventListener('click', (e) => {
+    if (e.target === importModalOverlay) importModalOverlay.hidden = true;
+  });
+  document.getElementById('btnApplyImport').addEventListener('click', applyImport);
+
+  // 語言管理（2026-08-03 新增）：新增/刪除語言直接是即時的表單操作，不用
+  // 像 nodeData/edgeData 那樣先貼文字再套用——語言清單通常只有幾筆，逐筆
+  // 增刪比整段貼文字方便。languages［ ］那個匯入欄位（見 applyImport()）
+  // 是給「要接續上次已經同步到主網頁的語言清單」這種情境用的，兩條路徑
+  // 互補，不衝突。
+  const languageModalOverlay = document.getElementById('languageModalOverlay');
+  const languageListItemsEl = document.getElementById('languageListItems');
+  const newLangPresetSelect = document.getElementById('newLangPreset');
+  const customLangFieldsEl = document.getElementById('customLangFields');
+  const newLangCodeInput = document.getElementById('newLangCode');
+  const newLangLabelInput = document.getElementById('newLangLabel');
+
+  // 內建語言選單（2026-08-03 新增，取代原本要自己手打代碼/顯示名稱的兩個
+  // 文字框）——常用的六種語言直接選就好，選單最後一項「＋ 自訂語言…」才
+  // 顯示原本那組文字輸入框，給選單裡沒有的語言用。zh-Hans（簡體中文）跟
+  // 主網頁 `<html lang="zh-Hant">`（見「網頁的內容可翻譯」那次調整）刻意
+  // 用同一套「zh-Hant/zh-Hans 書寫系統」代碼命名邏輯，不是隨便選的代碼。
+  const PRESET_LANGUAGES = {
+    en: 'English',
+    'zh-Hans': '簡體中文',
+    fr: 'Français',
+    ja: '日本語',
+    ko: '한국어',
+    es: 'Español'
+  };
+
+  function updateLanguagePresetOptions() {
+    // 已經加過的語言就不要再讓它出現在下拉選單裡（避免選了又被「代碼已
+    // 存在」擋下來，體驗上不如直接不給選）——「＋ 自訂語言…」永遠保留。
+    Array.from(newLangPresetSelect.options).forEach(opt => {
+      if (opt.value === 'custom') return;
+      opt.hidden = LANGUAGES.some(l => l.code === opt.value);
+    });
+    // 如果目前選到的那個 preset 剛好因為已存在被藏起來了，換到第一個還
+    // 沒被加過的選項，選單不要停在一個看不見的值上。
+    if (newLangPresetSelect.selectedOptions[0] && newLangPresetSelect.selectedOptions[0].hidden) {
+      const firstAvailable = Array.from(newLangPresetSelect.options).find(opt => !opt.hidden);
+      if (firstAvailable) newLangPresetSelect.value = firstAvailable.value;
+    }
+    customLangFieldsEl.hidden = newLangPresetSelect.value !== 'custom';
+  }
+
+  newLangPresetSelect.addEventListener('change', () => {
+    customLangFieldsEl.hidden = newLangPresetSelect.value !== 'custom';
+  });
+
+  function renderLanguageList() {
+    languageListItemsEl.innerHTML = '';
+    if (LANGUAGES.length === 0) {
+      const empty = document.createElement('p');
+      empty.style.cssText = 'font-size:13px; opacity:0.6; margin:4px 0;';
+      empty.textContent = '目前還沒有任何語言，主網頁的語言切換鈕只會顯示「中文（原文）」。';
+      languageListItemsEl.appendChild(empty);
+    }
+    LANGUAGES.forEach(l => {
+      const row = document.createElement('div');
+      row.style.cssText = 'display:flex; align-items:center; gap:8px; padding:6px 0; border-bottom:1px solid var(--border);';
+      const label = document.createElement('span');
+      label.style.cssText = 'flex:1; font-size:13px;';
+      label.textContent = l.label + '（' + l.code + '）';
+      row.appendChild(label);
+      const removeBtn = document.createElement('button');
+      removeBtn.type = 'button';
+      removeBtn.className = 'node-connections-remove';
+      removeBtn.textContent = '🗑';
+      removeBtn.setAttribute('aria-label', '刪除語言 ' + l.label);
+      removeBtn.addEventListener('click', () => removeLanguage(l.code));
+      row.appendChild(removeBtn);
+      languageListItemsEl.appendChild(row);
+    });
+    updateLanguagePresetOptions();
+    // 語言清單變了，如果目前正開著某個節點的編輯面板，翻譯欄位要跟著重繪
+    // （新增語言要多一列輸入框、刪除語言要少一列），不用使用者自己關掉
+    // 面板再重開才看得到。
+    if (editingId) renderEditTranslations();
+  }
+
+  function addLanguage() {
+    const preset = newLangPresetSelect.value;
+    let code, label;
+    if (preset === 'custom') {
+      code = newLangCodeInput.value.trim();
+      label = newLangLabelInput.value.trim();
+      if (!code || !label) { showToast('代碼跟顯示名稱都要填'); return; }
+    } else {
+      code = preset;
+      label = PRESET_LANGUAGES[preset];
+    }
+    if (LANGUAGES.some(l => l.code === code)) { showToast('這個語言已經存在了'); return; }
+    LANGUAGES.push({ code, label });
+    newLangCodeInput.value = '';
+    newLangLabelInput.value = '';
+    renderLanguageList();
+  }
+
+  function removeLanguage(code) {
+    const idx = LANGUAGES.findIndex(l => l.code === code);
+    if (idx === -1) return;
+    LANGUAGES.splice(idx, 1);
+    // 清掉每個節點底下這個語言的翻譯文字，避免同步出去的 nodeData 裡留著
+    // 一個語言清單已經沒有的孤兒翻譯（不會壞掉，但很雜亂，不如順手清乾淨）。
+    NODE_DATA.forEach(d => { if (d.translations) delete d.translations[code]; });
+    renderLanguageList();
+  }
+
+  document.getElementById('btnLanguages').addEventListener('click', () => {
+    renderLanguageList();
+    languageModalOverlay.hidden = false;
+  });
+  document.getElementById('btnCloseLanguageModal').addEventListener('click', () => {
+    languageModalOverlay.hidden = true;
+  });
+  languageModalOverlay.addEventListener('click', (e) => {
+    if (e.target === languageModalOverlay) languageModalOverlay.hidden = true;
+  });
+  document.getElementById('btnAddLanguage').addEventListener('click', addLanguage);
+
+  const btnUndo = document.getElementById('btnUndo');
+  const btnRedo = document.getElementById('btnRedo');
+  const btnResetSpacing = document.getElementById('btnResetSpacing');
+  btnUndo.addEventListener('click', undo);
+  btnRedo.addEventListener('click', redo);
+  btnResetSpacing.addEventListener('click', () => {
+    resetAllSpacing();
+    pushHistory();
+    if (editingId) refreshEditAngleField();
+    showToast('已重新整理所有圓點間距');
+  });
+
+  // Light/dark toggle — an explicit `data-theme` attribute always wins over
+  // the OS/browser's own prefers-color-scheme (see the CSS), so this is a
+  // real override, not just a one-time snapshot of the system preference.
+  // The tiny inline script in <head> already applied any saved choice
+  // before first paint; this just keeps the button's own icon/label and
+  // future clicks in sync with it.
+  const THEME_STORAGE_KEY = 'dotPositionEditor:theme:v1';
+  const btnThemeToggle = document.getElementById('btnThemeToggle');
+  const SUN_ICON_SVG = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2"/><path d="M12 20v2"/><path d="m4.93 4.93 1.41 1.41"/><path d="m17.66 17.66 1.41 1.41"/><path d="M2 12h2"/><path d="M20 12h2"/><path d="m6.34 17.66-1.41 1.41"/><path d="m19.07 4.93-1.41 1.41"/></svg>';
+  const MOON_ICON_SVG = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/></svg>';
+
+  function currentTheme() {
+    const explicit = document.documentElement.getAttribute('data-theme');
+    if (explicit === 'light' || explicit === 'dark') return explicit;
+    return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+  }
+  // Icon shows the theme a click WOULD switch to (a moon while light,
+  // inviting a switch to dark; a sun while dark), matching the usual
+  // convention for this kind of toggle.
+  function applyTheme(theme) {
+    document.documentElement.setAttribute('data-theme', theme);
+    btnThemeToggle.innerHTML = theme === 'dark' ? SUN_ICON_SVG : MOON_ICON_SVG;
+    btnThemeToggle.setAttribute('aria-label', theme === 'dark' ? '切換為淺色模式' : '切換為深色模式');
+  }
+  applyTheme(currentTheme());
+  btnThemeToggle.addEventListener('click', () => {
+    const next = currentTheme() === 'dark' ? 'light' : 'dark';
+    try { localStorage.setItem(THEME_STORAGE_KEY, next); } catch (err) {}
+    applyTheme(next);
+  });
+  document.addEventListener('keydown', (e) => {
+    if (!(e.ctrlKey || e.metaKey) || e.key.toLowerCase() !== 'z') return;
+    e.preventDefault();
+    if (e.shiftKey) redo(); else undo();
+  });
+
+  // Left node list: closed by default, toggled open with a fixed edge
+  // button. Opening it pushes #mainContent over (padding-left) instead of
+  // overlaying the diagram. Picking a node scrolls it to the viewport
+  // centre and reuses the existing hover-highlight (dim everything else,
+  // light up this node + its connections) as the "locate" effect, cleared
+  // automatically after a few seconds. Each row also has an arrow that
+  // expands a flyout to its right, listing that node's connections (also
+  // clickable) — a separate panel rather than an inline accordion, so
+  // expanding one row never shifts the others' scroll position.
+  document.documentElement.style.setProperty('--header-h', document.getElementById('pageHeader').offsetHeight + 'px');
+
+  const btnToggleList = document.getElementById('btnToggleList');
+  const nodeListEl = document.getElementById('nodeList');
+  const mainEl = document.getElementById('mainContent');
+  const listToggleIcon = document.getElementById('listToggleIcon');
+  let listOpen = false;
+  btnToggleList.addEventListener('click', () => {
+    listOpen = !listOpen;
+    nodeListEl.classList.toggle('open', listOpen);
+    btnToggleList.classList.toggle('open', listOpen);
+    mainEl.classList.toggle('list-open', listOpen);
+    btnToggleList.setAttribute('aria-expanded', String(listOpen));
+    listToggleIcon.textContent = listOpen ? '✕' : '☰';
+    if (!listOpen) closeEditPanel();
+  });
+
+  let locateTimer = null;
+  function locateNode(id) {
+    const pt = svgEl.createSVGPoint();
+    pt.x = current[id].x;
+    pt.y = current[id].y;
+    const screenPt = pt.matrixTransform(svgEl.getScreenCTM());
+    window.scrollTo({
+      left: screenPt.x + window.scrollX - window.innerWidth / 2,
+      top: screenPt.y + window.scrollY - window.innerHeight / 2,
+      behavior: 'smooth'
+    });
+    setHover(id);
+    clearTimeout(locateTimer);
+    locateTimer = setTimeout(() => setHover(null), 1800);
+  }
+
+  // Edit panel: an Illustrator-layers-style "target" icon per row limits
+  // editing to exactly one node at a time (editingId). Its flyout carries
+  // both the property form (name/angle/size/colour) and that node's
+  // connection list (add via a picker, remove via a trash icon per row).
+  // Only position edits go through pushHistory()/the existing undo-redo
+  // and Commit/Cancel machinery, because that machinery is inherently
+  // position-only (committed/localStorage store positions, not names,
+  // sizes, colours or edges) — name/size/colour/connection edits are
+  // deliberately immediate and outside that system.
+  const nodeConnectionsEl = document.getElementById('nodeConnections');
+  const nodeConnectionsItemsEl = document.getElementById('nodeConnectionsItems');
+  const editNameInput = document.getElementById('editName');
+  const editAngleInput = document.getElementById('editAngle');
+  const editAngleDial = document.getElementById('editAngleDial');
+  const dialTicksEl = document.getElementById('dialTicks');
+  const dialPointerEl = document.getElementById('dialPointer');
+  const editSizeInput = document.getElementById('editSize');
+  const editColorSelect = document.getElementById('editColor');
+  const editHrefInput = document.getElementById('editHref');
+  const btnAddConnection = document.getElementById('btnAddConnection');
+  const addConnectionRow = document.getElementById('addConnectionRow');
+  const addConnectionSelect = document.getElementById('addConnectionSelect');
+
+  const editBtnById = {};
+  const listBtnById = {};
+  const lockBtnById = {};
+  const rowById = {};
+  let editingId = null;
+
+  // Pen-mode row lock — a locked node keeps its ring position fixed: it
+  // can neither be dragged itself nor be swapped into by another row being
+  // dragged past it. Purely an in-session editing aid (like the rest of
+  // structure editing), not persisted to localStorage.
+  const lockedIds = new Set();
+
+  // Pen-mode multi-select — shift-click a row's name to extend a contiguous
+  // range from `selectionAnchorId` (set by the last plain click) up to that
+  // row. No new buttons; the existing name button just grew a modifier
+  // behaviour. Purely a drag aid: dragging any selected row's handle moves
+  // the whole selected block together (see startRowDrag/processPendingRowMove).
+  let selectionAnchorId = null;
+  let selectedIds = [];
+
+  function clearSelectionVisuals() {
+    selectedIds.forEach(id => { if (rowById[id]) rowById[id].classList.remove('row-selected'); });
+  }
+
+  function selectSingle(id) {
+    clearSelectionVisuals();
+    selectionAnchorId = id;
+    selectedIds = [id];
+    rowById[id].classList.add('row-selected');
+  }
+
+  function extendSelectionTo(id) {
+    if (selectionAnchorId == null || !(selectionAnchorId in slotOf)) { selectSingle(id); return; }
+    clearSelectionVisuals();
+    const lo = Math.min(slotOf[selectionAnchorId], slotOf[id]);
+    const hi = Math.max(slotOf[selectionAnchorId], slotOf[id]);
+    selectedIds = [];
+    for (let i = lo; i <= hi; i++) selectedIds.push(order[i]);
+    selectedIds.forEach(sid => rowById[sid].classList.add('row-selected'));
+  }
+
+  function resetSelection() {
+    clearSelectionVisuals();
+    selectionAnchorId = null;
+    selectedIds = [];
+  }
+
+  function closeEditPanel() {
+    if (editingId) {
+      editBtnById[editingId].classList.remove('active');
+      rowById[editingId].classList.remove('editing');
+    }
+    editingId = null;
+    nodeConnectionsEl.classList.remove('open');
+    mainEl.classList.remove('connections-open');
+    btnToggleList.classList.remove('connections-open');
+    addConnectionRow.hidden = true;
+  }
+
+  function toggleEditTarget(id) {
+    if (editingId === id) closeEditPanel(); else openEditPanel(id);
+  }
+
+  function openEditPanel(id) {
+    if (editingId) {
+      editBtnById[editingId].classList.remove('active');
+      rowById[editingId].classList.remove('editing');
+    }
+    editingId = id;
+    editBtnById[id].classList.add('active');
+    rowById[id].classList.add('editing');
+    // Jump the list itself to that row so it's obvious at a glance which
+    // node the now-open panel belongs to, even if it was scrolled far down.
+    rowById[id].scrollIntoView({ block: 'start', behavior: 'smooth' });
+    addConnectionRow.hidden = true;
+
+    const d = NODE_DATA.find(x => x.id === id);
+    editNameInput.value = d.name;
+    refreshEditAngleField();
+    editSizeInput.value = Math.round(nodeRadius[id] * 10) / 10;
+    editColorSelect.value = SPECIAL_IDS.has(id) ? 'special' : 'normal';
+    editHrefInput.value = d.href || '';
+    renderEditConnections();
+    renderEditTranslations();
+
+    nodeConnectionsEl.classList.add('open');
+    mainEl.classList.add('connections-open');
+    btnToggleList.classList.add('connections-open');
+  }
+
+  function refreshEditAngleField() {
+    if (!editingId) return;
+    const deg = (angleOf(current[editingId]) * 180 / Math.PI + 360) % 360;
+    editAngleInput.value = Math.round(deg * 10) / 10;
+    updateDialPointer(deg);
+  }
+
+  // Angle dial: a plain circle (no fill) with 8 light ticks + degree labels
+  // at every 45°, and a pointer line (no arrowhead) from centre to the
+  // current angle. Ticks/labels are built once here; only the pointer line
+  // moves after that, driven by the same degree value the number field
+  // shows (so the two are always in sync — see refreshEditAngleField above).
+  const DIAL_CX = 60, DIAL_CY = 60, DIAL_POINTER_R = 44;
+
+  function buildAngleDialTicks() {
+    [0, 45, 90, 135, 180, 225, 270, 315].forEach(deg => {
+      const rad = deg * Math.PI / 180;
+      const cos = Math.cos(rad), sin = Math.sin(rad);
+      const tick = document.createElementNS(NS, 'line');
+      tick.setAttribute('class', 'dial-tick');
+      tick.setAttribute('x1', DIAL_CX + 43 * cos);
+      tick.setAttribute('y1', DIAL_CY + 43 * sin);
+      tick.setAttribute('x2', DIAL_CX + 48 * cos);
+      tick.setAttribute('y2', DIAL_CY + 48 * sin);
+      dialTicksEl.appendChild(tick);
+
+      const label = document.createElementNS(NS, 'text');
+      label.setAttribute('class', 'dial-tick-label');
+      label.setAttribute('x', DIAL_CX + 59 * cos);
+      label.setAttribute('y', DIAL_CY + 59 * sin);
+      label.setAttribute('text-anchor', 'middle');
+      label.setAttribute('dy', '0.32em');
+      label.textContent = deg;
+      dialTicksEl.appendChild(label);
+    });
+  }
+  buildAngleDialTicks();
+
+  function updateDialPointer(deg) {
+    const rad = deg * Math.PI / 180;
+    dialPointerEl.setAttribute('x2', DIAL_CX + DIAL_POINTER_R * Math.cos(rad));
+    dialPointerEl.setAttribute('y2', DIAL_CY + DIAL_POINTER_R * Math.sin(rad));
+  }
+
+  // Dragging the dial reuses the exact same swap-cascade + relayout-on-swap
+  // logic as dragging a dot directly on the ring (resolveDragPosition, via
+  // the shared dragId/dragUnwrappedAngle) — the dial is just another way of
+  // aiming that same angle, batched per animation frame like the other two
+  // pointer-drag surfaces in this file (ring dots, list rows) for the same
+  // reason: raw pointermove can outrun paint.
+  let dialDragging = false;
+  let pendingDialEvent = null, dialFrameRequested = false;
+
+  function dialAngleFromEvent(e) {
+    const rect = editAngleDial.getBoundingClientRect();
+    const cx = rect.left + rect.width / 2;
+    const cy = rect.top + rect.height / 2;
+    return Math.atan2(e.clientY - cy, e.clientX - cx);
+  }
+
+  function startDialDrag(e) {
+    if (!editingId) return;
+    e.preventDefault();
+    dialDragging = true;
+    dragId = editingId;
+    dragUnwrappedAngle = unwrapNear(dialAngleFromEvent(e), angleOf(current[editingId]));
+    resolveDragPosition();
+    refreshEditAngleField();
+    editAngleDial.classList.add('dial-dragging');
+    editAngleDial.setPointerCapture(e.pointerId);
+    editAngleDial.addEventListener('pointermove', onDialDragMove);
+    editAngleDial.addEventListener('pointerup', onDialDragEnd);
+    editAngleDial.addEventListener('pointercancel', onDialDragEnd);
+  }
+
+  function onDialDragMove(e) {
+    if (!dialDragging) return;
+    pendingDialEvent = e;
+    if (!dialFrameRequested) {
+      dialFrameRequested = true;
+      requestAnimationFrame(processPendingDialMove);
+    }
+  }
+
+  function processPendingDialMove() {
+    dialFrameRequested = false;
+    const e = pendingDialEvent;
+    pendingDialEvent = null;
+    if (!dialDragging || !e) return;
+    dragUnwrappedAngle = unwrapNear(dialAngleFromEvent(e), dragUnwrappedAngle);
+    resolveDragPosition();
+    refreshEditAngleField();
+  }
+
+  function onDialDragEnd(e) {
+    if (!dialDragging) return;
+    dialDragging = false;
+    pendingDialEvent = null;
+    editAngleDial.classList.remove('dial-dragging');
+    editAngleDial.releasePointerCapture(e.pointerId);
+    editAngleDial.removeEventListener('pointermove', onDialDragMove);
+    editAngleDial.removeEventListener('pointerup', onDialDragEnd);
+    editAngleDial.removeEventListener('pointercancel', onDialDragEnd);
+    dragId = null;
+    pushHistory();
+    syncListToRingOrder();
+  }
+
+  editAngleDial.addEventListener('pointerdown', startDialDrag);
+
+  function renderEditConnections() {
+    const id = editingId;
+    nodeConnectionsItemsEl.innerHTML = '';
+    NODE_DATA.filter(x => adjacency[id].has(x.id)).forEach(x => {
+      const row = document.createElement('div');
+      row.className = 'node-connections-row';
+
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'node-list-item' + (SPECIAL_IDS.has(x.id) ? ' special' : '');
+      btn.textContent = x.name;
+      btn.addEventListener('click', () => locateNode(x.id));
+      row.appendChild(btn);
+
+      const removeBtn = document.createElement('button');
+      removeBtn.type = 'button';
+      removeBtn.className = 'node-connections-remove';
+      removeBtn.textContent = '🗑';
+      removeBtn.setAttribute('aria-label', '取消連線');
+      removeBtn.addEventListener('click', () => removeConnection(id, x.id));
+      row.appendChild(removeBtn);
+
+      nodeConnectionsItemsEl.appendChild(row);
+    });
+    populateAddConnectionSelect();
+  }
+
+  // 主視覺多語系（2026-08-03 新增）：每個語言一個文字輸入框，值來自這個
+  // 節點的 `translations[code]`（沒有就是空字串＝顯示原文）。用 input 事件
+  // 即時寫回，不用另外按確認鈕，跟 editName/editHref 那些欄位的即時寫回
+  // 行為一致。清空欄位會把該語言的 key 從 translations 刪掉（不是留一個
+  // 空字串），保持「沒填＝退回原文」這個判斷邏輯在主網頁那邊單純可靠
+  // （`if (lang && d.translations && d.translations[lang])`，空字串一樣會
+  // 判定為 falsy 沒錯，但刪掉 key 讓資料本身更乾淨，同步出去的內容也不會
+  // 拖著一堆空字串）。
+  const translationItemsEl = document.getElementById('translationItems');
+
+  function renderEditTranslations() {
+    const id = editingId;
+    const d = NODE_DATA.find(x => x.id === id);
+    translationItemsEl.innerHTML = '';
+    if (LANGUAGES.length === 0) {
+      const empty = document.createElement('p');
+      empty.style.cssText = 'font-size:12px; opacity:0.6; margin:0;';
+      empty.textContent = '還沒有任何語言，先到頁首的語言管理新增。';
+      translationItemsEl.appendChild(empty);
+      return;
+    }
+    LANGUAGES.forEach(l => {
+      const field = document.createElement('label');
+      field.className = 'edit-field';
+      const span = document.createElement('span');
+      span.textContent = l.label + '（' + l.code + '）';
+      field.appendChild(span);
+      const input = document.createElement('input');
+      input.type = 'text';
+      input.placeholder = '留空 = 顯示原文「' + d.name + '」';
+      input.value = (d.translations && d.translations[l.code]) || '';
+      input.addEventListener('input', () => {
+        const val = input.value;
+        if (val) {
+          if (!d.translations) d.translations = {};
+          d.translations[l.code] = val;
+        } else if (d.translations) {
+          delete d.translations[l.code];
+        }
+      });
+      field.appendChild(input);
+      translationItemsEl.appendChild(field);
+    });
+  }
+
+  function populateAddConnectionSelect() {
+    const id = editingId;
+    addConnectionSelect.innerHTML = '<option value="">選擇要連線的節點…</option>';
+    NODE_DATA.filter(x => x.id !== id && !adjacency[id].has(x.id)).forEach(x => {
+      const opt = document.createElement('option');
+      opt.value = x.id;
+      opt.textContent = x.name;
+      addConnectionSelect.appendChild(opt);
+    });
+  }
+
+  function renameNode(id, name) {
+    NODE_DATA.find(x => x.id === id).name = name;
+    nodeEls[id].label.textContent = name;
+    listBtnById[id].textContent = name;
+    ensureViewBoxFits(id);
+  }
+
+  function setNodeHref(id, href) {
+    NODE_DATA.find(x => x.id === id).href = href;
+  }
+
+  function setNodeSize(id, newRadius) {
+    newRadius = Math.min(60, Math.max(1, newRadius));
+    nodeRadius[id] = newRadius;
+    scaledRadius[id] = newRadius * DOT_SCALE;
+    nodeEls[id].dot.setAttribute('r', scaledRadius[id]);
+    recomputeSlack();
+    ensureViewBoxFits(id);
+    updateNode(id);
+  }
+
+  function setNodeColor(id, isSpecial) {
+    if (isSpecial) SPECIAL_IDS.add(id); else SPECIAL_IDS.delete(id);
+    nodeEls[id].dot.setAttribute('fill', isSpecial ? 'var(--special)' : 'var(--dot)');
+    nodeEls[id].label.setAttribute('fill', isSpecial ? 'var(--special)' : 'var(--text)');
+    nodeEls[id].label.setAttribute('font-weight', isSpecial ? '700' : '400');
+    listBtnById[id].classList.toggle('special', isSpecial);
+  }
+
+  function addConnection(id, otherId) {
+    if (!otherId || id === otherId || adjacency[id].has(otherId)) return;
+    adjacency[id].add(otherId);
+    adjacency[otherId].add(id);
+    createEdgeElement(id, otherId);
+    updateNode(id);
+    updateNode(otherId);
+    renderEditConnections();
+  }
+
+  function removeConnection(id, otherId) {
+    adjacency[id].delete(otherId);
+    adjacency[otherId].delete(id);
+    const idx = edgeEls.findIndex(rec => (rec.a === id && rec.b === otherId) || (rec.a === otherId && rec.b === id));
+    if (idx === -1) return;
+    const rec = edgeEls[idx];
+    edgeEls.splice(idx, 1);
+    rec.el.remove();
+    edgesByNode[id] = edgesByNode[id].filter(r => r !== rec);
+    edgesByNode[otherId] = edgesByNode[otherId].filter(r => r !== rec);
+    renderEditConnections();
+  }
+
+  editNameInput.addEventListener('input', () => {
+    if (editingId) renameNode(editingId, editNameInput.value);
+  });
+  editAngleInput.addEventListener('change', () => {
+    if (!editingId) return;
+    const deg = parseFloat(editAngleInput.value);
+    if (isNaN(deg)) { refreshEditAngleField(); return; }
+    setNodeAngle(editingId, ((deg % 360) + 360) % 360 * Math.PI / 180);
+  });
+  editSizeInput.addEventListener('change', () => {
+    if (!editingId) return;
+    const val = parseFloat(editSizeInput.value);
+    if (isNaN(val)) { editSizeInput.value = Math.round(nodeRadius[editingId] * 10) / 10; return; }
+    setNodeSize(editingId, val);
+    editSizeInput.value = Math.round(nodeRadius[editingId] * 10) / 10;
+  });
+  editColorSelect.addEventListener('change', () => {
+    if (editingId) setNodeColor(editingId, editColorSelect.value === 'special');
+  });
+  editHrefInput.addEventListener('input', () => {
+    if (editingId) setNodeHref(editingId, editHrefInput.value);
+  });
+  btnAddConnection.addEventListener('click', () => {
+    if (!editingId) return;
+    addConnectionRow.hidden = !addConnectionRow.hidden;
+    if (!addConnectionRow.hidden) populateAddConnectionSelect();
+  });
+  addConnectionSelect.addEventListener('change', () => {
+    if (!editingId) return;
+    const otherId = addConnectionSelect.value;
+    if (otherId) addConnection(editingId, otherId);
+  });
+  // Deleting straight from the edit panel (as opposed to pen mode's own
+  // per-row trash icon) has no dedicated undo trail of its own — pen mode's
+  // deletes are covered by structureHistory, but this panel is only ever
+  // open OUTSIDE structure editing, where the node SET is assumed fixed by
+  // the position-only undo/redo. So this is deliberately immediate and
+  // irreversible, like the name/size/colour/connection edits in this same
+  // panel — confirm() is the only safety net, same reasoning as the
+  // "import from main site" reset.
+  document.getElementById('btnDeleteEditingNode').addEventListener('click', () => {
+    if (!editingId) return;
+    const id = editingId;
+    const name = NODE_DATA.find(x => x.id === id).name;
+    if (!window.confirm('確定要刪除「' + name + '」嗎？此動作無法復原（不在上一步/下一步的復原範圍內）。')) return;
+    if (!deleteNodeImmediate(id)) { showToast('至少要保留一個節點'); return; }
+    history = [clonePositions(current)];
+    historyIndex = 0;
+    updateHistoryButtons();
+    showToast('已刪除「' + name + '」');
+  });
+
+  const nodeListItemsEl = document.getElementById('nodeListItems');
+
+  // Plain padlock silhouette (Material-style "lock" glyph) — same shape
+  // always, only its colour (grey → black, via the .locked class + CSS
+  // `currentColor`) shows the toggle, per the "剪影" request.
+  const LOCK_ICON_SVG = '<svg viewBox="0 0 24 24"><path d="M12 17c1.1 0 2-.9 2-2s-.9-2-2-2-2 .9-2 2 .9 2 2 2zm6-9h-1V6c0-2.76-2.24-5-5-5S7 3.24 7 6v2H6c-1.1 0-2 .9-2 2v10c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V10c0-1.1-.9-2-2-2zM8.9 6c0-1.71 1.39-3.1 3.1-3.1s3.1 1.39 3.1 3.1v2H8.9V6zM18 20H6V10h12v10z"/></svg>';
+
+  function updateLockButton(id) {
+    const locked = lockedIds.has(id);
+    const btn = lockBtnById[id];
+    btn.classList.toggle('locked', locked);
+    btn.setAttribute('aria-label', locked ? '解除鎖定此節點位置' : '鎖定此節點位置');
+    rowById[id] && rowById[id].classList.toggle('row-locked', locked);
+  }
+
+  function toggleNodeLock(id) {
+    if (lockedIds.has(id)) lockedIds.delete(id); else lockedIds.add(id);
+    updateLockButton(id);
+  }
+
+  // Builds one list row: drag handle (reorder, structure-edit mode only) +
+  // name (locate on click) + edit-target triangle + lock button + delete
+  // button (both structure-edit mode only). Shared by initial load, adding
+  // a new node, and rebuilding after a cancelled list-structure edit.
+  function createListRow(d) {
+    const row = document.createElement('div');
+    row.className = 'node-list-row';
+    rowById[d.id] = row;
+
+    const handle = document.createElement('span');
+    handle.className = 'node-list-handle';
+    handle.textContent = '⠿';
+    handle.addEventListener('pointerdown', (e) => startRowDrag(e, d.id));
+    row.appendChild(handle);
+
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'node-list-item' + (SPECIAL_IDS.has(d.id) ? ' special' : '');
+    btn.textContent = d.name;
+    btn.addEventListener('click', (e) => {
+      if (structureEditing && e.shiftKey) extendSelectionTo(d.id);
+      else if (structureEditing) selectSingle(d.id);
+      else locateNode(d.id);
+    });
+    row.appendChild(btn);
+    listBtnById[d.id] = btn;
+
+    const editBtn = document.createElement('button');
+    editBtn.type = 'button';
+    editBtn.className = 'node-list-edit-target';
+    editBtn.textContent = '▸';
+    editBtn.setAttribute('aria-label', '指定編輯此圓點');
+    editBtn.addEventListener('click', () => toggleEditTarget(d.id));
+    row.appendChild(editBtn);
+    editBtnById[d.id] = editBtn;
+
+    const lockBtn = document.createElement('button');
+    lockBtn.type = 'button';
+    lockBtn.className = 'node-list-lock';
+    lockBtn.innerHTML = LOCK_ICON_SVG;
+    lockBtn.addEventListener('click', () => toggleNodeLock(d.id));
+    row.appendChild(lockBtn);
+    lockBtnById[d.id] = lockBtn;
+    updateLockButton(d.id);
+
+    const delBtn = document.createElement('button');
+    delBtn.type = 'button';
+    delBtn.className = 'node-list-delete';
+    delBtn.textContent = '🗑';
+    delBtn.setAttribute('aria-label', '刪除此節點');
+    delBtn.addEventListener('click', () => { if (deleteNodeImmediate(d.id)) pushStructureHistory(); });
+    row.appendChild(delBtn);
+
+    nodeListItemsEl.appendChild(row);
+  }
+
+  NODE_DATA.forEach(d => createListRow(d));
+
+  // Pen-mode list-structure editing: reorder rows (drag), delete nodes,
+  // add nodes. A session-only staging area — Commit just keeps whatever
+  // the list looks like and exits; Cancel tears down and rebuilds the
+  // whole diagram from a snapshot taken the moment edit mode was entered.
+  // Not tied to localStorage (that stays position-only, per the existing
+  // header buttons), so nothing here survives a page reload unless the
+  // resulting positions are separately committed via the header.
+  let structureEditing = false;
+  let structureSnapshot = null;
+  // Step-by-step undo/redo WITHIN a pen-mode session (add/delete/reorder),
+  // separate from the header's position-only history (which stays disabled
+  // the whole time structureEditing is true). structureHistory[0] is always
+  // the entry snapshot — same one Cancel restores to.
+  let structureHistory = [];
+  let structureHistoryIndex = 0;
+
+  function generateNodeId() {
+    let maxNum = 0;
+    NODE_DATA.forEach(d => {
+      const m = /^r(\d+)$/.exec(d.id);
+      if (m) maxNum = Math.max(maxNum, parseInt(m[1], 10));
+    });
+    return 'r' + (maxNum + 1);
+  }
+
+  // Re-anchors the WHOLE ring evenly around `anchorId` (kept in place) —
+  // same relayoutRing() a drag uses, so a node count change closes/expands
+  // gaps smoothly instead of leaving a hole or a cramped seam, and any
+  // locked node elsewhere stays exactly put too.
+  function relayoutAroundAnchor(anchorId) {
+    relayoutRing(anchorId);
+    updateNode(anchorId);
+  }
+
+  function deleteNodeImmediate(id) {
+    if (n <= 1) return false;
+    if (editingId === id) closeEditPanel();
+    if (selectedIds.includes(id)) resetSelection();
+
+    edgesByNode[id].slice().forEach(rec => {
+      const other = rec.a === id ? rec.b : rec.a;
+      adjacency[id].delete(other);
+      adjacency[other].delete(id);
+      const idx = edgeEls.indexOf(rec);
+      if (idx !== -1) edgeEls.splice(idx, 1);
+      edgesByNode[other] = edgesByNode[other].filter(r => r !== rec);
+      rec.el.remove();
+    });
+    delete edgesByNode[id];
+    delete adjacency[id];
+
+    const k = slotOf[id];
+    order.splice(k, 1);
+    delete slotOf[id];
+    order.forEach((oid, i) => { slotOf[oid] = i; });
+    n--;
+
+    nodeEls[id].g.remove();
+    delete nodeEls[id];
+    rowById[id].remove();
+    delete rowById[id];
+    delete listBtnById[id];
+    delete editBtnById[id];
+    delete lockBtnById[id];
+    delete nodeRadius[id];
+    delete scaledRadius[id];
+    delete current[id];
+    SPECIAL_IDS.delete(id);
+    lockedIds.delete(id);
+    NODE_DATA.splice(NODE_DATA.findIndex(x => x.id === id), 1);
+
+    recomputeSlack();
+    if (n > 0) relayoutAroundAnchor(order[0]);
+    return true;
+  }
+
+  function createNewNode() {
+    const id = generateNodeId();
+    const d = { id, name: '新節點', href: '' };
+    NODE_DATA.push(d);
+    n++;
+    nodeRadius[id] = R_MIN;
+    scaledRadius[id] = R_MIN * DOT_SCALE;
+    adjacency[id] = new Set();
+    edgesByNode[id] = [];
+
+    // Insert right after the current last node in ring order, next to it,
+    // then let the anchor-relayout spread everyone out to make room.
+    const prevId = order[n - 2];
+    order[n - 1] = id;
+    slotOf[id] = n - 1;
+    current[id] = prevId ? { x: current[prevId].x, y: current[prevId].y } : ringPositionAtAngle(0);
+
+    recomputeSlack();
+    createNodeElements(d);
+    createListRow(d);
+    ensureViewBoxFits(id);
+    relayoutAroundAnchor(prevId || id);
+    return id;
+  }
+
+  function snapshotStructure() {
+    return {
+      nodes: NODE_DATA.map(d => ({
+        id: d.id, name: d.name, href: d.href,
+        // mobileName／translations 原本沒有被存進結構快照，代表「新增/刪除
+        // 節點、或是在 pen mode 拖曳重新排序」之後按 Undo/Redo，會把這兩個
+        // 欄位整批清空——2026-08-03 修正，跟這次加入的翻譯功能是同一個
+        // 資料完整性問題，一起修（見 rebuildFromSnapshot() 對應那半）。
+        mobileName: d.mobileName,
+        translations: d.translations,
+        radius: nodeRadius[d.id],
+        special: SPECIAL_IDS.has(d.id),
+        x: current[d.id].x, y: current[d.id].y
+      })),
+      edges: edgeEls.map(rec => [rec.a, rec.b])
+    };
+  }
+
+  function teardownAllNodes() {
+    edgeEls.forEach(rec => rec.el.remove());
+    edgeEls.length = 0;
+    NODE_DATA.forEach(d => {
+      nodeEls[d.id].g.remove();
+      rowById[d.id].remove();
+    });
+    NODE_DATA.length = 0;
+    [nodeEls, edgesByNode, adjacency, current, nodeRadius, scaledRadius, listBtnById, editBtnById, lockBtnById, rowById, slotOf]
+      .forEach(map => Object.keys(map).forEach(k => delete map[k]));
+    SPECIAL_IDS.clear();
+    order.length = 0;
+    n = 0;
+  }
+
+  function rebuildFromSnapshot(snap) {
+    snap.nodes.forEach(nd => {
+      const node = { id: nd.id, name: nd.name, href: nd.href };
+      if (nd.mobileName) node.mobileName = nd.mobileName;
+      if (nd.translations) node.translations = nd.translations;
+      NODE_DATA.push(node);
+      nodeRadius[nd.id] = nd.radius;
+      scaledRadius[nd.id] = nd.radius * DOT_SCALE;
+      if (nd.special) SPECIAL_IDS.add(nd.id);
+      current[nd.id] = { x: nd.x, y: nd.y };
+      adjacency[nd.id] = new Set();
+      edgesByNode[nd.id] = [];
+      n++;
+    });
+    snap.edges.forEach(([a, b]) => {
+      adjacency[a].add(b);
+      adjacency[b].add(a);
+      createEdgeElement(a, b);
+    });
+    NODE_DATA.forEach(d => createNodeElements(d));
+    NODE_DATA.forEach(d => createListRow(d));
+    recomputeSlack();
+    rebuildOrderFromCurrent();
+    renderAll();
+  }
+
+  function restoreFromStructureSnapshot(snap) {
+    teardownAllNodes();
+    rebuildFromSnapshot(snap);
+    // Locks aren't part of the snapshot (they're a pure editing aid, not
+    // structural data) — but an id that no longer exists after this restore
+    // (e.g. undoing an "add node") must drop its lock entry too, or a later
+    // generateNodeId() reusing that same id would silently come back locked.
+    const keep = new Set(snap.nodes.map(nd => nd.id));
+    Array.from(lockedIds).forEach(id => { if (!keep.has(id)) lockedIds.delete(id); });
+    // Selection state is even more transient than locks — row identity
+    // across an undo/redo/cancel isn't guaranteed meaningful, so it's
+    // simplest and safest to just drop it.
+    selectionAnchorId = null;
+    selectedIds = [];
+  }
+
+  // Records one completed structural step (add / delete / a finished
+  // reorder drag) so the pen-mode toolbar's ↶/↷ buttons can step through
+  // them without leaving structure-editing mode — distinct from Cancel,
+  // which always jumps straight back to structureHistory[0] and exits.
+  function pushStructureHistory() {
+    structureHistory = structureHistory.slice(0, structureHistoryIndex + 1);
+    structureHistory.push(snapshotStructure());
+    structureHistoryIndex = structureHistory.length - 1;
+    updateStructureHistoryButtons();
+  }
+
+  function undoStructure() {
+    if (structureHistoryIndex <= 0) return;
+    structureHistoryIndex--;
+    restoreFromStructureSnapshot(structureHistory[structureHistoryIndex]);
+    updateStructureHistoryButtons();
+  }
+
+  function redoStructure() {
+    if (structureHistoryIndex >= structureHistory.length - 1) return;
+    structureHistoryIndex++;
+    restoreFromStructureSnapshot(structureHistory[structureHistoryIndex]);
+    updateStructureHistoryButtons();
+  }
+
+  function updateStructureHistoryButtons() {
+    btnListUndo.disabled = structureHistoryIndex <= 0;
+    btnListRedo.disabled = structureHistoryIndex >= structureHistory.length - 1;
+  }
+
+  // Re-appends every row in the ring's actual angular sequence (order[]),
+  // and reorders NODE_DATA to match, so the list is never left showing a
+  // stale sequence next to a ring that's since been dragged around.
+  function syncListToRingOrder() {
+    const byId = {};
+    NODE_DATA.forEach(d => { byId[d.id] = d; });
+    NODE_DATA.length = 0;
+    order.forEach(id => NODE_DATA.push(byId[id]));
+    order.forEach(id => nodeListItemsEl.appendChild(rowById[id]));
+  }
+
+  // Pure exchange of exactly two nodes' ring positions — no relayout, no
+  // effect on any other node. The list is only a sequence, so a list-driven
+  // reorder must be exactly that: two entries trade places, spacing
+  // between every OTHER point stays byte-for-byte unchanged. (The main
+  // canvas drag deliberately does the opposite — full-ring relayout on
+  // every swap — but that's a different, already-requested behaviour for
+  // dragging directly on the ring; list-row dragging is not that.)
+  function swapRingNodes(idA, idB) {
+    const posA = current[idA];
+    current[idA] = current[idB];
+    current[idB] = posA;
+    const slotA = slotOf[idA], slotB = slotOf[idB];
+    order[slotA] = idB;
+    order[slotB] = idA;
+    slotOf[idA] = slotB;
+    slotOf[idB] = slotA;
+    updateNode(idA);
+    updateNode(idB);
+  }
+
+  // Locked-neighbour variant of the swap above: `lockedId` keeps its exact
+  // (x,y) — never reassigned — while `dragId` hops past it, landing at the
+  // minimum real gap beyond the locked node's fixed angle, on whichever
+  // side it approached from. Only the two slots trade places in order[]/
+  // slotOf (dragId's index moves past lockedId's), same bookkeeping as a
+  // normal swap, but only dragId's own coordinate actually changes — so a
+  // locked node is a hole the drag can pass through without ever having to
+  // move itself, letting the cascade keep going to reach further neighbours.
+  function passLockedNode(dragId, lockedId, dir) {
+    const lockedAngle = angleOf(current[lockedId]);
+    const gap = edgeGap(dragId, lockedId) + TIE_BREAK_MARGIN;
+    current[dragId] = ringPositionAtAngle(dir > 0 ? lockedAngle + gap : lockedAngle - gap);
+    const kDrag = slotOf[dragId], kLocked = slotOf[lockedId];
+    order[kDrag] = lockedId; slotOf[lockedId] = kDrag;
+    order[kLocked] = dragId; slotOf[dragId] = kLocked;
+    updateNode(dragId);
+  }
+
+  // Redistributes spacing around the WHOLE ring after any swap, in either
+  // editing mode — a swap (plain, or hopping past a lock) leaves one gap
+  // squeezed and another oversized, since only the two participants' own
+  // coordinates were touched. This evens it back out: every node that isn't
+  // pinned gets redistributed within whichever arc it falls in between two
+  // pins, same "share the leftover slack evenly" idea the default layout
+  // itself uses. Pins are every locked node PLUS `anchorId` if given (the
+  // one live thing this call must not move — the dot under the pointer
+  // during a canvas drag, or whichever row a list-drag just placed) — with
+  // no locks at all, anchorId is the sole pin and this reduces to a single
+  // arc running all the way around back to it, i.e. relayoutAll(). (A
+  // locked node's own neighbouring gap is intentionally left as whatever
+  // the swap/pass left it at — the dedicated "reset spacing" header button
+  // is what fully re-evens the ring including locked nodes, on demand.)
+  function relayoutRing(anchorId) {
+    const pinIds = new Set(lockedIds);
+    if (anchorId != null) pinIds.add(anchorId);
+    const pinSlots = [];
+    for (let i = 0; i < n; i++) if (pinIds.has(order[i])) pinSlots.push(i);
+    if (pinSlots.length === 0) return;
+
+    const m = pinSlots.length;
+    for (let a = 0; a < m; a++) {
+      const startSlot = pinSlots[a];
+      const endSlot = pinSlots[(a + 1) % m];
+      const startId = order[startSlot];
+      const endId = order[endSlot];
+
+      const freeIds = [];
+      for (let k = (startSlot + 1) % n; k !== endSlot; k = (k + 1) % n) {
+        freeIds.push(order[k]);
+      }
+      if (freeIds.length === 0) continue;
+
+      // The arc's span comes ONLY from its two pin endpoints — both always-
+      // correct, never-drifting reference points — never from unwrapping
+      // through the free nodes' own current positions. This call runs on
+      // every frame of a live canvas drag now (not just swap crossings), so
+      // the free nodes' stored positions are themselves about to be
+      // overwritten by THIS call — chaining unwrapNear() through them let
+      // each frame's tiny rounding/relayout differences compound over
+      // hundreds of frames until one node's wound-angle guess flipped to
+      // the wrong lap, corrupting arcSlackPerGap (even negative) and
+      // cascading into runaway swapping. Two pins and plain mod-2π
+      // arithmetic have no such history to drift.
+      const startAngle = angleOf(current[startId]);
+      const chain = [startId].concat(freeIds, [endId]);
+      let minGapSum = 0;
+      for (let i = 0; i < chain.length - 1; i++) minGapSum += edgeGap(chain[i], chain[i + 1]);
+
+      let totalArcSpan;
+      if (startSlot === endSlot) {
+        totalArcSpan = 2 * Math.PI;
+      } else {
+        totalArcSpan = ((angleOf(current[endId]) - startAngle) % (2 * Math.PI) + 2 * Math.PI) % (2 * Math.PI);
+        // The live drag anchor's raw angle can end up numerically on
+        // EITHER side of a pin it's approaching, for a frame or two right
+        // at the boundary, before order[] actually reflects a swap past
+        // it (see resolveDragPosition's own TIE_BREAK_MARGIN window) — a
+        // plain "shortest forward" mod pick can then choose completely the
+        // wrong lap (a near-zero span for an arc that topologically has to
+        // cross most of the ring through every free node in `chain`).
+        // That's geometrically impossible — freeIds all need their own
+        // real minimum gap — so if the naive span can't even fit them,
+        // it's the wrong branch: the true one is one lap further out.
+        if (totalArcSpan < minGapSum) totalArcSpan += 2 * Math.PI;
+      }
+
+      const arcSlackPerGap = (totalArcSpan - minGapSum) / (chain.length - 1);
+
+      let angle = startAngle;
+      let prevId = startId;
+      freeIds.forEach(id => {
+        angle += edgeGap(prevId, id) + arcSlackPerGap;
+        current[id] = ringPositionAtAngle(angle);
+        updateNode(id);
+        prevId = id;
+      });
+    }
+  }
+
+  // "重新整理間距" header button: fully re-evens the WHOLE ring — every gap
+  // becomes its real edge-to-edge minimum plus an equal share of the
+  // leftover slack, the same formula the default layout itself uses —
+  // fixing any accumulated unevenness or overlap. Nothing gets reordered,
+  // only respaced. A currently-locked node would normally anchor an arc
+  // and block a true ring-wide even-out (everyone else could only spread
+  // evenly *around* it), so every lock is temporarily freed to take part
+  // too. They're then re-locked at their new spot.
+  function resetAllSpacing() {
+    recomputeSlack();
+    const wasLocked = Array.from(lockedIds);
+
+    // This ring's own gap layout, accumulated forward from order[0] at
+    // angle 0 — fixed by order[] and each node's real radius alone; the
+    // whole target layout is just "start at θ" for whichever θ we pick.
+    const cumOffset = [0];
+    for (let i = 1; i < n; i++) {
+      cumOffset[i] = cumOffset[i - 1] + edgeGap(order[i - 1], order[i]) + SLACK_PER_GAP;
+    }
+
+    // With no locks at all, minimize disruption to the WHOLE ring instead
+    // (still a meaningful choice, not an arbitrary one) rather than the
+    // (empty) locked set.
+    const reference = wasLocked.length > 0 ? wasLocked : order;
+
+    // Each reference point's own "zero-displacement" rotation — the θ that
+    // would leave that one point exactly where its centre already is.
+    const impliedThetas = reference.map(id => angleOf(current[id]) - cumOffset[slotOf[id]]);
+
+    // Averaging these via their SHORTEST signed offset from one reference
+    // point (not a raw vector sum) is what makes each point move by its
+    // own shortest distance, in its own natural direction: e.g. with two
+    // reference points, θ lands exactly at the midpoint of their shortest
+    // arc, so whichever one's centre is left of that midpoint shifts left
+    // and whichever is to the right shifts right, by equal amounts. A raw
+    // vector-sum mean can go unstable for near-opposite points (their
+    // vectors nearly cancel, leaving an almost arbitrary direction) —
+    // shortest-signed-offset averaging never has that failure mode.
+    const refTheta = impliedThetas[0];
+    let sumOffset = 0;
+    impliedThetas.forEach(t => {
+      let diff = (t - refTheta) % (2 * Math.PI);
+      if (diff > Math.PI) diff -= 2 * Math.PI;
+      if (diff < -Math.PI) diff += 2 * Math.PI;
+      sumOffset += diff;
+    });
+    const theta = refTheta + sumOffset / impliedThetas.length;
+
+    lockedIds.clear();
+    for (let i = 0; i < n; i++) {
+      current[order[i]] = ringPositionAtAngle(theta + cumOffset[i]);
+      updateNode(order[i]);
+    }
+    wasLocked.forEach(id => lockedIds.add(id));
+  }
+
+  // Drag-to-reorder rows (structure-edit mode only) — dragging a row down
+  // past another swaps them on the ring too (down = clockwise, matching
+  // ringPositionAtAngle's convention), via the pure swap above. Nothing
+  // about the ring changes until a swap actually fires; moving the mouse
+  // without crossing a row's midline does nothing to the ring at all.
+  let rowDragId = null;
+  let pendingRowEvent = null, rowFrameRequested = false;
+  // The trigger is each dragged row's own midline, not the raw cursor —
+  // tracked as "row's original midline + how far the cursor has moved
+  // since grab", not "row's original midline + absolute cursor position".
+  // Comparing raw cursor Y directly against target rows' midlines was the
+  // over-sensitive version: it ignored where within the row you'd grabbed
+  // it, so the effective trigger point drifted with the grab point instead
+  // of tracking the row's actual rendered position.
+  let rowDragStartClientY = 0, rowDragStartMidY = 0;
+  // Tracks whether ANY swap happened over the whole drag (not just the
+  // current frame), so onRowDragEnd can record a single structure-history
+  // step for the drag as a whole instead of one per frame.
+  let rowDragSwapped = false;
+  // The full set of rows moving together this drag: just [rowDragId] for
+  // an ordinary drag, or the whole contiguous multi-selection if the
+  // grabbed row is part of one (see selectSingle/extendSelectionTo). Each
+  // member's own natural midline at grab time is recorded too, so every
+  // member is tracked the exact same way rowDragId alone always was —
+  // own start position + the one shared cursor delta — which is what keeps
+  // the group moving as a single rigid block instead of just rowDragId.
+  let rowDragBlockIds = [];
+  let rowDragBlockStartMidY = {};
+
+  // Listeners go on `document`, not the row itself with setPointerCapture —
+  // syncListToRingOrder() re-appends every row (including whichever one is
+  // mid-drag) on each move, and per the DOM spec appendChild on a node
+  // already in the tree removes-then-reinserts it, which silently releases
+  // element-held pointer capture. document is never removed, so it isn't
+  // affected, and the drag reliably ends when the pointer is actually
+  // released instead of continuing to track the cursor afterward.
+  function startRowDrag(e, id) {
+    if (!structureEditing) return;
+    if (lockedIds.has(id)) return;
+    e.preventDefault();
+    rowDragId = id;
+    rowDragSwapped = false;
+    rowDragStartClientY = e.clientY;
+    rowDragBlockIds = selectedIds.includes(id) ? selectedIds.slice() : [id];
+    rowDragBlockStartMidY = {};
+    rowDragBlockIds.forEach(bid => {
+      const r = rowById[bid];
+      r.style.transform = '';
+      const rect = r.getBoundingClientRect();
+      rowDragBlockStartMidY[bid] = rect.top + rect.height / 2;
+    });
+    rowDragStartMidY = rowDragBlockStartMidY[id];
+    rowById[id].classList.add('row-dragging');
+    document.addEventListener('pointermove', onRowDragMove);
+    document.addEventListener('pointerup', onRowDragEnd);
+    document.addEventListener('pointercancel', onRowDragEnd);
+  }
+
+  function onRowDragMove(e) {
+    if (!rowDragId) return;
+    pendingRowEvent = e;
+    if (!rowFrameRequested) {
+      rowFrameRequested = true;
+      requestAnimationFrame(processPendingRowMove);
+    }
+  }
+
+  // Whichever block member currently sits furthest in direction `dir`
+  // (dir>0: largest slot / bottom edge, dir<0: smallest slot / top edge).
+  // Re-derived fresh every call (never cached) since a member's slot can
+  // change mid-cascade as the block bubbles past external rows.
+  function rowDragBlockEdge(dir) {
+    let best = rowDragBlockIds[0], bestSlot = slotOf[best];
+    rowDragBlockIds.forEach(id => {
+      const s = slotOf[id];
+      if (dir > 0 ? s > bestSlot : s < bestSlot) { bestSlot = s; best = id; }
+    });
+    return best;
+  }
+
+  // Bubbles one external row (just outside the block) through the whole
+  // block, one adjacent swap/pass at a time, nearest member first —
+  // composing a block-move entirely out of the same pairwise primitive a
+  // plain single-row drag uses. E.g. dragging block [A,B,C] down past D is
+  // swap(D,C) then swap(D,B) then swap(D,A), landing on D,A,B,C exactly —
+  // each step already individually correct on its own, including a locked
+  // member in the middle of the block (that step becomes a pass instead of
+  // a swap, same as it would for a single locked neighbour).
+  function bubbleExternalThroughBlock(extId, blockDir) {
+    const extDir = -blockDir; // extId moves opposite the block's own drag direction
+    const ordered = rowDragBlockIds.slice().sort((a, b) =>
+      blockDir > 0 ? slotOf[b] - slotOf[a] : slotOf[a] - slotOf[b]
+    );
+    ordered.forEach(memberId => {
+      if (lockedIds.has(memberId)) passLockedNode(extId, memberId, extDir);
+      else swapRingNodes(extId, memberId);
+    });
+  }
+
+  function processPendingRowMove() {
+    rowFrameRequested = false;
+    const e = pendingRowEvent;
+    pendingRowEvent = null;
+    if (!rowDragId || !e) return;
+
+    const cursorDelta = e.clientY - rowDragStartClientY;
+    let swapped = false;
+
+    // order[] is the RING's own indexing and IS circular (order[n-1]'s
+    // "next" is legitimately order[0] going around the circle) — but the
+    // LIST is a linear, top-to-bottom sequence, not a loop. Using order[]'s
+    // %n wraparound here treated the top row's "previous" as the bottom
+    // row (and the bottom row's "next" as the top row), so grabbing the
+    // very top row immediately found a "previous" neighbour clear at the
+    // bottom and cascaded a swap-chain the whole way there. The bounds
+    // below (k+1>=n / k-1<0 → no such neighbour, stop) are what make the
+    // list's own top/bottom actual dead ends, independent of whichever
+    // ids currently happen to occupy those two positions — checked here
+    // against the block's own leading edge in each direction, not just
+    // rowDragId, so a multi-row block respects the same dead ends.
+    for (let guard = 0; guard < n; guard++) {
+      const bottomId = rowDragBlockEdge(1);
+      const k = slotOf[bottomId];
+      if (k + 1 >= n) break;
+      const nextId = order[k + 1];
+      const rect = rowById[nextId].getBoundingClientRect();
+      if (rowDragBlockStartMidY[bottomId] + cursorDelta < rect.top + rect.height / 2) break;
+      bubbleExternalThroughBlock(nextId, 1);
+      swapped = true;
+    }
+    for (let guard = 0; guard < n; guard++) {
+      const topId = rowDragBlockEdge(-1);
+      const k = slotOf[topId];
+      if (k - 1 < 0) break;
+      const prevId = order[k - 1];
+      const rect = rowById[prevId].getBoundingClientRect();
+      if (rowDragBlockStartMidY[topId] + cursorDelta >= rect.top + rect.height / 2) break;
+      bubbleExternalThroughBlock(prevId, -1);
+      swapped = true;
+    }
+
+    // Any swap re-evens spacing around the whole ring (rowDragId is the
+    // pin — everything else redistributes around it, or around it and
+    // whichever nodes are locked, if any) — regardless of editing mode,
+    // any reorder keeps every point's spacing adjusted.
+    if (swapped) { relayoutRing(rowDragId); syncListToRingOrder(); rowDragSwapped = true; }
+
+    // Every dragged row (the whole block, not just rowDragId) tracks the
+    // cursor continuously as a rigid group — each one offset from wherever
+    // IT naturally landed, using the one shared cursor delta, so a swap
+    // that shifts the block's DOM position doesn't break the group's
+    // visual cohesion. Transforms are cleared before measuring, same
+    // reason as the single-row version: getBoundingClientRect() reports
+    // the painted (transformed) position, so last frame's offset would
+    // otherwise contaminate this frame's "natural" reading.
+    rowDragBlockIds.forEach(bid => { rowById[bid].style.transform = ''; });
+    rowDragBlockIds.forEach(bid => {
+      const row = rowById[bid];
+      const naturalRect = row.getBoundingClientRect();
+      const naturalMid = naturalRect.top + naturalRect.height / 2;
+      const trackedMid = rowDragBlockStartMidY[bid] + cursorDelta;
+      row.style.transform = 'translateY(' + (trackedMid - naturalMid) + 'px)';
+    });
+  }
+
+  function onRowDragEnd() {
+    if (!rowDragId) return;
+    rowDragBlockIds.forEach(bid => {
+      const row = rowById[bid];
+      row.classList.remove('row-dragging');
+      row.style.transform = '';
+    });
+    document.removeEventListener('pointermove', onRowDragMove);
+    document.removeEventListener('pointerup', onRowDragEnd);
+    document.removeEventListener('pointercancel', onRowDragEnd);
+    rowDragId = null;
+    rowDragBlockIds = [];
+    rowDragBlockStartMidY = {};
+    pendingRowEvent = null;
+    pushHistory();
+    if (rowDragSwapped) pushStructureHistory();
+  }
+
+  const btnPenMode = document.getElementById('btnPenMode');
+  const nodeListHeadView = document.getElementById('nodeListHeadView');
+  const nodeListHeadEdit = document.getElementById('nodeListHeadEdit');
+  const nodeListAddRow = document.getElementById('nodeListAddRow');
+  const btnAddNode = document.getElementById('btnAddNode');
+  const btnListCancel = document.getElementById('btnListCancel');
+  const btnListCommit = document.getElementById('btnListCommit');
+  const btnListUndo = document.getElementById('btnListUndo');
+  const btnListRedo = document.getElementById('btnListRedo');
+
+  function enterStructureEditing() {
+    if (!listOpen || structureEditing) return;
+    closeEditPanel();
+    // The list may be showing a stale sequence if dots were dragged around
+    // on the ring since the last sync — always start pen mode from the
+    // ring's actual current order.
+    syncListToRingOrder();
+    structureSnapshot = snapshotStructure();
+    structureHistory = [structureSnapshot];
+    structureHistoryIndex = 0;
+    resetSelection();
+    structureEditing = true;
+    nodeListEl.classList.add('structure-editing');
+    nodeListHeadView.hidden = true;
+    nodeListHeadEdit.hidden = false;
+    nodeListAddRow.hidden = false;
+    document.getElementById('btnCommit').disabled = true;
+    document.getElementById('btnCancel').disabled = true;
+    btnToggleList.disabled = true;
+    updateHistoryButtons();
+    updateStructureHistoryButtons();
+  }
+
+  function exitStructureEditing() {
+    structureEditing = false;
+    structureSnapshot = null;
+    structureHistory = [];
+    structureHistoryIndex = 0;
+    resetSelection();
+    nodeListEl.classList.remove('structure-editing');
+    nodeListHeadView.hidden = false;
+    nodeListHeadEdit.hidden = true;
+    nodeListAddRow.hidden = true;
+    document.getElementById('btnCommit').disabled = false;
+    document.getElementById('btnCancel').disabled = false;
+    btnToggleList.disabled = false;
+    // The node set may have changed — old position history could reference
+    // ids that no longer exist (or miss ones just added), so it's reset to
+    // a single fresh snapshot of wherever things ended up.
+    history = [clonePositions(current)];
+    historyIndex = 0;
+    updateHistoryButtons();
+  }
+
+  btnPenMode.addEventListener('click', enterStructureEditing);
+  btnAddNode.addEventListener('click', () => { createNewNode(); pushStructureHistory(); });
+  btnListUndo.addEventListener('click', undoStructure);
+  btnListRedo.addEventListener('click', redoStructure);
+  btnListCommit.addEventListener('click', () => {
+    exitStructureEditing();
+    showToast('已套用節點清單的變更');
+  });
+  btnListCancel.addEventListener('click', () => {
+    restoreFromStructureSnapshot(structureSnapshot);
+    exitStructureEditing();
+    showToast('已還原節點清單的變更');
+  });
+
+  updateHistoryButtons();
+})();
+</script>
+</body>
+</html>
