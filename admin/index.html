@@ -503,7 +503,7 @@ function reorderPhotos(ed, basePath, from, to){
 const state = {
   user: null,
   users: null, // [{id, email, created_at, last_sign_in_at, invited}]
-  tab: "cases", // cases | site | subpages | users
+  tab: "cases", // cases | site | subpages | homepage | users
   cases: null, // [{slug, title, ledeMeta, tag, hero}]
   editingCase: null, // { slug, item, sha, isNew, pendingUploads }
   siteMeta: [
@@ -516,6 +516,14 @@ const state = {
   editingSite: null, // { meta, item, sha, pendingUploads }
   subpages: null, // [{slug, title}]
   editingSubpage: null, // { slug, item, sha, isNew, pendingUploads }
+  // 主網頁（圓點編輯器）：homepageNodes 是整份 content/site/homepage-nodes.json
+  // 讀進來的內容（{ languages, nodeData, edgeData, sha }），節點清單/搜尋都
+  // 從這裡算；editingHomepageNode 是「目前正在編輯哪一個節點」，item 對既有
+  // 節點是 homepageNodes.nodeData 裡那個物件的直接參照（跟案例/子頁面編輯器
+  // 同一個模式），改欄位就是直接改到源頭，存檔時把整份 homepageNodes 寫回去。
+  homepageNodes: null,
+  editingHomepageNode: null, // { item, index, isNew }
+  homepageNodeSearch: "",
 };
 
 // 子頁面（原型教學／原型原點／原型結構／原型獲獎／原型方法）實際部署在
@@ -604,6 +612,7 @@ function render(){
   if(state.editingCase){ renderCaseEditor(); return; }
   if(state.editingSite){ renderSiteEditor(); return; }
   if(state.editingSubpage){ renderSubpageEditor(); return; }
+  if(state.editingHomepageNode){ renderHomepageNodeEditor(); return; }
   renderList();
 }
 
@@ -717,6 +726,7 @@ function renderList(){
         <button data-tab="cases" class="${state.tab === "cases" ? "active" : ""}">建築案例</button>
         <button data-tab="site" class="${state.tab === "site" ? "active" : ""}">主網站內容</button>
         <button data-tab="subpages" class="${state.tab === "subpages" ? "active" : ""}">子頁面</button>
+        <button data-tab="homepage" class="${state.tab === "homepage" ? "active" : ""}">主網頁</button>
         <button data-tab="users" class="${state.tab === "users" ? "active" : ""}">使用者管理</button>
       </div>
       <div id="tabContent"></div>
@@ -734,6 +744,7 @@ function renderTabContent(){
   if(state.tab === "cases"){ el.innerHTML = casesListHtml(); bindListEvents(); return; }
   if(state.tab === "users"){ el.innerHTML = usersListHtml(); bindUsersEvents(); return; }
   if(state.tab === "subpages"){ el.innerHTML = subpagesListHtml(); bindListEvents(); return; }
+  if(state.tab === "homepage"){ el.innerHTML = homepageNodesListHtml(); bindHomepageNodesEvents(); return; }
   el.innerHTML = siteListHtml();
   bindListEvents();
 }
@@ -1197,6 +1208,7 @@ function rerenderCurrentEditor(){
   if(state.editingCase) renderCaseEditor();
   else if(state.editingSite) renderSiteEditor();
   else if(state.editingSubpage) renderSubpageEditor();
+  else if(state.editingHomepageNode) renderHomepageNodeEditor();
 }
 
 /* ============================================================
@@ -3712,6 +3724,328 @@ async function saveSiteEditor(ed){
     toast("已發布，主網站幾分鐘內會更新");
   }catch(err){
     toast("儲存失敗：" + err.message, true);
+  }finally{
+    setLoading(false);
+  }
+}
+
+/* ============================================================
+   主網頁（圓點編輯器）：編輯 asstudiowebsite 首頁（index.html／
+   建築事務所首頁.dc.html 這兩個檔案共用同一套 nodeData／edgeData／
+   languages）的節點跟連線，存進 content/site/homepage-nodes.json。
+
+   ⚠️ 這兩個檔案目前還是把節點資料整份寫死在自己的原始碼裡，不像 4 個
+   子頁面已經改成向 Internal-Pages 抓 JSON——這裡先做到「資料可以在
+   後台編輯、存成一份乾淨的 JSON」，還沒有做到「asstudiowebsite 首頁
+   自動讀這份 JSON」那一步（那需要另外改 index.html／建築事務所首頁.
+   dc.html 這兩個檔案的程式碼，比照子頁面的做法），也就還沒辦法做到
+   「開編輯器/發布時自動同步 asstudiowebsite」。
+   ============================================================ */
+async function loadHomepageNodes(){
+  const { json, sha } = await ghGetFile("content/site/homepage-nodes.json");
+  state.homepageNodes = { languages: json.languages || [], nodeData: json.nodeData || [], edgeData: json.edgeData || [], sha };
+}
+
+function nodeConnectionCount(id){
+  return state.homepageNodes.edgeData.filter(([a, b]) => a === id || b === id).length;
+}
+
+function homepageNodesListHtml(){
+  if(!state.homepageNodes) return `<div class="empty-note">載入中…</div>`;
+  const q = (state.homepageNodeSearch || "").trim().toLowerCase();
+  const all = state.homepageNodes.nodeData;
+  const filtered = q
+    ? all.filter((n) => (n.name || "").toLowerCase().includes(q) || (n.mobileName || "").toLowerCase().includes(q) || (n.id || "").toLowerCase().includes(q))
+    : all;
+  const cards = filtered.map((n) => {
+    const i = all.indexOf(n);
+    return `
+    <div class="item-card" data-edit-node="${i}">
+      <div class="thumb empty" style="background:#201f1d;color:#fff;">${esc((n.name || n.id).slice(0,2))}</div>
+      <div class="info">
+        <div class="t">${esc(n.name || "（未命名）")}</div>
+        <div class="m">${esc(n.id)}・連到 ${nodeConnectionCount(n.id)} 個節點</div>
+      </div>
+    </div>
+  `;
+  }).join("");
+  return `
+    <div class="field-block" style="max-width:420px;">
+      <input type="text" id="homepageNodeSearchInput" placeholder="搜尋節點名稱／網址代號…" value="${esc(state.homepageNodeSearch || "")}">
+    </div>
+    <div class="field-hint" style="margin-bottom:14px;">共 ${all.length} 個節點${q ? `，符合搜尋 ${filtered.length} 個` : ""}。節點在首頁上的排列位置、大小是程式自動依連線數量算出來的，這裡只編輯內容跟連線關係，不是拖曳版面位置。</div>
+    <div class="item-grid">${cards}${addCardHtml("新增節點", "data-add-node")}</div>
+  `;
+}
+
+function bindHomepageNodesEvents(){
+  if(state.homepageNodes == null){
+    loadHomepageNodes().then(renderTabContent).catch((err) => toast(err.message || "載入主網頁節點失敗", true));
+    return;
+  }
+  const el = document.getElementById("tabContent");
+  const searchInput = document.getElementById("homepageNodeSearchInput");
+  if(searchInput){
+    searchInput.addEventListener("input", () => {
+      state.homepageNodeSearch = searchInput.value;
+      const cursor = searchInput.selectionStart;
+      el.innerHTML = homepageNodesListHtml();
+      bindHomepageNodesEvents();
+      const restored = document.getElementById("homepageNodeSearchInput");
+      if(restored){ restored.focus(); restored.setSelectionRange(cursor, cursor); }
+    });
+  }
+  el.querySelectorAll("[data-edit-node]").forEach((card) => {
+    card.addEventListener("click", () => {
+      const idx = parseInt(card.dataset.editNode, 10);
+      openHomepageNodeEditor(state.homepageNodes.nodeData[idx], idx, false);
+    });
+  });
+  const addBtn = el.querySelector("[data-add-node]");
+  if(addBtn) addBtn.addEventListener("click", () => {
+    openHomepageNodeEditor(blankHomepageNode(), null, true);
+  });
+}
+
+function nextHomepageNodeId(){
+  let max = 0;
+  state.homepageNodes.nodeData.forEach((n) => {
+    const m = /^r(\d+)$/.exec(n.id || "");
+    if(m) max = Math.max(max, parseInt(m[1], 10));
+  });
+  return "r" + (max + 1);
+}
+
+function blankHomepageNode(){
+  return { id: nextHomepageNodeId(), name: "", mobileName: "", href: "", translations: {} };
+}
+
+// 節點目前正在連到哪些其他節點，開編輯器當下從 edgeData 算一次、存進
+// ed.connections 當「這次編輯階段」的暫存清單——加/刪連線都只改這個
+// 暫存陣列，存檔時才整批取代掉這個節點原本在 edgeData 裡的所有連線，
+// 不會因為使用者按「回到列表」放棄編輯，就把連線改動也一起套用出去
+// （跟 pendingUploads 存檔才 flush 是同樣的道理）。
+function openHomepageNodeEditor(item, index, isNew){
+  const connections = isNew
+    ? []
+    : state.homepageNodes.edgeData
+        .filter(([a, b]) => a === item.id || b === item.id)
+        .map(([a, b]) => (a === item.id ? b : a));
+  state.editingHomepageNode = { item, index, isNew: !!isNew, connections };
+  render();
+}
+function closeHomepageNodeEditor(){ state.editingHomepageNode = null; render(); }
+
+const NODE_TRANS_LANGS = [
+  ["en", "English"],
+  ["zh-Hans", "中文（簡體）"],
+  ["fr", "Français"],
+  ["ja", "日本語"],
+  ["ko", "한국어"],
+  ["es", "Español"],
+];
+
+function nodeTranslationsHtml(value){
+  value = value || {};
+  return `
+    <details class="lang5-others">
+      <summary>其他語言翻譯（簡中／英／法／日／韓／西，選填）</summary>
+      <button type="button" class="translate-btn" id="nodeTranslateBtn">自動翻譯全部語言</button>
+      ${NODE_TRANS_LANGS.map(([code, label]) => `
+        <div class="lang5-row">
+          <label>${label}</label>
+          <input type="text" data-path="translations.${code}" value="${esc(value[code] || "")}">
+        </div>
+      `).join("")}
+    </details>
+  `;
+}
+
+async function translateNodeFields(ed){
+  const source = ed.item.name;
+  if(!source){ toast("請先填寫中文名稱，再按自動翻譯", true); return; }
+  const targets = NODE_TRANS_LANGS.map(([code]) => code);
+  try{
+    setLoading(true, "翻譯中…");
+    const results = await Promise.all(targets.map(async (t) => {
+      const url = "https://translate.googleapis.com/translate_a/single?client=gtx&sl=zh-TW&tl=" + t + "&dt=t&q=" + encodeURIComponent(source);
+      try{
+        const r = await fetch(url);
+        const json = await r.json();
+        return (json[0] || []).map((seg) => seg[0]).join("");
+      }catch(e){ return ""; }
+    }));
+    ed.item.translations = ed.item.translations || {};
+    targets.forEach((t, i) => { if(results[i]) ed.item.translations[t] = results[i]; });
+    rerenderCurrentEditor();
+  }catch(err){
+    toast("翻譯失敗：" + err.message, true);
+  }finally{
+    setLoading(false);
+  }
+}
+
+function connectionsEditorHtml(ed){
+  const allNodes = state.homepageNodes.nodeData;
+  const idToName = {};
+  allNodes.forEach((n) => { idToName[n.id] = n.name || n.id; });
+  const rows = ed.connections.map((cid, i) => `
+    <div class="step-card" data-conn-index="${i}" style="margin-bottom:8px; display:flex; align-items:center; justify-content:space-between; padding:10px 14px;">
+      <span>${esc(idToName[cid] || cid)}</span>
+      <button type="button" class="row-remove-btn" data-remove-conn="${i}" title="移除連線">×</button>
+    </div>
+  `).join("");
+  const options = allNodes
+    .filter((n) => n.id !== ed.item.id && !ed.connections.includes(n.id))
+    .map((n) => `<option value="${esc(n.name || n.id)}"></option>`)
+    .join("");
+  return `
+    <div class="field-block">
+      <div class="label">連到哪些節點（首頁上會畫出連線）</div>
+      ${rows || `<div class="empty-note">目前沒有連線</div>`}
+      <div style="display:flex; gap:8px; margin-top:10px;">
+        <input type="text" id="connAddInput" list="connAddOptions" placeholder="輸入節點名稱…" style="flex:1;">
+        <datalist id="connAddOptions">${options}</datalist>
+        <button type="button" class="btn ghost" id="connAddBtn">新增連線</button>
+      </div>
+    </div>
+  `;
+}
+
+function bindConnectionsEditor(ed){
+  const container = document.getElementById("connectionsBlock");
+  if(!container) return;
+  container.querySelectorAll("[data-remove-conn]").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      ed.connections.splice(parseInt(btn.dataset.removeConn, 10), 1);
+      rerenderCurrentEditor();
+    });
+  });
+  const addBtn = document.getElementById("connAddBtn");
+  if(addBtn) addBtn.addEventListener("click", () => {
+    const input = document.getElementById("connAddInput");
+    const typed = (input.value || "").trim();
+    if(!typed) return;
+    const match = state.homepageNodes.nodeData.find((n) => (n.name || n.id) === typed);
+    if(!match){ toast("找不到叫這個名字的節點，請從建議清單裡選一個", true); return; }
+    if(match.id === ed.item.id){ toast("不能自己連自己", true); return; }
+    if(ed.connections.includes(match.id)){ toast("已經連過這個節點了", true); return; }
+    ed.connections.push(match.id);
+    rerenderCurrentEditor();
+  });
+}
+
+function homepageNodeEditorHtml(ed){
+  const item = ed.item;
+  return `
+    <div class="editor">
+      <div class="editor-head">
+        <button class="back-link" id="backBtn">← 回到主網頁節點列表</button>
+        ${!ed.isNew ? `<button class="btn danger" id="deleteNodeBtn">刪除這個節點</button>` : ""}
+      </div>
+      <div class="field-block">
+        <label>網址代號（id，程式內部用來辨識連線，不能改）</label>
+        <input type="text" value="${esc(item.id)}" disabled>
+      </div>
+      <div class="field-block">
+        <label>中文名稱（桌機版顯示文字）</label>
+        <input type="text" data-path="name" value="${esc(item.name || "")}" placeholder="例如：原型教學">
+      </div>
+      <div class="field-block">
+        <label>手機版顯示名稱（選填，名稱太長在手機上會太擠時才需要另外填）</label>
+        <input type="text" data-path="mobileName" value="${esc(item.mobileName || "")}">
+      </div>
+      <div class="field-block">
+        <label>連結網址</label>
+        <input type="text" data-path="href" value="${esc(item.href || "")}" placeholder="例如：./原型教學.dc.html，或完整外部網址">
+      </div>
+      <div class="field-block">
+        ${nodeTranslationsHtml(item.translations)}
+      </div>
+      <div id="connectionsBlock">
+        ${connectionsEditorHtml(ed)}
+      </div>
+      <div class="save-bar">
+        <span class="save-status" id="saveStatus"></span>
+        <button class="btn primary" id="saveNodeBtn">儲存並發布</button>
+      </div>
+    </div>
+  `;
+}
+
+function renderHomepageNodeEditor(){
+  const ed = state.editingHomepageNode;
+  app.innerHTML = `
+    ${renderTopBar()}
+    <div class="wrap">${homepageNodeEditorHtml(ed)}</div>
+  `;
+  document.getElementById("backBtn").addEventListener("click", closeHomepageNodeEditor);
+  bindPathInputs(ed, app);
+  const translateBtn = document.getElementById("nodeTranslateBtn");
+  if(translateBtn) translateBtn.addEventListener("click", () => translateNodeFields(ed));
+  bindConnectionsEditor(ed);
+  document.getElementById("saveNodeBtn").addEventListener("click", () => saveHomepageNodeEditor(ed));
+  const deleteBtn = document.getElementById("deleteNodeBtn");
+  if(deleteBtn) deleteBtn.addEventListener("click", () => deleteHomepageNode(ed));
+}
+
+async function saveHomepageNodeEditor(ed){
+  if(!ed.item.name){ toast("請至少填寫中文名稱", true); return; }
+  if(!ed.item.href){ toast("請至少填寫連結網址", true); return; }
+
+  try{
+    setLoading(true, "儲存中…");
+    // 用 ed.index 而不是 ed.isNew 判斷要不要 push——重試（例如第一次存檔
+    // 網路失敗）時 isNew 可能還是 true，但節點已經在陣列裡了，用 index 才
+    // 不會重試時重複塞進同一個節點兩次。
+    if(ed.index == null){
+      state.homepageNodes.nodeData.push(ed.item);
+      ed.index = state.homepageNodes.nodeData.length - 1;
+    }
+    // 用這次編輯畫面上的連線清單，整批取代這個節點原本在 edgeData 裡的
+    // 連線（新增/移除都反映得到，比逐筆比對簡單，重複執行也是安全的）。
+    const id = ed.item.id;
+    const others = state.homepageNodes.edgeData.filter(([a, b]) => a !== id && b !== id);
+    const rebuilt = ed.connections.map((otherId) => [id, otherId]);
+    state.homepageNodes.edgeData = others.concat(rebuilt);
+
+    const body = {
+      languages: state.homepageNodes.languages,
+      nodeData: state.homepageNodes.nodeData,
+      edgeData: state.homepageNodes.edgeData,
+    };
+    const json = JSON.stringify(body, null, 2) + "\n";
+    const res = await ghPutFile("content/site/homepage-nodes.json", utf8ToBase64(json), `${ed.isNew ? "Add" : "Update"} homepage node ${id} via admin`, state.homepageNodes.sha);
+    state.homepageNodes.sha = res.content.sha;
+    ed.isNew = false;
+    toast("已儲存（asstudiowebsite 的首頁還沒自動同步，見說明）");
+    closeHomepageNodeEditor();
+  }catch(err){
+    toast("儲存失敗：" + err.message, true);
+  }finally{
+    setLoading(false);
+  }
+}
+
+async function deleteHomepageNode(ed){
+  if(!confirm("確定要刪除這個節點嗎？連到它的連線也會一併移除，這個動作沒辦法復原。")) return;
+  try{
+    setLoading(true, "刪除中…");
+    const id = ed.item.id;
+    state.homepageNodes.nodeData.splice(ed.index, 1);
+    state.homepageNodes.edgeData = state.homepageNodes.edgeData.filter(([a, b]) => a !== id && b !== id);
+    const body = {
+      languages: state.homepageNodes.languages,
+      nodeData: state.homepageNodes.nodeData,
+      edgeData: state.homepageNodes.edgeData,
+    };
+    const json = JSON.stringify(body, null, 2) + "\n";
+    const res = await ghPutFile("content/site/homepage-nodes.json", utf8ToBase64(json), `Delete homepage node ${id} via admin`, state.homepageNodes.sha);
+    state.homepageNodes.sha = res.content.sha;
+    toast("已刪除（asstudiowebsite 的首頁還沒自動同步，見說明）");
+    closeHomepageNodeEditor();
+  }catch(err){
+    toast("刪除失敗：" + err.message, true);
   }finally{
     setLoading(false);
   }
