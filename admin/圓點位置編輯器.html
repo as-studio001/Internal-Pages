@@ -533,6 +533,7 @@
     <p class="modal-hint">建議直接複製整個「建築事務所首頁.dc.html」檔案內容貼到下面——這樣「同步至主網頁」才能直接給你一份已經更新好、可以整個覆蓋原檔案的新內容，不用再找特定位置分別貼。只貼一部分（例如只貼 specialIds／nodeData／edgeData 所在的那段）也可以正常匯入，不用精準，會自動找出需要的部分（languages 選填，找不到就沿用目前的語言清單）。按「套用」後會<strong>整個取代</strong>目前編輯器裡的順序、名稱、超連結、顏色、連線與翻譯——尚未同步出去的編輯內容會遺失，建議在開始編輯前先做這一步。</p>
     <textarea id="importBlobInput" class="modal-output" spellcheck="false" placeholder="建議貼上整個 建築事務所首頁.dc.html 檔案內容（至少要包含 specialIds = [...]、nodeData = [...]、edgeData = [...]）" style="flex:1 1 auto; margin:10px 18px 0; min-height:320px;"></textarea>
     <div class="modal-actions">
+      <button type="button" id="btnFetchFromSite" class="sc-btn" title="直接向 asstudiowebsite 這個公開 repo 抓「建築事務所首頁.dc.html」目前的內容，不用自己複製貼上">自動抓取目前網站內容</button>
       <button type="button" id="btnApplyImport" class="sc-btn primary">套用</button>
     </div>
   </div>
@@ -1931,6 +1932,31 @@
     if (e.target === importModalOverlay) importModalOverlay.hidden = true;
   });
   document.getElementById('btnApplyImport').addEventListener('click', applyImport);
+
+  // 2026-08-24 新增：不用自己去 GitHub 複製整個檔案內容貼上——asstudiowebsite
+  // 是公開 repo，raw.githubusercontent.com 允許瀏覽器直接跨網域抓取（不需要
+  // 密鑰、不經過任何後台），抓到之後直接塞進上面那個匯入用的文字框、照原本
+  // 「套用」的邏輯走一次，兩者共用同一套解析/確認/套用流程，行為完全一致。
+  document.getElementById('btnFetchFromSite').addEventListener('click', async () => {
+    const btn = document.getElementById('btnFetchFromSite');
+    const original = btn.textContent;
+    btn.disabled = true;
+    btn.textContent = '抓取中…';
+    try {
+      const url = 'https://raw.githubusercontent.com/as-studio001/asstudiowebsite/main/'
+        + encodeURIComponent('建築事務所首頁.dc.html') + '?_=' + Date.now();
+      const res = await fetch(url, { cache: 'no-store' });
+      if (!res.ok) throw new Error('HTTP ' + res.status);
+      const text = await res.text();
+      document.getElementById('importBlobInput').value = text;
+      applyImport();
+    } catch (err) {
+      showToast('自動抓取失敗：' + err.message + '（可以改成手動複製貼上）');
+    } finally {
+      btn.disabled = false;
+      btn.textContent = original;
+    }
+  });
 
   // 語言管理（2026-08-03 新增）：新增/刪除語言直接是即時的表單操作，不用
   // 像 nodeData/edgeData 那樣先貼文字再套用——語言清單通常只有幾筆，逐筆
