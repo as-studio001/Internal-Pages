@@ -2,7 +2,20 @@
   "slug": "prototype-house-1",
   "title": "原型1號宅",
   "ledeMeta": "",
+  "tag": "",
   "hero": "images/site/case-detail-proto1.jpg",
-  "externalUrl": "https://asstudio029.wixsite.com/ashouse1",
-  "type": "external"
+  "paragraphs": [
+    ""
+  ],
+  "photos": [],
+  "map": {
+    "address": "",
+    "lat": null,
+    "lng": null,
+    "zoom": 17
+  },
+  "designResearch": [],
+  "process": [],
+  "drawings": [],
+  "type": "subpage"
 }
