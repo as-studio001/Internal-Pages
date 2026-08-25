@@ -556,7 +556,6 @@ const state = {
     { name: "chapter-detail", label: "章節：原型細部", file: "content/site/chapter-detail.json" },
     { name: "chapter-exhibit", label: "章節：原型展覽", file: "content/site/chapter-exhibit.json" },
     { name: "chapter-digital", label: "章節：原型數位", file: "content/site/chapter-digital.json" },
-    { name: "material-links", label: "原型建築：漢堡選單清單", file: "content/site/material-links.json" },
   ],
   editingSite: null, // { meta, item, sha, pendingUploads }
   subpages: null, // [{slug, title}]
@@ -2000,6 +1999,9 @@ async function saveCaseEditor(ed){
       }
     }
 
+    setLoading(true, "同步漢堡選單中…");
+    await regenerateCaseLinksManifest();
+
     toast("已發布，網站幾分鐘內會更新");
     setLoading(true, "重新載入清單中…");
     await loadCaseList();
@@ -2044,12 +2046,45 @@ async function removeCaseCardFromChapter(meta, href){
   await ghPutFile(meta.file, utf8ToBase64(body), `Remove case card via admin`, sha);
 }
 
+// 原型建築網站（asarch）漢堡選單裡的案例連結不再另外開一個編輯區維護，
+// 而是每次案例存檔／刪除後，直接照 content/projects/ 目前實際有的案例
+// 重新產生這份清單——新增案例，漢堡選單就自動多一條；刪除案例，選單就
+// 自動少一條，不需要額外手動同步。asarch 那邊讀這個檔案失敗時會退回它
+// 自己原始碼裡的一份備援清單（只有「原型首頁」是永遠固定的那一條，不在
+// 這份清單裡）。
+async function regenerateCaseLinksManifest(){
+  try{
+    const entries = await ghListDir("content/projects");
+    const files = entries.filter(e => e.type === "file" && e.name.endsWith(".json"));
+    const items = await Promise.all(files.map(async f => {
+      try{
+        const { json } = await ghGetFile(f.path);
+        return { slug: json.slug || f.name.replace(/\.json$/, ""), title: json.title || "" };
+      }catch(e){ return null; }
+    }));
+    const links = items
+      .filter(it => it && it.title)
+      .map(it => ({ label: it.title, href: `https://as-studio001.github.io/Internal-Pages/?case=${it.slug}` }));
+    const body = JSON.stringify({ links }, null, 2) + "\n";
+    let sha = null;
+    try{
+      const existing = await ghGetFile("content/site/case-links.json");
+      sha = existing.sha;
+    }catch(e){ /* 檔案還不存在就當新建，sha 留 null */ }
+    await ghPutFile("content/site/case-links.json", utf8ToBase64(body), "Regenerate hamburger-menu case links via admin", sha);
+  }catch(e){
+    // 這份清單同步失敗不該擋住案例本身的存檔/刪除流程，記錄下來就好
+    console.error("regenerateCaseLinksManifest failed", e);
+  }
+}
+
 async function deleteCurrentCase(){
   if(!confirm("確定要刪除這個案例嗎？這個動作沒辦法復原。")) return;
   const ed = state.editingCase;
   try{
     setLoading(true, "刪除中…");
     await ghDeleteFile(`content/projects/${ed.item.slug}.json`, `Delete case ${ed.item.slug} via admin`, ed.sha);
+    await regenerateCaseLinksManifest();
     toast("已刪除");
     await loadCaseList();
     closeCaseEditor();
@@ -3724,41 +3759,6 @@ function siteEditorHtml(ed){
     `;
   }
 
-  if(meta.name === "material-links"){
-    return `
-      <div class="editor">
-        <div class="editor-head"><button class="back-link" id="backBtn">← 回到主網站內容列表</button></div>
-        <div class="field-hint" style="margin-bottom:16px">這份清單對應原型建築網站（asarch，as-structure.com）左上角漢堡選單展開的連結清單，由上到下排列。</div>
-        <div class="field-block">
-          <div class="label">選單項目</div>
-          <div id="materialLinksBlocks">
-            ${(item.links || []).map((l, i) => `
-              <div class="case-card-editor" data-link-index="${i}">
-                <div class="case-card-editor-head">
-                  <span class="step-label">第 ${i + 1} 項</span>
-                  <button type="button" class="row-remove-btn" data-remove-link="${i}" title="移除">×</button>
-                </div>
-                <div class="field-block">
-                  <label>顯示文字</label>
-                  <input type="text" data-path="links.${i}.label" value="${esc(l.label || "")}">
-                </div>
-                <div class="field-block">
-                  <label>連結網址</label>
-                  <input type="text" data-path="links.${i}.href" value="${esc(l.href || "")}">
-                </div>
-              </div>
-            `).join("")}
-          </div>
-          <button type="button" class="add-step-btn" id="addLinkBtn">${iconUpload()}<span>新增項目</span></button>
-        </div>
-        <div class="save-bar">
-          <span class="save-status" id="saveStatus"></span>
-          <button class="btn primary" id="saveBtn">儲存並發布</button>
-        </div>
-      </div>
-    `;
-  }
-
   // 章節（restore / detail / exhibit / digital）
   const hasCases = Array.isArray(item.cases);
   const hasHero = "heroPhoto" in item;
@@ -3842,18 +3842,6 @@ function renderSiteEditor(){
     app.querySelectorAll("[data-remove-para]").forEach(btn => {
       btn.addEventListener("click", () => {
         ed.item.paragraphs.splice(parseInt(btn.dataset.removePara, 10), 1);
-        rerenderCurrentEditor();
-      });
-    });
-  } else if(ed.meta.name === "material-links"){
-    ed.item.links = ed.item.links || [];
-    document.getElementById("addLinkBtn").addEventListener("click", () => {
-      ed.item.links.push({ label: "", href: "" });
-      rerenderCurrentEditor();
-    });
-    app.querySelectorAll("[data-remove-link]").forEach(btn => {
-      btn.addEventListener("click", () => {
-        ed.item.links.splice(parseInt(btn.dataset.removeLink, 10), 1);
         rerenderCurrentEditor();
       });
     });

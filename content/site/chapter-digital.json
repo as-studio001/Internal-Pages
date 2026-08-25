@@ -16,7 +16,7 @@
   "cases": [
     {
       "image": "https://as-studio001.github.io/Internal-Pages/images/site/case-digital-woodyard.jpg",
-      "href": "https://www.mashup.com.tw/as%20studio/?page=product_shop&p_id=582351",
+      "href": "https://as-studio001.github.io/Internal-Pages/?case=chiayi-experimental-woodyard",
       "label": {
         "zh-Hant": "嘉義實驗木場",
         "zh-Hans": "嘉义实验木场",
@@ -60,7 +60,7 @@
     },
     {
       "image": "https://as-studio001.github.io/Internal-Pages/images/site/case-digital-xinyi.jpg",
-      "href": "https://asas2026.wixsite.com/mysite/%E6%96%B0%E7%94%9F%E5%A0%B4%E5%9F%9F",
+      "href": "https://as-studio001.github.io/Internal-Pages/?case=laogu-fang",
       "label": {
         "zh-Hant": "台南硓𥑮石．芳宅",
         "zh-Hans": "台南硓𥑮石．芳宅",
