@@ -2392,7 +2392,14 @@ async function regenerateCaseLinksManifest(){
     try{
       const existing = await ghGetFile("content/site/case-links.json");
       sha = existing.sha;
-    }catch(e){ /* 檔案還不存在就當新建，sha 留 null */ }
+      // 內容跟現有的完全一樣就不寫——這步幾乎每次案例存檔／刪除都會跑，
+      // 但大部分時候（例如只是改案例內文，沒動到任何章節連結）算出來的
+      // 清單其實跟已經存在的一模一樣，不寫就能省一次 Netlify 呼叫，也
+      // 少留一筆沒意義的 commit（跟 addCaseCardToChapter 同一種省法）。
+      // 比對用解析後的物件（existing.json），不直接比對檔案原始字串，
+      // 避免因為格式化差異（例如換行符號）誤判成「內容不一樣」。
+      if(JSON.stringify(existing.json.links || []) === JSON.stringify(links)) return;
+    }catch(e){ /* 檔案還不存在就當新建，sha 留 null，一定要寫 */ }
     await ghPutFile("content/site/case-links.json", utf8ToBase64(body), "Regenerate hamburger-menu case links via admin", sha);
   }catch(e){
     // 這份清單同步失敗不該擋住案例本身的存檔/刪除流程，記錄下來就好
