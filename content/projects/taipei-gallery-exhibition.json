@@ -1,0 +1,21 @@
+{
+  "slug": "taipei-gallery-exhibition",
+  "title": "台北藝廊展",
+  "ledeMeta": "",
+  "tag": "",
+  "hero": "https://as-studio001.github.io/asarch/photos/gallery-taipei-1.jpg",
+  "paragraphs": [
+    ""
+  ],
+  "photos": [],
+  "map": {
+    "address": "",
+    "lat": null,
+    "lng": null,
+    "zoom": 17
+  },
+  "designResearch": [],
+  "process": [],
+  "drawings": [],
+  "type": "subpage"
+}

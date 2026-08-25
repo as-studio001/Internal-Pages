@@ -36,6 +36,27 @@
         "ja": "好感空間展",
         "ko": "호감공간전"
       }
+    },
+    {
+      "image": "https://as-studio001.github.io/asarch/photos/gallery-ada-1.jpg",
+      "href": "https://as-studio001.github.io/Internal-Pages/?case=ada-architecture-exhibition",
+      "label": {
+        "zh-Hant": "ADA建築展"
+      }
+    },
+    {
+      "image": "https://as-studio001.github.io/asarch/photos/case-exhibit-bamboo.jpg",
+      "href": "https://as-studio001.github.io/Internal-Pages/?case=bamboo-forest-railway-exhibit",
+      "label": {
+        "zh-Hant": "構竹林鐵"
+      }
+    },
+    {
+      "image": "https://as-studio001.github.io/asarch/photos/gallery-taipei-1.jpg",
+      "href": "https://as-studio001.github.io/Internal-Pages/?case=taipei-gallery-exhibition",
+      "label": {
+        "zh-Hant": "台北藝廊展"
+      }
     }
   ]
 }
