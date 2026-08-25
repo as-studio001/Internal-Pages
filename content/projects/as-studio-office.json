@@ -2,7 +2,20 @@
   "slug": "as-studio-office",
   "title": "原型事務所",
   "ledeMeta": "",
+  "tag": "",
   "hero": "images/site/case-restore-office.jpg",
-  "externalUrl": "https://www.mashup.com.tw/as%20studio/?page=product_shop&p_id=506003",
-  "type": "external"
+  "paragraphs": [
+    ""
+  ],
+  "photos": [],
+  "map": {
+    "address": "",
+    "lat": null,
+    "lng": null,
+    "zoom": 17
+  },
+  "designResearch": [],
+  "process": [],
+  "drawings": [],
+  "type": "subpage"
 }
