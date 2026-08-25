@@ -1,0 +1,20 @@
+{
+  "title": "測試",
+  "sections": [
+    {
+      "id": "sc-section-gallery",
+      "type": "gallery-slider",
+      "items": [
+        {
+          "num": "01",
+          "zh": "",
+          "en": "",
+          "target": "",
+          "photo": "https://as-studio001.github.io/Internal-Pages/images/subpages/test/原型建築banner.png",
+          "textOverride": "#ffffff"
+        }
+      ]
+    }
+  ],
+  "dcHtmlFile": "測試.dc.html"
+}
