@@ -889,20 +889,45 @@ function addCardHtml(label, attr){
   `;
 }
 
-function casesListHtml(){
-  if(!state.cases) return `<div class="empty-note">載入中…</div>`;
-  const cards = state.cases.map((c, i) => `
+// 一般子網頁／外部連結網頁分兩區塊列，中間用一條分隔線隔開，不用另外
+// 加欄位或篩選器——data-edit 的編號還是對應 state.cases 裡原本的位置
+// （不是畫面上重排過的順序），點下去才找得到正確的那筆。
+function caseCardHtml(c, i){
+  return `
     <div class="item-card" data-edit="${i}">
       <div class="thumb ${c.hero ? "" : "empty"}">
         ${c.hero ? `<img src="${esc(rawUrl(c.hero))}" alt="" loading="lazy">` : "尚無主視覺"}
       </div>
       <div class="info">
-        <div class="t">${esc(c.title || "（未命名）")}${c.type === "external" ? ` <span style="font-size:11px;font-weight:400;opacity:.6;">↗ 外部連結</span>` : ""}</div>
+        <div class="t">${esc(c.title || "（未命名）")}</div>
         <div class="m">${esc(c.ledeMeta || c.slug)}</div>
       </div>
     </div>
-  `).join("");
-  return `<div class="item-grid">${cards}${addCardHtml("新增一般子網頁", "data-add-case-subpage")}${addCardHtml("新增外部連結網頁", "data-add-case-external")}</div>`;
+  `;
+}
+function caseTypeDividerHtml(label){
+  return `
+    <div style="grid-column:1/-1;display:flex;align-items:center;gap:12px;margin:4px 0;color:var(--muted);font-size:13px;">
+      <div style="flex:1;height:1px;background:var(--line);"></div>
+      <span>${esc(label)}</span>
+      <div style="flex:1;height:1px;background:var(--line);"></div>
+    </div>
+  `;
+}
+function casesListHtml(){
+  if(!state.cases) return `<div class="empty-note">載入中…</div>`;
+  const indexed = state.cases.map((c, i) => ({ c, i }));
+  const subpageCards = indexed.filter(({ c }) => c.type !== "external").map(({ c, i }) => caseCardHtml(c, i)).join("");
+  const externalCards = indexed.filter(({ c }) => c.type === "external").map(({ c, i }) => caseCardHtml(c, i)).join("");
+  return `
+    <div class="item-grid">
+      ${subpageCards}
+      ${addCardHtml("新增一般子網頁", "data-add-case-subpage")}
+      ${caseTypeDividerHtml("外部連結網頁")}
+      ${externalCards}
+      ${addCardHtml("新增外部連結網頁", "data-add-case-external")}
+    </div>
+  `;
 }
 
 function siteListHtml(){
