@@ -635,14 +635,21 @@ const SUBPAGE_SITE_BASE = "https://www.as-structure.com";
 // 的編輯模式，一般訪客網址不會帶這個參數，完全不受影響。
 const HERO_PREVIEW_URL = "https://as-studio001.github.io/asarch/?preview=1";
 
-// iframe 內部「模擬視窗」固定用這個寬度渲染（不管外層框框實際顯示
-// 多寬），這樣裡面的文字一定套用 Tailwind 的 lg 級距（>=1024px）字級，
-// 跟真正桌機訪客看到的一樣；高度則由 layoutHeroPreview() 動態算，配合
-// 外層框框當下的長寬比，縮放完剛好完整鋪滿框框，不會留黑邊、也不會
-// 裁切。文字才會跟著照片一起等比縮放，不會因為 iframe 顯示得比較窄，
-// 就誤套用手機版的響應式字級，導致預覽看到的字體比例跟實際上線不
-// 一致。見 layoutHeroPreview()。
+// iframe 內部「模擬視窗」固定用這個尺寸渲染（不管外層框框實際顯示
+// 多大），代表「典型桌機」的畫面比例（16:9）——這個尺寸必須固定，
+// 不能跟著外層框框的長寬比變動：底圖照片用 object-cover（照容器長寬比
+// 裁切/縮放）、文字位置用 vh（相對視窗高度）這兩樣東西都是「畫面比例
+// 不同，算出來的結果就不同」，如果讓 iframe 內部的模擬比例跟著外層
+// 框框（會因為瀏覽器視窗寬度、面板換行而變）跑，照片的裁切方式跟文字
+// 的相對位置就會跟著漂移，變成「預覽看到的相對位置」跟「真正桌機訪客
+// 看到的相對位置」對不起來——這正是 2026-08-25 發現的問題，比黑邊本身
+// 更嚴重（黑邊只是難看，這個是位置真的不準，沒辦法拿來精準對位）。
+// 固定 1600×900 之後改用「鋪滿＋裁切多出來的部分」（見
+// layoutHeroPreview 的 Math.max），不會再留黑邊，只是框框長寬比抓得
+// 不夠好時，畫面上下或左右可能看不到 1600×900 的每一個角落，但看得到
+// 的部分，位置一定跟真正桌機訪客看到的一致。
 const HERO_PREVIEW_REF_W = 1600;
+const HERO_PREVIEW_REF_H = 900;
 
 const SUBPAGE_PAGES = {
   teaching: { label: "原型教學", file: "原型教學.dc.html" },
@@ -4081,10 +4088,10 @@ function siteEditorHtml(ed){
             <button class="btn ghost" id="heroResetBtn">重設位置與縮放</button>
           </div>
         </div>
-        <div class="field-hint" style="margin-bottom:16px">左邊是即時預覽：整頁（照片、文字、間距）都照真正桌面大小等比縮小顯示，不是縮小視窗看到的響應式版面，所以看到的大小比例跟實際訪客看到的一致，方便精準調整。直接在文字上按住拖曳可以改位置，拖右下角的白色圓點可以改大小。右邊面板調整粗細、內容、行距（兩行文字的間距）、字距。改任何一項都可以用「上一步／下一步」或 Ctrl+Z／Ctrl+Y 復原、取消復原。底圖照片跟上面的光線遮罩效果不能在這裡更換。改完記得捲到最下面按「儲存並發布」。</div>
+        <div class="field-hint" style="margin-bottom:16px">左邊是即時預覽：整頁（照片、文字、間距）都照真正桌面（16:9）大小等比縮小顯示，不是縮小視窗看到的響應式版面，所以照片跟文字的相對位置、大小比例，都跟實際桌機訪客看到的一致，方便精準對位；框框長寬比跟 16:9 差比較多時，畫面上下或左右可能會看不到一點點邊緣（裁掉，不是變形），但看得到的部分位置一定準。直接在文字上按住拖曳可以改位置，拖右下角的白色圓點可以改大小。右邊面板調整粗細、內容、行距（兩行文字的間距）、字距。改任何一項都可以用「上一步／下一步」或 Ctrl+Z／Ctrl+Y 復原、取消復原。底圖照片跟上面的光線遮罩效果不能在這裡更換。改完記得捲到最下面按「儲存並發布」。</div>
         <div style="display:flex; gap:20px; align-items:flex-start; flex-wrap:wrap;">
           <div id="heroPreviewViewport" style="flex:2 1 480px; min-width:300px; height:78vh; min-height:480px; position:relative; overflow:hidden; border:1px solid var(--line); border-radius:8px; background:#0a0a0a;">
-            <iframe id="heroPreviewFrame" src="${HERO_PREVIEW_URL}" style="position:absolute; top:0; left:0; width:${HERO_PREVIEW_REF_W}px; border:0; transform-origin:0 0;"></iframe>
+            <iframe id="heroPreviewFrame" src="${HERO_PREVIEW_URL}" style="position:absolute; top:0; left:0; width:${HERO_PREVIEW_REF_W}px; height:${HERO_PREVIEW_REF_H}px; border:0; transform-origin:0 0;"></iframe>
           </div>
           <div style="flex:1 1 260px; min-width:240px;">
             <div class="field-block">
@@ -4426,11 +4433,22 @@ window.addEventListener("keydown", (e) => {
   if(isUndo) undoHeroChange(ed); else redoHeroChange(ed);
 });
 
-// 量外層框框（heroPreviewViewport）目前實際渲染出來多大，讓 iframe
-// 內部的「模擬視窗」寬固定用 HERO_PREVIEW_REF_W（保證一定套用 Tailwind
-// 的 lg 級距字級，跟真正桌機訪客看到的一樣），高度則反過來配合框框
-// 目前的長寬比去算——不是用固定的參考高度，這樣縮放完剛好完整鋪滿
-// 框框，不會因為框框長寬比跟參考尺寸對不上，而在上下或左右留黑邊。
+// 量外層框框（heroPreviewViewport）目前實際渲染出來多大，把固定
+// HERO_PREVIEW_REF_W×HERO_PREVIEW_REF_H（16:9，代表典型桌機）的 iframe
+// 縮放到剛好「鋪滿」框框——取寬度縮放比例、高度縮放比例中較大的那個
+// （Math.max，不是 Math.min），框框長寬比跟 16:9 不一樣時，會有一部分
+// 超出框框邊界，靠外層框框的 overflow:hidden 裁掉，不會留黑邊、也不會
+// 變形拉伸。
+//
+// 2026-08-25 從「配合框框長寬比動態算高度」改回固定 16:9 参考尺寸：
+// 動態算高度雖然不會留黑邊，但底圖照片用 object-cover（照容器長寬比
+// 裁切）、文字位置用 vh（相對視窗高度）都是「畫面比例不同、算出來的
+// 結果就不同」的東西——讓 iframe 內部模擬的比例跟著框框（會因為瀏覽器
+// 視窗寬度、面板換行而變動）漂移，會導致「預覽看到的照片裁切方式／
+// 文字相對位置」跟「真正桌機訪客看到的」對不起來，沒辦法拿來精準對位，
+// 比留黑邊更嚴重。固定參考尺寸＋裁切多出來的部分，才能同時做到「不留
+// 黑邊」跟「看到的部分位置一定準」。
+//
 // 框框大小會因為視窗寬度、面板換行而變，所以視窗 resize 時也要重算
 // 一次，不能只在一開始算一次就好。
 function layoutHeroPreview(){
@@ -4440,10 +4458,10 @@ function layoutHeroPreview(){
   const boxW = viewport.clientWidth;
   const boxH = viewport.clientHeight;
   if(boxW <= 0 || boxH <= 0) return;
-  const scale = boxW / HERO_PREVIEW_REF_W;
-  const refH = boxH / scale;
-  iframe.style.height = `${refH}px`;
-  iframe.style.transform = `scale(${scale})`;
+  const scale = Math.max(boxW / HERO_PREVIEW_REF_W, boxH / HERO_PREVIEW_REF_H);
+  const offsetX = (boxW - HERO_PREVIEW_REF_W * scale) / 2;
+  const offsetY = (boxH - HERO_PREVIEW_REF_H * scale) / 2;
+  iframe.style.transform = `translate(${offsetX}px, ${offsetY}px) scale(${scale})`;
 }
 
 // 固定掛著、不用開關——只有目前正在編輯 hero 才會真的重算，其他情況
