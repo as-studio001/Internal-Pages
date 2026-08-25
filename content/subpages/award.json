@@ -9,7 +9,7 @@
           "num": "01",
           "zh": "舊屋力競賽",
           "en": "2025",
-          "target": "",
+          "target": "sc-section-award-list",
           "photo": "uploads/原型獲獎/舊屋力.png",
           "textOverride": "#ffffff"
         },
@@ -17,7 +17,7 @@
           "num": "02",
           "zh": "ADA新銳建築獎",
           "en": "2018、2021",
-          "target": "",
+          "target": "sc-section-award-list",
           "photo": "uploads/原型獲獎/ADA.jpg",
           "textOverride": "#ffffff"
         },
@@ -25,7 +25,7 @@
           "num": "03",
           "zh": "台灣建築獎",
           "en": "2015、2017",
-          "target": "",
+          "target": "sc-section-award-list",
           "photo": "uploads/原型獲獎/台灣建築獎.jpg",
           "textOverride": "#ffffff"
         },
@@ -33,7 +33,7 @@
           "num": "04",
           "zh": "德國IF設計獎",
           "en": "2023",
-          "target": "",
+          "target": "sc-section-award-list",
           "photo": "uploads/原型獲獎/IF設計獎.jpg",
           "textOverride": "#ffffff"
         },
@@ -41,7 +41,7 @@
           "num": "05",
           "zh": "競圖",
           "en": "",
-          "target": "",
+          "target": "sc-section-award-list",
           "photo": "uploads/原型獲獎/競圖.jpg",
           "textOverride": "#ffffff"
         },
@@ -49,7 +49,7 @@
           "num": "06",
           "zh": "X-SITE",
           "en": "2015、2016、2020、2021、2023",
-          "target": "",
+          "target": "sc-section-award-list",
           "photo": "uploads/原型獲獎/X-SITE.jpg",
           "textOverride": "#ffffff"
         }
