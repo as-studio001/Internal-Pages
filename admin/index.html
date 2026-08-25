@@ -999,7 +999,7 @@ function bindListEvents(){
 
 function blankCase(){
   return {
-    slug: "", title: "", ledeMeta: "", tag: "", hero: "",
+    slug: "", title: "", ledeMeta: "", tag: "", hero: "", externalUrl: "",
     paragraphs: [""], photos: [],
     map: { address: "", lat: null, lng: null, zoom: 17 },
     designResearch: [], process: [], drawings: [],
@@ -1007,17 +1007,27 @@ function blankCase(){
 }
 
 function openCaseEditor(item, sha, isNew){
-  state.editingCase = { item, sha, isNew, pendingUploads: {}, linkedChapters: [] };
+  state.editingCase = { item, sha, isNew, pendingUploads: {}, linkedChapters: [], linkedHref: null };
   render();
-  if(!isNew && item.slug) loadLinkedChapters(item.slug);
+  if(!isNew && item.slug) loadLinkedChapters(item.slug, item.externalUrl);
 }
 function closeCaseEditor(){ state.editingCase = null; render(); }
 
+// 一個案例實際的跳轉網址：填了「外部連結網址」就用那個，沒填就是這個
+// 案例自己的內頁——章節卡片、漢堡選單清單都用同一個判斷式。
+function caseTargetHref(slug, externalUrl){
+  const trimmed = (externalUrl || "").trim();
+  return trimmed || `https://as-studio001.github.io/Internal-Pages/?case=${slug}`;
+}
+
 /* 打開一個既有案例時，順便去問三個章節的 JSON 裡有沒有已經連結這個
    案例的卡片，讓「顯示在主網站章節」的勾選框正確反映現況（而不是每次
-   打開都預設全部沒勾），這樣移除章節連結也可以直接在這裡做 */
-async function loadLinkedChapters(slug){
-  const href = `https://as-studio001.github.io/Internal-Pages/?case=${slug}`;
+   打開都預設全部沒勾），這樣移除章節連結也可以直接在這裡做。同時把當下
+   算出來的 href 存到 linkedHref——如果之後存檔時「外部連結網址」被改
+   掉，才知道舊的卡片是用哪個網址連結的，可以正確換掉而不是留下一筆
+   孤兒卡片 */
+async function loadLinkedChapters(slug, externalUrl){
+  const href = caseTargetHref(slug, externalUrl);
   const found = [];
   for(const meta of CASE_CARD_CHAPTERS){
     try{
@@ -1027,6 +1037,7 @@ async function loadLinkedChapters(slug){
   }
   if(state.editingCase && state.editingCase.item.slug === slug){
     state.editingCase.linkedChapters = found;
+    state.editingCase.linkedHref = href;
     if(!state.editingCase.isNew) rerenderCurrentEditor();
   }
 }
@@ -1404,6 +1415,11 @@ function caseEditorHtml(ed){
           <input type="text" data-path="tag" value="${esc(c.tag || "")}">
         </div>
         <div class="field-block">
+          <label>外部連結網址（選填）</label>
+          <input type="text" data-path="externalUrl" placeholder="https://…" value="${esc(c.externalUrl || "")}">
+          <div class="field-hint">這個案例本來會有自己的內頁（網址代號那頁）。如果這個案例其實是要跳轉到別的網站（不是寫在這裡的內容），填這裡——章節卡片、漢堡選單點下去都會直接連到這個網址；留空就維持連到自己內頁。</div>
+        </div>
+        <div class="field-block">
           <div class="label">顯示在主網站章節（選填）</div>
           <div class="chapter-picker">
             ${CASE_CARD_CHAPTERS.map((ch) => `
@@ -1413,7 +1429,7 @@ function caseEditorHtml(ed){
               </label>
             `).join("")}
           </div>
-          <div class="field-hint">勾選後，存檔時會自動把這個案例（用主視覺大圖、案名、這個案例的網址）加進該章節主網站上的案例卡片列表，不用再另外去「主網站內容」手動加</div>
+          <div class="field-hint">勾選後，存檔時會自動把這個案例（用主視覺大圖、案名、上面填的外部連結網址或這個案例自己的網址）加進該章節主網站上的案例卡片列表，不用再另外去「主網站內容」手動加</div>
         </div>
       </div>
 
@@ -1980,7 +1996,8 @@ async function saveCaseEditor(ed){
 
     if(selectedChapters.length || toRemove.length){
       setLoading(true, "同步主網站章節中…");
-      const href = `https://as-studio001.github.io/Internal-Pages/?case=${slug}`;
+      const href = caseTargetHref(slug, ed.item.externalUrl);
+      const oldHref = ed.linkedHref || href;
       const card = {
         image: `https://as-studio001.github.io/Internal-Pages/${ed.item.hero}`,
         href,
@@ -1989,13 +2006,18 @@ async function saveCaseEditor(ed){
       // 不只是「新勾選的章節」才同步——本來就勾選、這次繼續勾選的章節也要
       // 一起跑一次，這樣縮圖／標題改了才會真的反映到章節卡片上（見
       // addCaseCardToChapter 的說明：已存在的卡片會被更新，不是靜默跳過）。
+      // 如果這次存檔把「外部連結網址」改掉了（href 因此變了），已經連結
+      // 的章節卡片是用舊網址比對的，要先用舊網址移除，不然會留下一筆
+      // 用舊網址、更新不到的孤兒卡片，而不是把它換成新網址。
       for(const chName of selectedChapters){
         const meta = CASE_CARD_CHAPTERS.find((c) => c.name === chName);
-        if(meta) await addCaseCardToChapter(meta, card);
+        if(!meta) continue;
+        if(oldHref !== href && originalChapters.includes(chName)) await removeCaseCardFromChapter(meta, oldHref);
+        await addCaseCardToChapter(meta, card);
       }
       for(const chName of toRemove){
         const meta = CASE_CARD_CHAPTERS.find((c) => c.name === chName);
-        if(meta) await removeCaseCardFromChapter(meta, href);
+        if(meta) await removeCaseCardFromChapter(meta, oldHref);
       }
     }
 
@@ -2059,12 +2081,12 @@ async function regenerateCaseLinksManifest(){
     const items = await Promise.all(files.map(async f => {
       try{
         const { json } = await ghGetFile(f.path);
-        return { slug: json.slug || f.name.replace(/\.json$/, ""), title: json.title || "" };
+        return { slug: json.slug || f.name.replace(/\.json$/, ""), title: json.title || "", externalUrl: json.externalUrl || "" };
       }catch(e){ return null; }
     }));
     const links = items
       .filter(it => it && it.title)
-      .map(it => ({ label: it.title, href: `https://as-studio001.github.io/Internal-Pages/?case=${it.slug}` }));
+      .map(it => ({ label: it.title, href: caseTargetHref(it.slug, it.externalUrl) }));
     const body = JSON.stringify({ links }, null, 2) + "\n";
     let sha = null;
     try{
