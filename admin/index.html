@@ -1127,14 +1127,15 @@ function photoListHtml(ed, basePath, listId, showCaption){
   `;
 }
 
-function bindPhotoList(ed, basePath, listId, folder){
+function bindPhotoList(ed, basePath, listId, folder, refresh){
+  const doRefresh = refresh || rerenderCurrentEditor;
   const wrap = document.getElementById(listId);
   if(!wrap) return;
   wrap.querySelectorAll("[data-remove-photo]").forEach(btn => {
     btn.addEventListener("click", () => {
       const i = parseInt(btn.dataset.removePhoto, 10);
       getPath(ed.item, basePath).splice(i, 1);
-      rerenderCurrentEditor();
+      doRefresh();
     });
   });
   const addBtn = wrap.querySelector("[data-add-photo]");
@@ -1142,12 +1143,12 @@ function bindPhotoList(ed, basePath, listId, folder){
   fileInput.type = "file"; fileInput.accept = "image/*"; fileInput.multiple = true; fileInput.style.display = "none";
   addBtn.after(fileInput);
   addBtn.addEventListener("click", () => fileInput.click());
-  fileInput.addEventListener("change", () => addPhotoFiles(ed, basePath, Array.from(fileInput.files)));
+  fileInput.addEventListener("change", () => addPhotoFiles(ed, basePath, Array.from(fileInput.files), doRefresh));
   ["dragover","dragenter"].forEach(evt => wrap.addEventListener(evt, e => { e.preventDefault(); wrap.classList.add("drag-over"); }));
   ["dragleave","drop"].forEach(evt => wrap.addEventListener(evt, e => { e.preventDefault(); wrap.classList.remove("drag-over"); }));
   wrap.addEventListener("drop", e => {
     const files = Array.from(e.dataTransfer.files || []).filter(f => f.type.startsWith("image/"));
-    if(files.length) addPhotoFiles(ed, basePath, files);
+    if(files.length) addPhotoFiles(ed, basePath, files, doRefresh);
   });
 
   // 清單裡的照片本身也能互相拖曳交換順序（跟從電腦拖新照片進來是不同的
@@ -1163,21 +1164,20 @@ function bindPhotoList(ed, basePath, listId, folder){
       const toIndex = parseInt(row.dataset.photoIndex, 10);
       if(dragRowIndex == null || dragRowIndex === toIndex) return;
       reorderPhotos(ed, basePath, dragRowIndex, toIndex);
-      if(basePath === "photos") delete ed.item.photoLayout;
       dragRowIndex = null;
-      rerenderCurrentEditor();
+      doRefresh();
     });
   });
 }
 
-function addPhotoFiles(ed, basePath, files){
+function addPhotoFiles(ed, basePath, files, refresh){
   const list = getPath(ed.item, basePath);
   files.forEach(file => {
     const tempKey = "PENDING::" + uid();
     ed.pendingUploads[tempKey] = { file, previewUrl: URL.createObjectURL(file) };
     list.push({ src: tempKey, caption: "" });
   });
-  rerenderCurrentEditor();
+  (refresh || rerenderCurrentEditor)();
 }
 
 /* 純圖片清單（沒有圖說），例如章節的輪播縮圖——陣列裡每一項就是一個
@@ -1278,24 +1278,48 @@ function stepsHtml(ed, basePath, addLabel){
 
 /* 分開處理 designResearch / process 各自的 step 事件綁定，
    避免兩組 step-card 互相干擾 */
-function bindStepsFor(ed, basePath, containerId, folder){
+function bindStepsFor(ed, basePath, containerId, folder, refresh){
+  const doRefresh = refresh || rerenderCurrentEditor;
   const container = document.getElementById(containerId);
   if(!container) return;
   const list = getPath(ed.item, basePath) || [];
   container.querySelectorAll("[data-step-index]").forEach(card => {
     const i = parseInt(card.dataset.stepIndex, 10);
     const listId = `${basePath.replace(/\./g,"_")}_${i}_photos`;
-    bindPhotoList(ed, `${basePath}.${i}.photos`, listId, folder);
+    bindPhotoList(ed, `${basePath}.${i}.photos`, listId, folder, doRefresh);
     card.querySelector("[data-remove-step]").addEventListener("click", () => {
       list.splice(i, 1);
-      rerenderCurrentEditor();
+      doRefresh();
     });
   });
   const addBtn = container.querySelector("[data-add-step]");
   if(addBtn) addBtn.addEventListener("click", () => {
     list.push({ body: "", photos: [] });
-    rerenderCurrentEditor();
+    doRefresh();
   });
+}
+
+/* 上面幾個清單（圖面、設計研究、施工過程）只重畫自己那個容器＋用既有
+   iframe 重新推送內容，不整個重畫案例編輯畫面（不然 4 個預覽框都要
+   跟著重新載入，很卡）。 */
+function refreshDrawingsList(ed, folder){
+  const wrap = document.getElementById("drawingsList");
+  if(!wrap){ rerenderCurrentEditor(); return; }
+  const parent = wrap.parentElement;
+  parent.innerHTML = photoListHtml(ed, "drawings", "drawingsList");
+  bindPhotoList(ed, "drawings", "drawingsList", folder, () => refreshDrawingsList(ed, folder));
+  bindPathInputs(ed, parent);
+  postCaseProjectToIframe(ed);
+}
+
+function refreshStepsList(ed, basePath, containerId, folder){
+  const container = document.getElementById(containerId);
+  if(!container){ rerenderCurrentEditor(); return; }
+  const addLabel = basePath === "designResearch" ? "新增一段設計研究" : "新增一段施工過程";
+  container.innerHTML = stepsHtml(ed, basePath, addLabel);
+  bindStepsFor(ed, basePath, containerId, folder, () => refreshStepsList(ed, basePath, containerId, folder));
+  bindPathInputs(ed, container);
+  postCaseProjectToIframe(ed);
 }
 
 const CASE_PREVIEW_BLOCKS = [
@@ -1674,12 +1698,20 @@ function bindPhotoGroups(ed){
   const wrap = document.getElementById("photosList");
   if(!wrap) return;
 
+  // 新增/刪除/拖曳排序照片都只重畫「內文照片」這一小塊＋用既有的 iframe
+  // 重新排版，不整個重畫案例編輯畫面——不然連 4 個預覽框都要跟著重新
+  //載入一次，會很卡。
+  const refresh = () => {
+    delete ed.item.photoLayout; // 張數或順序變了，舊分組跟著失效，回退重新自動排一次
+    refreshPhotoGroups(ed);
+    ensurePhotoLayout(ed);
+  };
+
   wrap.querySelectorAll("[data-remove-photo]").forEach(btn => {
     btn.addEventListener("click", () => {
       const i = parseInt(btn.dataset.removePhoto, 10);
       ed.item.photos.splice(i, 1);
-      delete ed.item.photoLayout; // 張數變了，舊分組跟著失效，回退重新自動排一次
-      rerenderCurrentEditor();
+      refresh();
     });
   });
 
@@ -1688,12 +1720,12 @@ function bindPhotoGroups(ed){
   fileInput.type = "file"; fileInput.accept = "image/*"; fileInput.multiple = true; fileInput.style.display = "none";
   addBtn.after(fileInput);
   addBtn.addEventListener("click", () => fileInput.click());
-  fileInput.addEventListener("change", () => addPhotoFiles(ed, "photos", Array.from(fileInput.files)));
+  fileInput.addEventListener("change", () => addPhotoFiles(ed, "photos", Array.from(fileInput.files), refresh));
   ["dragover","dragenter"].forEach(evt => wrap.addEventListener(evt, e => { e.preventDefault(); wrap.classList.add("drag-over"); }));
   ["dragleave","drop"].forEach(evt => wrap.addEventListener(evt, e => { e.preventDefault(); wrap.classList.remove("drag-over"); }));
   wrap.addEventListener("drop", e => {
     const files = Array.from(e.dataTransfer.files || []).filter(f => f.type.startsWith("image/"));
-    if(files.length) addPhotoFiles(ed, "photos", files);
+    if(files.length) addPhotoFiles(ed, "photos", files, refresh);
   });
 
   // 照片可以跨群組拖曳交換順序——直接動底層陣列順序，分組整個交給
@@ -1709,9 +1741,8 @@ function bindPhotoGroups(ed){
       const toIndex = parseInt(row.dataset.photoIndex, 10);
       if(dragIndex == null || dragIndex === toIndex) return;
       reorderPhotos(ed, "photos", dragIndex, toIndex);
-      delete ed.item.photoLayout;
       dragIndex = null;
-      rerenderCurrentEditor();
+      refresh();
     });
   });
 
@@ -1871,9 +1902,9 @@ function renderCaseEditor(){
 
   const folder = () => `images/${ed.item.slug || "tmp"}`;
   bindPhotoGroups(ed);
-  bindPhotoList(ed, "drawings", "drawingsList", folder());
-  bindStepsFor(ed, "designResearch", "designResearchList", folder());
-  bindStepsFor(ed, "process", "processList", folder());
+  bindPhotoList(ed, "drawings", "drawingsList", folder(), () => refreshDrawingsList(ed, folder()));
+  bindStepsFor(ed, "designResearch", "designResearchList", folder(), () => refreshStepsList(ed, "designResearch", "designResearchList", folder()));
+  bindStepsFor(ed, "process", "processList", folder(), () => refreshStepsList(ed, "process", "processList", folder()));
 
   ensurePhotoLayout(ed);
 
