@@ -1226,15 +1226,27 @@ function bindImageList(ed, basePath, listId, folder){
 }
 
 /* 把 ed.item 裡所有指向 pendingUploads 的暫時 key，實際上傳到對應資料夾，換成正式路徑 */
+/* 存檔時要上傳的照片一次全部排隊、限制同時最多 4 張一起傳（不是一張
+   傳完才傳下一張），存一個有好幾張新照片的案例會快很多；GitHub API
+   還是有速率限制，4 個同時跑是安全、不會被擋掉的量。 */
 async function flushPendingUploads(ed, folder){
   const keys = Object.keys(ed.pendingUploads);
-  for(let i = 0; i < keys.length; i++){
-    const key = keys[i];
-    setLoading(true, `壓縮並上傳圖片中… (${i+1}/${keys.length})`);
-    const finalPath = await uploadAsset(ed.pendingUploads[key].file, folder);
-    replaceValueDeep(ed.item, key, finalPath);
-    delete ed.pendingUploads[key];
+  if(keys.length === 0) return;
+  const concurrency = Math.min(4, keys.length);
+  let cursor = 0;
+  let done = 0;
+  setLoading(true, `壓縮並上傳圖片中… (0/${keys.length})`);
+  async function worker(){
+    while(cursor < keys.length){
+      const key = keys[cursor++];
+      const finalPath = await uploadAsset(ed.pendingUploads[key].file, folder);
+      replaceValueDeep(ed.item, key, finalPath);
+      delete ed.pendingUploads[key];
+      done++;
+      setLoading(true, `壓縮並上傳圖片中… (${done}/${keys.length})`);
+    }
   }
+  await Promise.all(Array.from({ length: concurrency }, worker));
 }
 function replaceValueDeep(obj, oldVal, newVal){
   if(Array.isArray(obj)){ obj.forEach(v => replaceValueDeep(v, oldVal, newVal)); return; }
