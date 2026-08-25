@@ -559,6 +559,7 @@ const state = {
   cases: null, // [{slug, title, ledeMeta, tag, hero}]
   editingCase: null, // { slug, item, sha, isNew, pendingUploads }
   siteMeta: [
+    { name: "hero", label: "首頁最上方文字（SECTION 1）", file: "content/site/hero.json" },
     { name: "declaration", label: "首頁宣言", file: "content/site/declaration.json" },
     { name: "chapter-restore", label: "章節：原型修復", file: "content/site/chapter-restore.json" },
     { name: "chapter-detail", label: "章節：原型細部", file: "content/site/chapter-detail.json" },
@@ -3986,6 +3987,79 @@ function siteEditorHtml(ed){
   const meta = ed.meta;
   const item = ed.item;
 
+  // 首頁最上方全螢幕大圖（SECTION 1）：底圖本身跟上面的光線遮罩效果是
+  // 版型設計的一部分，不開放後台更換，這裡只給「原型建築」／「AS.Studio」
+  // 這兩行文字的內容、粗細、大小比例、位置可以調——asarch 讀不到這份
+  // 資料，或欄位是空的，都會照 hero.json 目前存的預設值退回，不會讓
+  // 首頁大圖區塊空白或跑版。
+  if(meta && meta.name === "hero"){
+    return `
+      <div class="editor">
+        <div class="editor-head"><button class="back-link" id="backBtn">← 回到主網站內容列表</button></div>
+        <div class="field-hint" style="margin-bottom:16px">首頁最上方全螢幕大圖區塊（SECTION 1）。底圖照片跟上面的光線遮罩效果不能在這裡更換，只能調整疊在照片上「原型建築」「AS.Studio」這兩行文字的內容、粗細、大小、位置。</div>
+        <div class="field-block">
+          <label>第一行文字</label>
+          <input type="text" data-path="line1" value="${esc(item.line1 || "")}" placeholder="原型建築">
+        </div>
+        <div class="two-col">
+          <div class="field-block">
+            <label>第一行粗細</label>
+            <select data-path="line1Weight">
+              <option value="300" ${item.line1Weight === "300" ? "selected" : ""}>細（300）</option>
+              <option value="400" ${item.line1Weight === "400" ? "selected" : ""}>正常（400）</option>
+              <option value="500" ${item.line1Weight === "500" ? "selected" : ""}>中等（500）</option>
+              <option value="600" ${!item.line1Weight || item.line1Weight === "600" ? "selected" : ""}>半粗體（600，目前預設）</option>
+              <option value="700" ${item.line1Weight === "700" ? "selected" : ""}>粗體（700）</option>
+              <option value="800" ${item.line1Weight === "800" ? "selected" : ""}>特粗（800）</option>
+            </select>
+          </div>
+          <div class="field-block">
+            <label>第一行大小比例</label>
+            <input type="number" data-path="line1Scale" data-numeric="1" min="0.5" max="2" step="0.05" value="${item.line1Scale != null ? item.line1Scale : 1}">
+          </div>
+        </div>
+        <div class="field-block">
+          <label>第二行文字</label>
+          <input type="text" data-path="line2" value="${esc(item.line2 || "")}" placeholder="AS.Studio">
+        </div>
+        <div class="two-col">
+          <div class="field-block">
+            <label>第二行粗細</label>
+            <select data-path="line2Weight">
+              <option value="300" ${item.line2Weight === "300" ? "selected" : ""}>細（300）</option>
+              <option value="400" ${!item.line2Weight || item.line2Weight === "400" ? "selected" : ""}>正常（400，目前預設）</option>
+              <option value="500" ${item.line2Weight === "500" ? "selected" : ""}>中等（500）</option>
+              <option value="600" ${item.line2Weight === "600" ? "selected" : ""}>半粗體（600）</option>
+              <option value="700" ${item.line2Weight === "700" ? "selected" : ""}>粗體（700）</option>
+            </select>
+          </div>
+          <div class="field-block">
+            <label>第二行大小比例</label>
+            <input type="number" data-path="line2Scale" data-numeric="1" min="0.5" max="2" step="0.05" value="${item.line2Scale != null ? item.line2Scale : 1}">
+          </div>
+        </div>
+        <div class="field-block">
+          <div class="label">位置</div>
+          <div class="two-col">
+            <div>
+              <label>水平偏移</label>
+              <input type="text" data-path="offsetX" value="${esc(item.offsetX || "1cm")}" placeholder="1cm">
+            </div>
+            <div>
+              <label>垂直偏移</label>
+              <input type="text" data-path="offsetY" value="${esc(item.offsetY || "-25vh")}" placeholder="-25vh">
+            </div>
+          </div>
+          <div class="field-hint">直接填 CSS 長度值，例如 1cm、-25vh、20px、-2rem，數字改成負的會往左／往上移動。</div>
+        </div>
+        <div class="save-bar">
+          <span class="save-status" id="saveStatus"></span>
+          <button class="btn primary" id="saveBtn">儲存並發布</button>
+        </div>
+      </div>
+    `;
+  }
+
   if(meta && meta.name === "declaration"){
     return `
       <div class="editor">
@@ -4096,7 +4170,10 @@ function renderSiteEditor(){
   bindPathInputs(ed, app);
   bindLang5Blocks(ed, app);
 
-  if(ed.meta && ed.meta.name === "declaration"){
+  if(ed.meta && ed.meta.name === "hero"){
+    // 全部欄位都是通用文字框／下拉選單，上面 bindPathInputs 已經綁過了，
+    // 沒有照片、沒有可增減的清單，不需要額外綁定事件。
+  } else if(ed.meta && ed.meta.name === "declaration"){
     document.getElementById("addParaBtn").addEventListener("click", () => {
       ed.item.paragraphs = ed.item.paragraphs || [];
       ed.item.paragraphs.push({ "zh-Hant":"", "zh-Hans":"", en:"", ja:"", ko:"" });
