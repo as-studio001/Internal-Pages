@@ -1337,7 +1337,10 @@ function caseEditorHtml(ed){
     <div class="editor">
       <div class="editor-head">
         <button class="back-link" id="backBtn">← 回到案例列表</button>
-        ${!ed.isNew ? `<button class="btn danger" id="deleteBtn">刪除這個案例</button>` : ""}
+        <div style="display:flex;gap:14px;align-items:center;">
+          ${!ed.isNew ? `<a href="https://as-studio001.github.io/Internal-Pages/?case=${esc(c.slug)}" target="_blank" class="back-link">↗ 查看這個案例</a>` : ""}
+          ${!ed.isNew ? `<button class="btn danger" id="deleteBtn">刪除這個案例</button>` : ""}
+        </div>
       </div>
 
       ${!ed.isNew ? `
