@@ -46,6 +46,13 @@
       "label": {
         "zh-Hant": "台北藝廊展"
       }
+    },
+    {
+      "image": "https://as-studio001.github.io/Internal-Pages/images/site/case-exhibit-tnhs.jpg",
+      "href": "https://as-studio001.github.io/Internal-Pages/?case=good-feeling-space-exhibition",
+      "label": {
+        "zh-Hant": "好感空間展"
+      }
     }
   ]
 }
