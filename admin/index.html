@@ -352,6 +352,14 @@ function esc(str){
 }
 function uid(){ return Math.random().toString(36).slice(2, 9); }
 
+/* 中文輸入法打英數字時，句點／@ 這類符號有時候會被自動轉成「全形」
+   （看起來很像，但是不同的字元），拿去驗證 email 格式會直接被判定
+   invalid format。這裡把全形字元（U+FF01~FF5E）轉回對應的半形字元
+   （兩者的 code point 固定差 0xFEE0），輸入框防呆用。 */
+function normalizeFullwidth(str){
+  return String(str || "").replace(/[！-～]/g, (ch) => String.fromCharCode(ch.charCodeAt(0) - 0xFEE0));
+}
+
 /* ============================================================
    Toast / loading
    ============================================================ */
@@ -840,7 +848,7 @@ function bindUsersEvents(){
     return;
   }
   document.getElementById("inviteBtn").addEventListener("click", async () => {
-    const email = document.getElementById("inviteEmail").value.trim();
+    const email = normalizeFullwidth(document.getElementById("inviteEmail").value.trim());
     if(!email){ toast("請輸入 email", true); return; }
     try{
       setLoading(true, "發送邀請中…");
