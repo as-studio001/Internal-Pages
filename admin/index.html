@@ -595,15 +595,14 @@ const SUBPAGE_SITE_BASE = "https://www.as-structure.com";
 // 的編輯模式，一般訪客網址不會帶這個參數，完全不受影響。
 const HERO_PREVIEW_URL = "https://as-studio001.github.io/asarch/?preview=1";
 
-// iframe 本身固定用這個「桌機大小」的內部尺寸渲染（不管外層框框實際
-// 顯示多大），這樣裡面的文字一定套用 Tailwind 的 lg 級距（>=1024px）
-// 字級，跟真正桌機訪客看到的一樣；再用 CSS transform:scale() 把整個
-// iframe（照片、文字、間距全部一起，不是各自縮放）等比縮小塞進外層
-// 框框——文字才會跟著照片一起縮放，不會因為 iframe 顯示得比較窄，就
-// 誤套用手機版的響應式字級，導致預覽看到的字體比例跟實際上線不一致。
-// 見 layoutHeroPreview()。
+// iframe 內部「模擬視窗」固定用這個寬度渲染（不管外層框框實際顯示
+// 多寬），這樣裡面的文字一定套用 Tailwind 的 lg 級距（>=1024px）字級，
+// 跟真正桌機訪客看到的一樣；高度則由 layoutHeroPreview() 動態算，配合
+// 外層框框當下的長寬比，縮放完剛好完整鋪滿框框，不會留黑邊、也不會
+// 裁切。文字才會跟著照片一起等比縮放，不會因為 iframe 顯示得比較窄，
+// 就誤套用手機版的響應式字級，導致預覽看到的字體比例跟實際上線不
+// 一致。見 layoutHeroPreview()。
 const HERO_PREVIEW_REF_W = 1600;
-const HERO_PREVIEW_REF_H = 900;
 
 const SUBPAGE_PAGES = {
   teaching: { label: "原型教學", file: "原型教學.dc.html" },
@@ -4038,7 +4037,7 @@ function siteEditorHtml(ed){
         <div class="field-hint" style="margin-bottom:16px">左邊是即時預覽：整頁（照片、文字、間距）都照真正桌面大小等比縮小顯示，不是縮小視窗看到的響應式版面，所以看到的大小比例跟實際訪客看到的一致，方便精準調整。直接在文字上按住拖曳可以改位置，拖右下角的白色圓點可以改大小。右邊面板調整粗細、內容、行距（兩行文字的間距）、字距。改任何一項都可以用「上一步／下一步」或 Ctrl+Z／Ctrl+Y 復原、取消復原。底圖照片跟上面的光線遮罩效果不能在這裡更換。改完記得捲到最下面按「儲存並發布」。</div>
         <div style="display:flex; gap:20px; align-items:flex-start; flex-wrap:wrap;">
           <div id="heroPreviewViewport" style="flex:2 1 480px; min-width:300px; height:78vh; min-height:480px; position:relative; overflow:hidden; border:1px solid var(--line); border-radius:8px; background:#0a0a0a;">
-            <iframe id="heroPreviewFrame" src="${HERO_PREVIEW_URL}" style="position:absolute; top:0; left:0; width:${HERO_PREVIEW_REF_W}px; height:${HERO_PREVIEW_REF_H}px; border:0; transform-origin:0 0;"></iframe>
+            <iframe id="heroPreviewFrame" src="${HERO_PREVIEW_URL}" style="position:absolute; top:0; left:0; width:${HERO_PREVIEW_REF_W}px; border:0; transform-origin:0 0;"></iframe>
           </div>
           <div style="flex:1 1 260px; min-width:240px;">
             <div class="field-block">
@@ -4380,11 +4379,13 @@ window.addEventListener("keydown", (e) => {
   if(isUndo) undoHeroChange(ed); else redoHeroChange(ed);
 });
 
-// 量外層框框（heroPreviewViewport）目前實際渲染出來多大，算出要把固定
-// HERO_PREVIEW_REF_W×HERO_PREVIEW_REF_H 大小的 iframe 縮小到多少比例
-// 才能完整塞進去（等比縮放、取寬高比例中較小的那個，不會裁切也不會
-// 變形），縮完置中。框框大小會因為視窗寬度、面板換行而變，所以視窗
-// resize 時也要重算一次，不能只在一開始算一次就好。
+// 量外層框框（heroPreviewViewport）目前實際渲染出來多大，讓 iframe
+// 內部的「模擬視窗」寬固定用 HERO_PREVIEW_REF_W（保證一定套用 Tailwind
+// 的 lg 級距字級，跟真正桌機訪客看到的一樣），高度則反過來配合框框
+// 目前的長寬比去算——不是用固定的參考高度，這樣縮放完剛好完整鋪滿
+// 框框，不會因為框框長寬比跟參考尺寸對不上，而在上下或左右留黑邊。
+// 框框大小會因為視窗寬度、面板換行而變，所以視窗 resize 時也要重算
+// 一次，不能只在一開始算一次就好。
 function layoutHeroPreview(){
   const viewport = document.getElementById("heroPreviewViewport");
   const iframe = document.getElementById("heroPreviewFrame");
@@ -4392,10 +4393,10 @@ function layoutHeroPreview(){
   const boxW = viewport.clientWidth;
   const boxH = viewport.clientHeight;
   if(boxW <= 0 || boxH <= 0) return;
-  const scale = Math.min(boxW / HERO_PREVIEW_REF_W, boxH / HERO_PREVIEW_REF_H);
-  const offsetX = (boxW - HERO_PREVIEW_REF_W * scale) / 2;
-  const offsetY = (boxH - HERO_PREVIEW_REF_H * scale) / 2;
-  iframe.style.transform = `translate(${offsetX}px, ${offsetY}px) scale(${scale})`;
+  const scale = boxW / HERO_PREVIEW_REF_W;
+  const refH = boxH / scale;
+  iframe.style.height = `${refH}px`;
+  iframe.style.transform = `scale(${scale})`;
 }
 
 // 固定掛著、不用開關——只有目前正在編輯 hero 才會真的重算，其他情況
