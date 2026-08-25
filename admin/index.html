@@ -4029,9 +4029,13 @@ function siteEditorHtml(ed){
       <div class="editor">
         <div class="editor-head">
           <button class="back-link" id="backBtn">← 回到主網站內容列表</button>
-          <button class="btn ghost" id="heroResetBtn">重設位置與縮放</button>
+          <div style="display:flex; gap:10px; align-items:center;">
+            <button class="btn ghost" id="heroUndoBtn" title="上一步（Ctrl+Z）">↶ 上一步</button>
+            <button class="btn ghost" id="heroRedoBtn" title="下一步（Ctrl+Y／Ctrl+Shift+Z）">↷ 下一步</button>
+            <button class="btn ghost" id="heroResetBtn">重設位置與縮放</button>
+          </div>
         </div>
-        <div class="field-hint" style="margin-bottom:16px">左邊是即時預覽：整頁（照片、文字、間距）都照真正桌面大小等比縮小顯示，不是縮小視窗看到的響應式版面，所以看到的大小比例跟實際訪客看到的一致，方便精準調整。直接在文字上按住拖曳可以改位置，拖右下角的白色圓點可以改大小。右邊面板調整粗細、內容、行距（兩行文字的間距）、字距。底圖照片跟上面的光線遮罩效果不能在這裡更換。改完記得捲到最下面按「儲存並發布」。</div>
+        <div class="field-hint" style="margin-bottom:16px">左邊是即時預覽：整頁（照片、文字、間距）都照真正桌面大小等比縮小顯示，不是縮小視窗看到的響應式版面，所以看到的大小比例跟實際訪客看到的一致，方便精準調整。直接在文字上按住拖曳可以改位置，拖右下角的白色圓點可以改大小。右邊面板調整粗細、內容、行距（兩行文字的間距）、字距。改任何一項都可以用「上一步／下一步」或 Ctrl+Z／Ctrl+Y 復原、取消復原。底圖照片跟上面的光線遮罩效果不能在這裡更換。改完記得捲到最下面按「儲存並發布」。</div>
         <div style="display:flex; gap:20px; align-items:flex-start; flex-wrap:wrap;">
           <div id="heroPreviewViewport" style="flex:2 1 480px; min-width:300px; height:78vh; min-height:480px; position:relative; overflow:hidden; border:1px solid var(--line); border-radius:8px; background:#0a0a0a;">
             <iframe id="heroPreviewFrame" src="${HERO_PREVIEW_URL}" style="position:absolute; top:0; left:0; width:${HERO_PREVIEW_REF_W}px; height:${HERO_PREVIEW_REF_H}px; border:0; transform-origin:0 0;"></iframe>
@@ -4294,6 +4298,88 @@ function updateHeroPosReadout(ed){
   if(el) el.textContent = `水平 ${ed.item.offsetX || "1cm"}／垂直 ${ed.item.offsetY || "-25vh"}／縮放 ${ed.item.scale != null ? ed.item.scale : 1}×`;
 }
 
+/* ------------------------------------------------------------
+   上一步／下一步（Ctrl+Z／Ctrl+Y）——歷史紀錄只存在 ed.history 這個
+   session 內的記憶體陣列，關掉編輯器或重新整理頁面就會消失（跟
+   ed.item 本身一樣，還沒按「儲存並發布」都只是暫存）。每個「一次性
+   的改動」（拖曳/縮放放開滑鼠、滑桿放開、文字框失焦、下拉選單選擇、
+   按重設）都算一步，不是每個 input 事件都算——不然拖滑桿拖到一半
+   放開前的每個中間值都會變成一步，上一步會變得幾乎沒用。
+   ------------------------------------------------------------ */
+function cloneHeroItem(item){ return JSON.parse(JSON.stringify(item)); }
+
+function pushHeroHistory(ed){
+  if(!ed.history) ed.history = { past: [], future: [] };
+  ed.history.past.push(cloneHeroItem(ed.item));
+  if(ed.history.past.length > 50) ed.history.past.shift(); // 上限，避免無止盡累積
+  ed.history.future = []; // 邊改邊做新動作，原本能重做的「下一步」就失效了
+  updateHeroUndoRedoButtons(ed);
+}
+
+function updateHeroUndoRedoButtons(ed){
+  const undoBtn = document.getElementById("heroUndoBtn");
+  const redoBtn = document.getElementById("heroRedoBtn");
+  if(undoBtn) undoBtn.disabled = !(ed.history && ed.history.past.length);
+  if(redoBtn) redoBtn.disabled = !(ed.history && ed.history.future.length);
+}
+
+// 復原/取消復原不重畫整個編輯器（那樣會連 iframe 一起重建，害它重新
+// 整個載入一次），只把右邊面板每個欄位的值/唯讀文字改回對應的內容，
+// 再用平常同一套 postHeroPreview 把整包資料重推給 iframe。
+function refreshHeroFormFields(ed){
+  const setVal = (id, v) => { const el = document.getElementById(id); if(el) el.value = v; };
+  const setText = (id, v) => { const el = document.getElementById(id); if(el) el.textContent = v; };
+  const it = ed.item;
+  setVal("heroLine1", it.line1 || "");
+  setVal("heroLine1Weight", it.line1Weight || "600");
+  const ls1 = it.line1LetterSpacing != null ? it.line1LetterSpacing : 0.15;
+  setVal("heroLine1LetterSpacing", ls1);
+  setText("heroLine1LetterSpacingVal", ls1.toFixed(2));
+  setVal("heroLine2", it.line2 || "");
+  setVal("heroLine2Weight", it.line2Weight || "400");
+  const ls2 = it.line2LetterSpacing != null ? it.line2LetterSpacing : 0.3;
+  setVal("heroLine2LetterSpacing", ls2);
+  setText("heroLine2LetterSpacingVal", ls2.toFixed(2));
+  const gap = it.lineGap != null ? it.lineGap : 1.25;
+  setVal("heroLineGap", gap);
+  setText("heroLineGapVal", gap.toFixed(2));
+  updateHeroPosReadout(ed);
+  updateHeroUndoRedoButtons(ed);
+}
+
+function undoHeroChange(ed){
+  if(!ed.history || !ed.history.past.length) return;
+  ed.history.future.push(cloneHeroItem(ed.item));
+  ed.item = ed.history.past.pop();
+  refreshHeroFormFields(ed);
+  postHeroPreview(heroPreviewPatch(ed.item));
+}
+
+function redoHeroChange(ed){
+  if(!ed.history || !ed.history.future.length) return;
+  ed.history.past.push(cloneHeroItem(ed.item));
+  ed.item = ed.history.future.pop();
+  refreshHeroFormFields(ed);
+  postHeroPreview(heroPreviewPatch(ed.item));
+}
+
+// 固定掛著、鍵盤快捷鍵只在正在編輯 hero 時才生效，其他畫面（案例編輯器
+// 的 contentEditable、其他表單輸入框）的瀏覽器原生 Ctrl+Z/Y 行為不受
+// 影響。在瀏覽器焦點還在 iframe 裡（例如剛拖完文字，焦點還沒切回外層）
+// 時按 Ctrl+Z/Y，這個監聽器收不到（keydown 不會跨 iframe 邊界往上
+// 傳），要靠 HeroText.tsx 自己也監聽、用 postMessage 轉告這裡，見下面
+// message 監聽的 hero-preview-undo/redo 分支。
+window.addEventListener("keydown", (e) => {
+  const ed = state.editingSite;
+  if(!ed || !ed.meta || ed.meta.name !== "hero") return;
+  const key = e.key ? e.key.toLowerCase() : "";
+  const isUndo = (e.ctrlKey || e.metaKey) && !e.shiftKey && key === "z";
+  const isRedo = (e.ctrlKey || e.metaKey) && (key === "y" || (key === "z" && e.shiftKey));
+  if(!isUndo && !isRedo) return;
+  e.preventDefault();
+  if(isUndo) undoHeroChange(ed); else redoHeroChange(ed);
+});
+
 // 量外層框框（heroPreviewViewport）目前實際渲染出來多大，算出要把固定
 // HERO_PREVIEW_REF_W×HERO_PREVIEW_REF_H 大小的 iframe 縮小到多少比例
 // 才能完整塞進去（等比縮放、取寬高比例中較小的那個，不會裁切也不會
@@ -4320,25 +4406,39 @@ window.addEventListener("resize", () => {
 });
 
 function bindHeroEditorEvents(ed){
+  if(!ed.history) ed.history = { past: [], future: [] };
   layoutHeroPreview();
+  updateHeroUndoRedoButtons(ed);
+
+  // input 事件每打一個字/拖一格滑桿就會連續觸發很多次，只在「這一連串
+  // 動作的第一次」補一筆歷史紀錄（snapshotted 這個旗標記錄「已經補過
+  // 了」），change 事件（放開滑鼠／欄位失焦／下拉選單選好）代表這一串
+  // 動作結束，才把旗標重設，讓下一次改動重新補一筆——這樣一次「把滑桿
+  // 拖到底」只算一步，不是拖過的每一格都算一步。
   const bindText = (id, key) => {
     const el = document.getElementById(id);
     if(!el) return;
+    let snapshotted = false;
     el.addEventListener("input", () => {
+      if(!snapshotted){ pushHeroHistory(ed); snapshotted = true; }
       ed.item[key] = el.value;
       postHeroPreview({ [key]: el.value });
     });
+    el.addEventListener("change", () => { snapshotted = false; });
   };
   const bindRange = (id, valId, key) => {
     const el = document.getElementById(id);
     const valEl = document.getElementById(valId);
     if(!el) return;
+    let snapshotted = false;
     el.addEventListener("input", () => {
+      if(!snapshotted){ pushHeroHistory(ed); snapshotted = true; }
       const v = parseFloat(el.value);
       ed.item[key] = v;
       if(valEl) valEl.textContent = v.toFixed(2);
       postHeroPreview({ [key]: v });
     });
+    el.addEventListener("change", () => { snapshotted = false; });
   };
 
   bindText("heroLine1", "line1");
@@ -4349,9 +4449,15 @@ function bindHeroEditorEvents(ed){
   bindRange("heroLine2LetterSpacing", "heroLine2LetterSpacingVal", "line2LetterSpacing");
   bindRange("heroLineGap", "heroLineGapVal", "lineGap");
 
+  const undoBtn = document.getElementById("heroUndoBtn");
+  if(undoBtn) undoBtn.addEventListener("click", () => undoHeroChange(ed));
+  const redoBtn = document.getElementById("heroRedoBtn");
+  if(redoBtn) redoBtn.addEventListener("click", () => redoHeroChange(ed));
+
   const resetBtn = document.getElementById("heroResetBtn");
   if(resetBtn) resetBtn.addEventListener("click", () => {
-    if(!confirm("要把位置跟縮放重設回預設值嗎？（水平 1cm／垂直 -25vh／縮放 1 倍，右邊面板的其他文字設定不會被動到，這步也還沒存檔）")) return;
+    if(!confirm("要把位置跟縮放重設回預設值嗎？（水平 1cm／垂直 -25vh／縮放 1 倍，右邊面板的其他文字設定不會被動到，這步也還沒存檔，可以用「上一步」復原）")) return;
+    pushHeroHistory(ed);
     ed.item.offsetX = "1cm";
     ed.item.offsetY = "-25vh";
     ed.item.scale = 1;
@@ -4379,8 +4485,22 @@ window.addEventListener("message", (e) => {
     return;
   }
   if(e.data.type === "hero-preview-change" && e.data.patch){
+    // 拖曳/縮放一次手勢只會在放開滑鼠那一刻送一次這個訊息（不是拖曳
+    // 過程中每一格都送），所以這裡補一筆歷史紀錄就正好是「一步」，
+    // 不用像面板的滑桿/文字框那樣另外做旗標去重。
+    pushHeroHistory(ed);
     Object.assign(ed.item, e.data.patch);
     updateHeroPosReadout(ed);
+    return;
+  }
+  if(e.data.type === "hero-preview-undo"){
+    // 焦點還在 iframe 裡（例如剛拖完文字）按 Ctrl+Z，這個外層頁面的
+    // keydown 監聽收不到，改由 HeroText.tsx 自己攔截、postMessage 過來。
+    undoHeroChange(ed);
+    return;
+  }
+  if(e.data.type === "hero-preview-redo"){
+    redoHeroChange(ed);
   }
 });
 
