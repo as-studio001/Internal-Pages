@@ -27,17 +27,6 @@
   ],
   "cases": [
     {
-      "image": "https://as-studio001.github.io/Internal-Pages/images/site/case-exhibit-tnhs.jpg",
-      "href": "https://www.tnhs.com.tw/",
-      "label": {
-        "zh-Hant": "好感空間展",
-        "zh-Hans": "好感空间展",
-        "en": "\"Good Feeling Space\" Exhibition",
-        "ja": "好感空間展",
-        "ko": "호감공간전"
-      }
-    },
-    {
       "image": "https://as-studio001.github.io/asarch/photos/gallery-ada-1.jpg",
       "href": "https://as-studio001.github.io/Internal-Pages/?case=ada-architecture-exhibition",
       "label": {
