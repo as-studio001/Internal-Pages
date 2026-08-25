@@ -1928,7 +1928,7 @@ async function saveCaseEditor(ed){
     const json = JSON.stringify(ed.item, null, 2) + "\n";
     await ghPutFile(`content/projects/${slug}.json`, utf8ToBase64(json), `Update case ${slug} via admin`, ed.sha);
 
-    if(toAdd.length || toRemove.length){
+    if(selectedChapters.length || toRemove.length){
       setLoading(true, "同步主網站章節中…");
       const href = `https://as-studio001.github.io/Internal-Pages/?case=${slug}`;
       const card = {
@@ -1936,7 +1936,10 @@ async function saveCaseEditor(ed){
         href,
         label: { "zh-Hant": ed.item.title },
       };
-      for(const chName of toAdd){
+      // 不只是「新勾選的章節」才同步——本來就勾選、這次繼續勾選的章節也要
+      // 一起跑一次，這樣縮圖／標題改了才會真的反映到章節卡片上（見
+      // addCaseCardToChapter 的說明：已存在的卡片會被更新，不是靜默跳過）。
+      for(const chName of selectedChapters){
         const meta = CASE_CARD_CHAPTERS.find((c) => c.name === chName);
         if(meta) await addCaseCardToChapter(meta, card);
       }
@@ -1957,15 +1960,24 @@ async function saveCaseEditor(ed){
   }
 }
 
-/* 把一張案例卡片加進某個章節的 cases 清單（存在相同連結就跳過，避免
-   重複存檔時一直疊加同一張卡片） */
+// 把一張案例卡片加進（或更新）某個章節的 cases 清單——用連結（href）當
+// 比對依據：清單裡已經有相同連結的卡片，就整筆換成最新內容（縮圖、標題
+// 可能改過了），不是靜默跳過；沒有的話才新增。內容如果完全沒變就不寫檔，
+// 避免每次案例存檔（就算只是改內文，沒動到縮圖/標題）都留下一筆沒意義
+// 的 chapter commit。
+// 2026-08-25 修正：原本存在相同連結就直接 return 不更新，導致案例的
+// 縮圖/標題改了之後，已經連結到章節的卡片永遠停留在「第一次勾選當下」
+// 的舊內容——這是「原型建築（asarch）頁面上舊案例縮圖換不掉」問題的
+// 根本原因，因為 asarch 是讀這裡的章節卡片資料，不是直接讀案例本身。
 async function addCaseCardToChapter(meta, card){
   const { json, sha } = await ghGetFile(meta.file);
   json.cases = json.cases || [];
-  if(json.cases.some((c) => c.href === card.href)) return;
-  json.cases.push(card);
+  const idx = json.cases.findIndex((c) => c.href === card.href);
+  if(idx !== -1 && JSON.stringify(json.cases[idx]) === JSON.stringify(card)) return;
+  if(idx === -1) json.cases.push(card);
+  else json.cases[idx] = card;
   const body = JSON.stringify(json, null, 2) + "\n";
-  await ghPutFile(meta.file, utf8ToBase64(body), `Add case card via admin`, sha);
+  await ghPutFile(meta.file, utf8ToBase64(body), `${idx === -1 ? "Add" : "Update"} case card via admin`, sha);
 }
 
 /* 取消勾選某個章節時，把對應的卡片從那個章節移除——這樣「顯示在主網站
