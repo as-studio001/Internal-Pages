@@ -24,6 +24,13 @@
         "ja": "億載金城 入口イメージ",
         "ko": "이짜이진청 요새 입구 랜드마크"
       }
+    },
+    {
+      "image": "https://as-studio001.github.io/Internal-Pages/images/site/case-detail-proto1.jpg",
+      "href": "https://as-studio001.github.io/Internal-Pages/?case=prototype-house-1",
+      "label": {
+        "zh-Hant": "原型1號宅"
+      }
     }
   ],
   "heroPhoto": "https://as-studio001.github.io/Internal-Pages/images/site/chapter02.jpg",
