@@ -466,6 +466,43 @@ function readFileAsBase64(file){
   });
 }
 
+/* 上傳前先用 canvas 縮圖＋重新壓縮成 JPEG——相機原始檔案動輒
+   4000~8000px、好幾 MB，GitHub API 又要求轉成 base64（體積再漲
+   1/3），不壓縮的話上傳會很慢。已經夠小的檔案（本來就在合理尺寸內、
+   體積也不大）就直接用原檔，不要為了壓縮反而讓小圖檔案變大或失真。
+   壓縮失敗（例如瀏覽器不支援的格式）就退回原始檔案，不讓上傳整個失敗。*/
+function compressImageFile(file, maxDimension, quality){
+  return new Promise((resolve) => {
+    if(!file.type || !file.type.startsWith("image/") || file.type === "image/svg+xml" || file.type === "image/gif"){
+      resolve(file);
+      return;
+    }
+    const img = new Image();
+    const url = URL.createObjectURL(file);
+    img.onload = () => {
+      URL.revokeObjectURL(url);
+      const scale = Math.min(1, maxDimension / Math.max(img.naturalWidth, img.naturalHeight));
+      if(scale >= 1 && file.size < 1.5 * 1024 * 1024){
+        resolve(file);
+        return;
+      }
+      const width = Math.max(1, Math.round(img.naturalWidth * scale));
+      const height = Math.max(1, Math.round(img.naturalHeight * scale));
+      const canvas = document.createElement("canvas");
+      canvas.width = width;
+      canvas.height = height;
+      canvas.getContext("2d").drawImage(img, 0, 0, width, height);
+      canvas.toBlob((blob) => {
+        if(!blob){ resolve(file); return; }
+        const newName = file.name.replace(/\.\w+$/, "") + ".jpg";
+        resolve(new File([blob], newName, { type: "image/jpeg" }));
+      }, "image/jpeg", quality);
+    };
+    img.onerror = () => { URL.revokeObjectURL(url); resolve(file); };
+    img.src = url;
+  });
+}
+
 function sanitizeFilename(name){
   return name.replace(/[^\w.\-一-鿿]+/g, "_");
 }
@@ -473,8 +510,9 @@ function sanitizeFilename(name){
 /* 上傳一張照片到指定資料夾（案例照片放 images/<slug>/，主網站案例卡片
    放 images/site/），檔名衝突就自動加時間戳記，回傳最終路徑 */
 async function uploadAsset(file, folder){
-  const filename = sanitizeFilename(file.name);
-  const b64 = await readFileAsBase64(file);
+  const compressed = await compressImageFile(file, 2400, 0.82);
+  const filename = sanitizeFilename(compressed.name);
+  const b64 = await readFileAsBase64(compressed);
   const data = await callFunction("github-proxy", { action: "uploadAsset", folder, filename, content: b64 });
   return data.path;
 }
@@ -1187,7 +1225,7 @@ async function flushPendingUploads(ed, folder){
   const keys = Object.keys(ed.pendingUploads);
   for(let i = 0; i < keys.length; i++){
     const key = keys[i];
-    setLoading(true, `上傳圖片中… (${i+1}/${keys.length})`);
+    setLoading(true, `壓縮並上傳圖片中… (${i+1}/${keys.length})`);
     const finalPath = await uploadAsset(ed.pendingUploads[key].file, folder);
     replaceValueDeep(ed.item, key, finalPath);
     delete ed.pendingUploads[key];
