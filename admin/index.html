@@ -428,33 +428,73 @@ function logout(){
 }
 
 /* ============================================================
-   GitHub 寫入——透過 Netlify function 代為執行（登入的人沒有自己的
-   GitHub 帳號/權限，統一用同一組藏在後端的服務帳號 token）
+   GitHub 讀／寫——讀跟寫是兩條不同的路：
+   - 讀（getFile/listDir）：Internal-Pages／asstudiowebsite 都是公開
+     repo（GitHub Pages 本來就對外公開服務），讀公開內容不需要密鑰，
+     優先直接打 GitHub 公開 API（ghFetchPublic），完全不吃 Netlify
+     Function 的用量——這是 2026-08-25 從「每次讀寫都經過 Netlify」
+     改過來的，因為單筆案例存檔背後常態性要讀 20 幾次（尤其
+     regenerateCaseLinksManifest 要重讀每一筆案例、每個章節），佔了
+     Netlify 用量的大宗，而這些內容全部都是公開資料，繞道直接讀完全
+     不影響安全性。未登入的公開 API 有「每小時 60 次」的上限，真的
+     在同一小時內讀到觸頂（或離線、被瀏覽器擋掉之類的暫時性問題）
+     時，才退回原本「經過 Netlify github-proxy」的路徑重試一次——這條
+     備援路徑一樣算 Netlify 用量，只在直接讀取真的不通時才會用到，
+     不是預設路徑。
+   - 寫（putFile/deleteFile/uploadAsset）：一定要用藏在 Netlify 環境
+     變數裡的服務帳號 token 才能寫，登入的人沒有自己的 GitHub 帳號/
+     權限，這部分沒有「直接打公開 API」這個選項，固定走 Netlify
+     github-proxy，沒有變。
    ============================================================ */
 function utf8ToBase64(str){
   return btoa(unescape(encodeURIComponent(str)));
 }
 
-// repo 是選填的白名單參數（見 github-proxy.js 的 ALLOWED_REPOS）：不帶就
-// 維持寫 Internal-Pages（原本的行為），只有「新增子頁面」順便建立
-// asstudiowebsite 那邊的 .dc.html 骨架時才會帶 "asstudiowebsite"。
-async function ghGetFile(path, repo){
-  const data = await callFunction("github-proxy", { action: "getFile", path, repo });
+function decodeGhFileData(data){
   const content = decodeURIComponent(escape(atob(data.content.replace(/\n/g, ""))));
-  return { sha: data.sha, content, json: JSON.parse(content) };
+  return { sha: data.sha, content };
+}
+
+// repo 是選填的白名單參數：不帶就維持讀/寫 Internal-Pages（原本的
+// 行為），只有「新增子頁面」相關流程需要讀/寫 asstudiowebsite 那邊的
+// .dc.html 骨架時才會帶 "asstudiowebsite"。網路離線、或這個請求本身
+// 出問題（不是 GitHub 回應了 404/403 這種「有回應但失敗」，而是連
+// fetch 都丟例外）時回傳 null，讓呼叫端知道要退回 Netlify，而不是把
+// 例外整個往外丟——直接讀取失敗本來就有備援，不該讓使用者看到「直接
+// 讀取那條路」的技術性錯誤訊息。
+async function ghFetchPublic(path, repo){
+  const url = `https://api.github.com/repos/as-studio001/${repo || "Internal-Pages"}/contents/${path.split("/").map(encodeURIComponent).join("/")}?ref=main&_=${Date.now()}`;
+  try{
+    return await fetch(url, { cache: "no-store" });
+  }catch(networkErr){
+    return null;
+  }
+}
+
+async function ghGetFile(path, repo){
+  const res = await ghFetchPublic(path, repo);
+  const data = (res && res.ok) ? await res.json() : await callFunction("github-proxy", { action: "getFile", path, repo });
+  const { sha, content } = decodeGhFileData(data);
+  return { sha, content, json: JSON.parse(content) };
 }
 
 // 跟 ghGetFile 一樣，只是不假設檔案內容是 JSON——用來讀 .dc.html 這種原始
 // 檔案（例如「新增子頁面」要抓現成的 .dc.html 樣板來源檔時），硬要塞進
 // ghGetFile 的 JSON.parse 會直接噴錯。
 async function ghGetFileRaw(path, repo){
-  const data = await callFunction("github-proxy", { action: "getFile", path, repo });
-  const content = decodeURIComponent(escape(atob(data.content.replace(/\n/g, ""))));
-  return { sha: data.sha, content };
+  const res = await ghFetchPublic(path, repo);
+  const data = (res && res.ok) ? await res.json() : await callFunction("github-proxy", { action: "getFile", path, repo });
+  return decodeGhFileData(data);
 }
 
-async function ghListDir(path){
-  return callFunction("github-proxy", { action: "listDir", path });
+// 目錄不存在時，GitHub 的公開 API 回 404——跟 github-proxy.js 原本的
+// listDir 行為一致，當作「這個資料夾目前是空的」回傳空陣列，不是錯誤
+// （例如自訂章節/子頁面功能都還沒有人用過時，對應的資料夾根本不存在）。
+async function ghListDir(path, repo){
+  const res = await ghFetchPublic(path, repo);
+  if(res && res.status === 404) return [];
+  if(res && res.ok) return res.json();
+  return callFunction("github-proxy", { action: "listDir", path, repo });
 }
 
 async function ghPutFile(path, base64Content, message, sha, repo){
