@@ -5,8 +5,8 @@
   "line2": "AS.Studio",
   "line2Weight": "400",
   "line2LetterSpacing": 0.3,
-  "lineGap": 1.25,
-  "scale": 1.57,
-  "offsetX": "-48.7px",
-  "offsetY": "-282.2px"
+  "lineGap": 0.5,
+  "scale": 1.33,
+  "offsetX": "7.1px",
+  "offsetY": "-259.1px"
 }
