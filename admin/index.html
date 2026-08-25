@@ -586,6 +586,15 @@ const state = {
 // 在跑的本機網址）。原型教學/原型原點/原型獲獎/原型方法這 4 頁都已經
 // 改成向 asstudiowebsite 抓 JSON 內容部署上線，改回真正的網域是安全的。
 const SUBPAGE_SITE_BASE = "https://www.as-structure.com";
+
+// 首頁最上方文字（SECTION 1）的視覺化編輯器要嵌的預覽網址——asarch
+// 是獨立部署在 GitHub Pages 的靜態站（as-studio001.github.io/asarch/，
+// 跟這個後台自己一樣是 as-studio001.github.io 底下的路徑，同一個
+// origin，postMessage 收發不會被同源政策擋）。帶 ?preview=1 會讓
+// HeroText.tsx（asarch 那邊的元件）打開可拖曳/可縮放/可接收 postMessage
+// 的編輯模式，一般訪客網址不會帶這個參數，完全不受影響。
+const HERO_PREVIEW_URL = "https://as-studio001.github.io/asarch/?preview=1";
+
 const SUBPAGE_PAGES = {
   teaching: { label: "原型教學", file: "原型教學.dc.html" },
   origin: { label: "原型原點", file: "原型原點.dc.html" },
@@ -3989,68 +3998,66 @@ function siteEditorHtml(ed){
 
   // 首頁最上方全螢幕大圖（SECTION 1）：底圖本身跟上面的光線遮罩效果是
   // 版型設計的一部分，不開放後台更換，這裡只給「原型建築」／「AS.Studio」
-  // 這兩行文字的內容、粗細、大小比例、位置可以調——asarch 讀不到這份
-  // 資料，或欄位是空的，都會照 hero.json 目前存的預設值退回，不會讓
-  // 首頁大圖區塊空白或跑版。
+  // 這兩行文字可以調——用視覺化編輯器：位置／縮放直接在左邊 iframe 裡
+  // 拖曳（iframe 裡真的在跑 asarch 正式部署的頁面，帶 ?preview=1 讓它
+  // 打開可拖曳模式，不是另外做一份長得像的畫面），拖曳結果透過
+  // postMessage 回報、寫進 ed.item；粗細/內容/行距/字距是右邊面板的
+  // 輸入框跟滑塊，改的當下也會即時 postMessage 給 iframe 同步預覽。
+  // 兩邊改的都只是 ed.item，要按最下面「儲存並發布」才會真的寫進
+  // hero.json——跟其他編輯器完全一樣的存檔機制，沒有另外做一套。
   if(meta && meta.name === "hero"){
+    const weightOptions = (current, fallback, extra) => [300,400,500,600,700,800].map((w) => {
+      const val = String(w);
+      const isSelected = current ? current === val : val === fallback;
+      const noteParts = [];
+      if(val === fallback) noteParts.push("預設");
+      if(extra && extra[val]) noteParts.push(extra[val]);
+      const note = noteParts.length ? `（${noteParts.join("／")}）` : "";
+      return `<option value="${val}" ${isSelected ? "selected" : ""}>${val}${note}</option>`;
+    }).join("");
     return `
       <div class="editor">
-        <div class="editor-head"><button class="back-link" id="backBtn">← 回到主網站內容列表</button></div>
-        <div class="field-hint" style="margin-bottom:16px">首頁最上方全螢幕大圖區塊（SECTION 1）。底圖照片跟上面的光線遮罩效果不能在這裡更換，只能調整疊在照片上「原型建築」「AS.Studio」這兩行文字的內容、粗細、大小、位置。</div>
-        <div class="field-block">
-          <label>第一行文字</label>
-          <input type="text" data-path="line1" value="${esc(item.line1 || "")}" placeholder="原型建築">
+        <div class="editor-head">
+          <button class="back-link" id="backBtn">← 回到主網站內容列表</button>
+          <button class="btn ghost" id="heroResetBtn">重設位置與縮放</button>
         </div>
-        <div class="two-col">
-          <div class="field-block">
-            <label>第一行粗細</label>
-            <select data-path="line1Weight">
-              <option value="300" ${item.line1Weight === "300" ? "selected" : ""}>細（300）</option>
-              <option value="400" ${item.line1Weight === "400" ? "selected" : ""}>正常（400）</option>
-              <option value="500" ${item.line1Weight === "500" ? "selected" : ""}>中等（500）</option>
-              <option value="600" ${!item.line1Weight || item.line1Weight === "600" ? "selected" : ""}>半粗體（600，目前預設）</option>
-              <option value="700" ${item.line1Weight === "700" ? "selected" : ""}>粗體（700）</option>
-              <option value="800" ${item.line1Weight === "800" ? "selected" : ""}>特粗（800）</option>
-            </select>
-          </div>
-          <div class="field-block">
-            <label>第一行大小比例</label>
-            <input type="number" data-path="line1Scale" data-numeric="1" min="0.5" max="2" step="0.05" value="${item.line1Scale != null ? item.line1Scale : 1}">
-          </div>
-        </div>
-        <div class="field-block">
-          <label>第二行文字</label>
-          <input type="text" data-path="line2" value="${esc(item.line2 || "")}" placeholder="AS.Studio">
-        </div>
-        <div class="two-col">
-          <div class="field-block">
-            <label>第二行粗細</label>
-            <select data-path="line2Weight">
-              <option value="300" ${item.line2Weight === "300" ? "selected" : ""}>細（300）</option>
-              <option value="400" ${!item.line2Weight || item.line2Weight === "400" ? "selected" : ""}>正常（400，目前預設）</option>
-              <option value="500" ${item.line2Weight === "500" ? "selected" : ""}>中等（500）</option>
-              <option value="600" ${item.line2Weight === "600" ? "selected" : ""}>半粗體（600）</option>
-              <option value="700" ${item.line2Weight === "700" ? "selected" : ""}>粗體（700）</option>
-            </select>
-          </div>
-          <div class="field-block">
-            <label>第二行大小比例</label>
-            <input type="number" data-path="line2Scale" data-numeric="1" min="0.5" max="2" step="0.05" value="${item.line2Scale != null ? item.line2Scale : 1}">
-          </div>
-        </div>
-        <div class="field-block">
-          <div class="label">位置</div>
-          <div class="two-col">
-            <div>
-              <label>水平偏移</label>
-              <input type="text" data-path="offsetX" value="${esc(item.offsetX || "1cm")}" placeholder="1cm">
+        <div class="field-hint" style="margin-bottom:16px">左邊是即時預覽：直接在文字上按住拖曳可以改位置，拖右下角的白色圓點可以改大小。右邊面板調整粗細、內容、行距（兩行文字的間距）、字距。底圖照片跟上面的光線遮罩效果不能在這裡更換。改完記得捲到最下面按「儲存並發布」。</div>
+        <div style="display:flex; gap:20px; align-items:flex-start; flex-wrap:wrap;">
+          <iframe id="heroPreviewFrame" src="${HERO_PREVIEW_URL}" style="flex:2 1 480px; min-width:300px; height:78vh; min-height:480px; border:1px solid var(--line); border-radius:8px; background:#0a0a0a;"></iframe>
+          <div style="flex:1 1 260px; min-width:240px;">
+            <div class="field-block">
+              <label>第一行文字</label>
+              <input type="text" id="heroLine1" value="${esc(item.line1 || "")}" placeholder="原型建築">
             </div>
-            <div>
-              <label>垂直偏移</label>
-              <input type="text" data-path="offsetY" value="${esc(item.offsetY || "-25vh")}" placeholder="-25vh">
+            <div class="field-block">
+              <label>第一行粗細</label>
+              <select id="heroLine1Weight">${weightOptions(item.line1Weight, "600")}</select>
+            </div>
+            <div class="field-block">
+              <label>第一行字距（<span id="heroLine1LetterSpacingVal">${(item.line1LetterSpacing != null ? item.line1LetterSpacing : 0.15).toFixed(2)}</span>em）</label>
+              <input type="range" id="heroLine1LetterSpacing" min="0" max="0.5" step="0.01" value="${item.line1LetterSpacing != null ? item.line1LetterSpacing : 0.15}" style="width:100%">
+            </div>
+            <div class="field-block">
+              <label>第二行文字</label>
+              <input type="text" id="heroLine2" value="${esc(item.line2 || "")}" placeholder="AS.Studio">
+            </div>
+            <div class="field-block">
+              <label>第二行粗細</label>
+              <select id="heroLine2Weight">${weightOptions(item.line2Weight, "400")}</select>
+            </div>
+            <div class="field-block">
+              <label>第二行字距（<span id="heroLine2LetterSpacingVal">${(item.line2LetterSpacing != null ? item.line2LetterSpacing : 0.3).toFixed(2)}</span>em）</label>
+              <input type="range" id="heroLine2LetterSpacing" min="0" max="0.5" step="0.01" value="${item.line2LetterSpacing != null ? item.line2LetterSpacing : 0.3}" style="width:100%">
+            </div>
+            <div class="field-block">
+              <label>行距（<span id="heroLineGapVal">${(item.lineGap != null ? item.lineGap : 1.25).toFixed(2)}</span>rem）</label>
+              <input type="range" id="heroLineGap" min="0" max="4" step="0.05" value="${item.lineGap != null ? item.lineGap : 1.25}" style="width:100%">
+            </div>
+            <div class="field-block">
+              <div class="label">目前位置／縮放</div>
+              <div class="field-hint" id="heroPosReadout">水平 ${esc(item.offsetX || "1cm")}／垂直 ${esc(item.offsetY || "-25vh")}／縮放 ${item.scale != null ? item.scale : 1}×</div>
             </div>
           </div>
-          <div class="field-hint">直接填 CSS 長度值，例如 1cm、-25vh、20px、-2rem，數字改成負的會往左／往上移動。</div>
         </div>
         <div class="save-bar">
           <span class="save-status" id="saveStatus"></span>
@@ -4163,16 +4170,16 @@ function siteEditorHtml(ed){
 
 function renderSiteEditor(){
   const ed = state.editingSite;
-  app.innerHTML = `${renderTopBar()}<div class="wrap">${siteEditorHtml(ed)}</div>`;
+  const isHero = ed.meta && ed.meta.name === "hero";
+  app.innerHTML = `${renderTopBar()}<div class="wrap${isHero ? " wrap-wide" : ""}">${siteEditorHtml(ed)}</div>`;
   document.getElementById("logoutBtn").addEventListener("click", logout);
   document.getElementById("backBtn").addEventListener("click", closeSiteEditor);
 
   bindPathInputs(ed, app);
   bindLang5Blocks(ed, app);
 
-  if(ed.meta && ed.meta.name === "hero"){
-    // 全部欄位都是通用文字框／下拉選單，上面 bindPathInputs 已經綁過了，
-    // 沒有照片、沒有可增減的清單，不需要額外綁定事件。
+  if(isHero){
+    bindHeroEditorEvents(ed);
   } else if(ed.meta && ed.meta.name === "declaration"){
     document.getElementById("addParaBtn").addEventListener("click", () => {
       ed.item.paragraphs = ed.item.paragraphs || [];
@@ -4249,6 +4256,95 @@ async function saveSiteEditor(ed){
     setLoading(false);
   }
 }
+
+/* ============================================================
+   首頁最上方文字（SECTION 1）的視覺化編輯器——右邊面板每個輸入框/
+   滑塊改動時，同時做兩件事：寫進 ed.item（存檔時會用到）、postMessage
+   一份 patch 給 iframe 即時預覽。iframe 裡拖曳位置/縮放的結果則是反過來
+   由 iframe postMessage 回這裡（見下面全域的 message 監聽），寫回
+   ed.item 並更新「目前位置／縮放」那行唯讀文字。
+   ============================================================ */
+function heroPreviewPatch(item){
+  return {
+    line1: item.line1, line1Weight: item.line1Weight, line1LetterSpacing: item.line1LetterSpacing,
+    line2: item.line2, line2Weight: item.line2Weight, line2LetterSpacing: item.line2LetterSpacing,
+    lineGap: item.lineGap, scale: item.scale, offsetX: item.offsetX, offsetY: item.offsetY,
+  };
+}
+
+function postHeroPreview(patch){
+  const iframe = document.getElementById("heroPreviewFrame");
+  if(iframe && iframe.contentWindow) iframe.contentWindow.postMessage({ type: "hero-preview-set", patch }, "*");
+}
+
+function updateHeroPosReadout(ed){
+  const el = document.getElementById("heroPosReadout");
+  if(el) el.textContent = `水平 ${ed.item.offsetX || "1cm"}／垂直 ${ed.item.offsetY || "-25vh"}／縮放 ${ed.item.scale != null ? ed.item.scale : 1}×`;
+}
+
+function bindHeroEditorEvents(ed){
+  const bindText = (id, key) => {
+    const el = document.getElementById(id);
+    if(!el) return;
+    el.addEventListener("input", () => {
+      ed.item[key] = el.value;
+      postHeroPreview({ [key]: el.value });
+    });
+  };
+  const bindRange = (id, valId, key) => {
+    const el = document.getElementById(id);
+    const valEl = document.getElementById(valId);
+    if(!el) return;
+    el.addEventListener("input", () => {
+      const v = parseFloat(el.value);
+      ed.item[key] = v;
+      if(valEl) valEl.textContent = v.toFixed(2);
+      postHeroPreview({ [key]: v });
+    });
+  };
+
+  bindText("heroLine1", "line1");
+  bindText("heroLine1Weight", "line1Weight");
+  bindText("heroLine2", "line2");
+  bindText("heroLine2Weight", "line2Weight");
+  bindRange("heroLine1LetterSpacing", "heroLine1LetterSpacingVal", "line1LetterSpacing");
+  bindRange("heroLine2LetterSpacing", "heroLine2LetterSpacingVal", "line2LetterSpacing");
+  bindRange("heroLineGap", "heroLineGapVal", "lineGap");
+
+  const resetBtn = document.getElementById("heroResetBtn");
+  if(resetBtn) resetBtn.addEventListener("click", () => {
+    if(!confirm("要把位置跟縮放重設回預設值嗎？（水平 1cm／垂直 -25vh／縮放 1 倍，右邊面板的其他文字設定不會被動到，這步也還沒存檔）")) return;
+    ed.item.offsetX = "1cm";
+    ed.item.offsetY = "-25vh";
+    ed.item.scale = 1;
+    updateHeroPosReadout(ed);
+    postHeroPreview({ offsetX: "1cm", offsetY: "-25vh", scale: 1 });
+  });
+}
+
+// 固定掛著、不用開關——只有 state.editingSite 正好是 hero 這筆、而且
+// 訊息真的來自 hero 那個 iframe 時才會處理，其他情況（沒開這個編輯器、
+// 或訊息來自別的 iframe，例如案例編輯器自己的即時預覽）都直接略過，
+// 不會互相干擾（asarch 跟這個後台雖然是同一個 origin，但用不同的
+// message type 字串區分，不會跟 cms-edit 等案例編輯器的訊息搞混）。
+window.addEventListener("message", (e) => {
+  const ed = state.editingSite;
+  if(!ed || !ed.meta || ed.meta.name !== "hero") return;
+  if(!e.data) return;
+  const iframe = document.getElementById("heroPreviewFrame");
+  if(!iframe || e.source !== iframe.contentWindow) return;
+  if(e.data.type === "hero-preview-ready"){
+    // iframe 剛載入完成（或使用者在裡面重新整理過），把目前編輯到一半、
+    // 還沒存檔的內容整包重新推過去，確保預覽跟右邊表單看到的是同一份
+    // 資料，不是 hero.json 上一次存檔的舊內容。
+    postHeroPreview(heroPreviewPatch(ed.item));
+    return;
+  }
+  if(e.data.type === "hero-preview-change" && e.data.patch){
+    Object.assign(ed.item, e.data.patch);
+    updateHeroPosReadout(ed);
+  }
+});
 
 /* ============================================================
    主網頁：入口跟其他分頁一樣先是一張卡片，點進去才整頁打開現成的

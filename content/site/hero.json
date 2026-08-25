@@ -1,10 +1,12 @@
 {
   "line1": "原型建築",
   "line1Weight": "600",
-  "line1Scale": 1,
+  "line1LetterSpacing": 0.15,
   "line2": "AS.Studio",
   "line2Weight": "400",
-  "line2Scale": 1,
+  "line2LetterSpacing": 0.3,
+  "lineGap": 1.25,
+  "scale": 1,
   "offsetX": "1cm",
   "offsetY": "-25vh"
 }
