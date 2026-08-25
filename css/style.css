@@ -90,6 +90,12 @@ button{font-family:inherit;}
   background-repeat:no-repeat;
   background-position:center;
   background-size:cover;
+  /* .ph 本來是給沒有照片的佔位色塊用的，但 hero 大圖無論有沒有真的照片
+     都共用這個 class；沒有 object-fit 的話，真的照片會被 width:100%/
+     height:100% 逼著整張拉伸變形去塞滿 16:9 框，而不是等比例裁切
+     （縮圖／版面其他地方的真實照片都是各自設定 aspect-ratio，不會共用
+     到這個 class，只有 hero 這裡例外，所以只需要在這裡補上就好）。 */
+  object-fit:cover;
 }
 .ph[data-ph="1"]{background:linear-gradient(155deg,#dcdcdc,#a8a8a8);}
 .ph[data-ph="2"]{background:linear-gradient(155deg,#d4d4d4,#9c9c9c);}
