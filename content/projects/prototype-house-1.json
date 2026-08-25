@@ -2,20 +2,7 @@
   "slug": "prototype-house-1",
   "title": "原型1號宅",
   "ledeMeta": "",
-  "tag": "",
   "hero": "images/site/case-detail-proto1.jpg",
   "externalUrl": "https://asstudio029.wixsite.com/ashouse1",
-  "paragraphs": [
-    "這個案例只做為跳轉連結使用，內容維護在上面的外部連結網址。"
-  ],
-  "photos": [],
-  "map": {
-    "address": "",
-    "lat": null,
-    "lng": null,
-    "zoom": 17
-  },
-  "designResearch": [],
-  "process": [],
-  "drawings": []
+  "type": "external"
 }

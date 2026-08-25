@@ -583,16 +583,22 @@ const SUBPAGE_PAGES = {
   method: { label: "原型方法", file: "原型方法.dc.html" },
 };
 
-// 四個章節的案例卡片都是「照片＋連結＋標題」格式，勾選後會自動把案例
-// 加進對應章節的 cases[]。原型展覽另外還有 3 張相簿彈窗卡片（ADA建築展／
-// 構竹林鐵／台北藝廊展），那 3 張結構不同（點下去開相簿，不是外部連結），
-// 是寫死在 asarch 原始碼裡的，這裡的自動連結只會動到 cases[] 陣列本身，
-// 不會影響那 3 張。
+// 原型修復／原型展覽／原型細部這三個章節的案例卡片都是「照片＋連結＋
+// 標題」格式，勾選後會自動把案例加進對應章節的 cases[]，也會一併同步
+// 進漢堡選單清單（見 regenerateCaseLinksManifest）。原型展覽另外還有 3
+// 張相簿彈窗卡片（ADA建築展／構竹林鐵／台北藝廊展），那 3 張結構不同
+// （點下去開相簿，不是外部連結），是寫死在 asarch 原始碼裡的，這裡的
+// 自動連結只會動到 cases[] 陣列本身，不會影響那 3 張。
+//
+// 2026-08-25 原型數位刻意不放進這份清單：原型數位自己的跳轉卡片跟其他
+// 章節是各自獨立的（不應該讓同一筆「建築案例」同時掛在原型數位跟其他
+// 章節底下），也不需要同步進漢堡選單。原型數位的卡片改回直接在「主網站
+// 內容 → 章節：原型數位」自己的編輯畫面裡維護（照片／連結／標題，那個
+// 通用的「案例卡片」欄位本來就有，跟這裡的「建築案例」分頁是兩件事）。
 const CASE_CARD_CHAPTERS = [
   { name: "chapter-restore", label: "原型修復", file: "content/site/chapter-restore.json" },
   { name: "chapter-exhibit", label: "原型展覽", file: "content/site/chapter-exhibit.json" },
   { name: "chapter-detail", label: "原型細部", file: "content/site/chapter-detail.json" },
-  { name: "chapter-digital", label: "原型數位", file: "content/site/chapter-digital.json" },
 ];
 
 async function loadCaseList(){
@@ -601,9 +607,9 @@ async function loadCaseList(){
   const items = await Promise.all(files.map(async f => {
     try{
       const { json } = await ghGetFile(f.path);
-      return { slug: json.slug || f.name.replace(/\.json$/, ""), title: json.title || "", ledeMeta: json.ledeMeta || "", hero: json.hero || "" };
+      return { slug: json.slug || f.name.replace(/\.json$/, ""), title: json.title || "", ledeMeta: json.ledeMeta || "", hero: json.hero || "", type: json.type || "subpage" };
     }catch(e){
-      return { slug: f.name.replace(/\.json$/, ""), title: "（讀取失敗）", ledeMeta: "", hero: "" };
+      return { slug: f.name.replace(/\.json$/, ""), title: "（讀取失敗）", ledeMeta: "", hero: "", type: "subpage" };
     }
   }));
   state.cases = items;
@@ -882,12 +888,12 @@ function casesListHtml(){
         ${c.hero ? `<img src="${esc(rawUrl(c.hero))}" alt="" loading="lazy">` : "尚無主視覺"}
       </div>
       <div class="info">
-        <div class="t">${esc(c.title || "（未命名）")}</div>
+        <div class="t">${esc(c.title || "（未命名）")}${c.type === "external" ? ` <span style="font-size:11px;font-weight:400;opacity:.6;">↗ 外部連結</span>` : ""}</div>
         <div class="m">${esc(c.ledeMeta || c.slug)}</div>
       </div>
     </div>
   `).join("");
-  return `<div class="item-grid">${cards}${addCardHtml("新增案例")}</div>`;
+  return `<div class="item-grid">${cards}${addCardHtml("新增一般子網頁", "data-add-case-subpage")}${addCardHtml("新增外部連結網頁", "data-add-case-external")}</div>`;
 }
 
 function siteListHtml(){
@@ -957,9 +963,13 @@ function bindListEvents(){
       }
     });
   });
-  const addBtn = el.querySelector("[data-add]");
-  if(addBtn) addBtn.addEventListener("click", () => {
-    openCaseEditor(blankCase(), null, true);
+  const addCaseSubpageBtn = el.querySelector("[data-add-case-subpage]");
+  if(addCaseSubpageBtn) addCaseSubpageBtn.addEventListener("click", () => {
+    openCaseEditor(blankCase("subpage"), null, true);
+  });
+  const addCaseExternalBtn = el.querySelector("[data-add-case-external]");
+  if(addCaseExternalBtn) addCaseExternalBtn.addEventListener("click", () => {
+    openCaseEditor(blankCase("external"), null, true);
   });
   el.querySelectorAll("[data-edit-site]").forEach(card => {
     card.addEventListener("click", async () => {
@@ -997,12 +1007,21 @@ function bindListEvents(){
   });
 }
 
-function blankCase(){
+// 兩種案例類型共用同一套 content/projects/<slug>.json 檔案格式（跟同一套
+// 存檔／章節連結／漢堡選單同步邏輯），差別只在編輯畫面：一般子網頁維持
+// 原本完整的內頁欄位；外部連結網頁只給照片／標題／簡短說明／外部網址，
+// 其餘欄位留空值，這樣就算有人手動跳去看它自己的內頁（?case=slug）也
+// 不會因為缺欄位而壞掉，只是內容是空的。
+function blankCase(type){
+  if(type === "external"){
+    return { slug: "", title: "", ledeMeta: "", hero: "", externalUrl: "", type: "external" };
+  }
   return {
-    slug: "", title: "", ledeMeta: "", tag: "", hero: "", externalUrl: "",
+    slug: "", title: "", ledeMeta: "", tag: "", hero: "",
     paragraphs: [""], photos: [],
     map: { address: "", lat: null, lng: null, zoom: 17 },
     designResearch: [], process: [], drawings: [],
+    type: "subpage",
   };
 }
 
@@ -1382,6 +1401,67 @@ function refreshNewCaseGuide(ed){
   if(el) el.innerHTML = newCaseGuideHtml(ed);
 }
 
+/* 「外部連結網頁」：只用來在主網站放一張跳轉卡片，本身沒有內文/照片牆/
+   位置這些內頁內容，所以編輯畫面不套一般子網頁那套即時預覽 iframe，
+   直接給幾個表單欄位就好——跟一般案例共用同一套存檔／章節連結／漢堡
+   選單同步邏輯（saveCaseEditor 用 c.type 判斷要走哪個畫面，儲存流程
+   本身不分兩種）。 */
+function externalCaseEditorHtml(ed){
+  const c = ed.item;
+  return `
+    <div class="editor">
+      <div class="editor-head">
+        <button class="back-link" id="backBtn">← 回到案例列表</button>
+        ${!ed.isNew ? `<button class="btn danger" id="deleteBtn">刪除這個案例</button>` : ""}
+      </div>
+      <div class="field-hint" style="margin-bottom:16px">外部連結網頁：只在主網站放一張跳轉卡片，點下去會直接離開網站連到別的網址，沒有自己的內頁內容。</div>
+      <div class="field-block">
+        <div class="label">照片</div>
+        ${coverDropHtml("hero", resolveSrc(ed.pendingUploads, c.hero))}
+      </div>
+      <div class="field-block">
+        <label>標題</label>
+        <input type="text" data-path="title" value="${esc(c.title || "")}">
+      </div>
+      <div class="field-block">
+        <label>簡短說明（選填）</label>
+        <input type="text" data-path="ledeMeta" value="${esc(c.ledeMeta || "")}">
+      </div>
+      <div class="field-block">
+        <label>外部連結網址</label>
+        <input type="text" data-path="externalUrl" placeholder="https://…" value="${esc(c.externalUrl || "")}">
+      </div>
+      <div class="field-block">
+        <div class="label">顯示在主網站章節（選填）</div>
+        <div class="chapter-picker">
+          ${CASE_CARD_CHAPTERS.map((ch) => `
+            <label>
+              <input type="checkbox" data-add-to-chapter="${ch.name}" ${(ed.linkedChapters || []).includes(ch.name) ? "checked" : ""}>
+              ${ch.label}
+            </label>
+          `).join("")}
+        </div>
+        <div class="field-hint">勾選後，存檔時會自動把這張卡片（照片、標題、上面的外部連結網址）加進該章節主網站上的案例卡片列表</div>
+      </div>
+      <div class="save-bar">
+        <span class="save-status" id="saveStatus"></span>
+        <button class="btn primary" id="saveBtn">儲存並發布</button>
+      </div>
+    </div>
+  `;
+}
+
+function renderExternalCaseEditor(ed){
+  app.innerHTML = `${renderTopBar()}<div class="wrap">${externalCaseEditorHtml(ed)}</div>`;
+  document.getElementById("logoutBtn").addEventListener("click", logout);
+  document.getElementById("backBtn").addEventListener("click", closeCaseEditor);
+  const deleteBtn = document.getElementById("deleteBtn");
+  if(deleteBtn) deleteBtn.addEventListener("click", deleteCurrentCase);
+  bindPathInputs(ed, app);
+  bindCoverDropEvents(ed, "hero", `images/${ed.item.slug || "tmp"}`);
+  document.getElementById("saveBtn").addEventListener("click", () => saveCaseEditor(ed));
+}
+
 function caseEditorHtml(ed){
   const c = ed.item;
   return `
@@ -1415,11 +1495,6 @@ function caseEditorHtml(ed){
           <input type="text" data-path="tag" value="${esc(c.tag || "")}">
         </div>
         <div class="field-block">
-          <label>外部連結網址（選填）</label>
-          <input type="text" data-path="externalUrl" placeholder="https://…" value="${esc(c.externalUrl || "")}">
-          <div class="field-hint">這個案例本來會有自己的內頁（網址代號那頁）。如果這個案例其實是要跳轉到別的網站（不是寫在這裡的內容），填這裡——章節卡片、漢堡選單點下去都會直接連到這個網址；留空就維持連到自己內頁。</div>
-        </div>
-        <div class="field-block">
           <div class="label">顯示在主網站章節（選填）</div>
           <div class="chapter-picker">
             ${CASE_CARD_CHAPTERS.map((ch) => `
@@ -1429,7 +1504,7 @@ function caseEditorHtml(ed){
               </label>
             `).join("")}
           </div>
-          <div class="field-hint">勾選後，存檔時會自動把這個案例（用主視覺大圖、案名、上面填的外部連結網址或這個案例自己的網址）加進該章節主網站上的案例卡片列表，不用再另外去「主網站內容」手動加</div>
+          <div class="field-hint">勾選後，存檔時會自動把這個案例（用主視覺大圖、案名、這個案例的網址）加進該章節主網站上的案例卡片列表，不用再另外去「主網站內容」手動加</div>
         </div>
       </div>
 
@@ -1897,6 +1972,7 @@ function handleCaseEdit(ed, data){
 
 function renderCaseEditor(){
   const ed = state.editingCase;
+  if(ed.item.type === "external"){ renderExternalCaseEditor(ed); return; }
   app.innerHTML = `${renderTopBar()}<div class="wrap">${caseEditorHtml(ed)}</div>`;
   document.getElementById("logoutBtn").addEventListener("click", logout);
   document.getElementById("backBtn").addEventListener("click", closeCaseEditor);
