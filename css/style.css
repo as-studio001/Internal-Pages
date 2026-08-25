@@ -284,9 +284,6 @@ button{font-family:inherit;}
 /* ---------- hero photo：全幅大圖，接在標題文字之後 ---------- */
 .hero-photo{width:100%;}
 .hero-photo .ph{aspect-ratio:16/9;}
-@media (min-width:900px){
-  .hero-photo .ph{aspect-ratio:21/9;}
-}
 
 /* ---------- 設計研究／施工過程／圖面收合區塊：預設收起，
    點「+ More in Detail」展開，三個子區塊排在同一個面板裡 ---------- */

@@ -1593,13 +1593,13 @@ function convertCaseType(ed, newType){
     if(!confirm("切換成「外部連結網頁」嗎？內文段落、照片牆、設計研究、位置這些欄位的內容會被丟掉（還沒存檔，這步只是切換編輯畫面）。")) return;
     ed.item = {
       slug: c.slug || "", title: c.title || "", ledeMeta: c.ledeMeta || "",
-      hero: c.hero || "", externalUrl: c.externalUrl || "", type: "external",
+      hero: c.hero || "", heroPosition: c.heroPosition || null, externalUrl: c.externalUrl || "", type: "external",
     };
   } else {
     if(!confirm("切換成「一般子網頁」嗎？外部連結網址會被清掉，改成連到這個案例自己的內頁（還沒存檔，這步只是切換編輯畫面）。")) return;
     ed.item = {
       slug: c.slug || "", title: c.title || "", ledeMeta: c.ledeMeta || "", tag: "",
-      hero: c.hero || "",
+      hero: c.hero || "", heroPosition: c.heroPosition || null,
       paragraphs: [""], photos: [],
       map: { address: "", lat: null, lng: null, zoom: 17 },
       designResearch: [], process: [], drawings: [],
@@ -2111,6 +2111,12 @@ function handleCaseEdit(ed, data){
       ed.item.hero = key;
       postCaseProjectToIframe(ed);
     });
+    return;
+  }
+  if(data.field === "hero-position"){
+    // 拖曳結束後，iframe 裡的照片位置早就已經即時更新過了，這裡只是
+    // 把最終結果記到 ed.item 裡準備存檔，不用整個重畫 iframe。
+    ed.item.heroPosition = data.value;
     return;
   }
   if(data.field === "photo-replace"){

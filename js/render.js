@@ -75,6 +75,12 @@
     const heroData = typeof PROJECT.hero === "string" ? { src: PROJECT.hero } : (PROJECT.hero || {});
     const img = buildImage(heroData);
     img.classList.add("ph");
+    // 大圖固定裁成 16:9，不同比例的原始照片交給 heroPosition（後台可以
+    // 拖曳調整）決定要保留哪個部分，預設置中（50%,50%）。
+    if (heroData.src) {
+      const pos = PROJECT.heroPosition || { x: 50, y: 50 };
+      img.style.objectPosition = `${pos.x}% ${pos.y}%`;
+    }
     wrap.appendChild(img);
   }
 
@@ -655,6 +661,93 @@
     });
   }
 
+  /**
+   * 大圖固定裁成 16:9，但原始照片比例不一定剛好符合，裁切時一定會犧牲
+   * 掉上下或左右其中一段——這裡讓使用者直接在預覽裡拖曳照片本身，
+   * 自由決定要保留畫面的哪個部分（存成 heroPosition 的 x/y 百分比，
+   * 對應 CSS object-position）。跟「點一下換照片」共用同一張圖，用移動
+   * 距離分辨：滑鼠按下後幾乎沒移動就當作「點擊」（換照片），移動超過
+   * 一點門檻才當作「拖曳」（調整位置），放開滑鼠才真的送出新位置。
+   */
+  function makeHeroPhotoAdjustable(el, wrap) {
+    if (!el) return;
+    const isRealPhoto = el.tagName === "IMG";
+    if (!isRealPhoto) {
+      // 還沒有照片，沒有位置可以拖，跟其他佔位圖一樣單純點擊上傳。
+      makePhotoClickable(el, () => postCmsEdit({ field: "hero-replace" }));
+      return;
+    }
+    el.classList.add("cms-editable-photo");
+    el.classList.add("cms-hero-photo");
+    el.title = "拖曳調整位置．點一下更換照片";
+    el.draggable = false;
+
+    const DRAG_THRESHOLD = 4;
+
+    function currentPos() {
+      const p = (typeof PROJECT.heroPosition === "object" && PROJECT.heroPosition) || { x: 50, y: 50 };
+      return { x: p.x, y: p.y };
+    }
+
+    function pointerDown(downEvent) {
+      const startEvt = downEvent.touches ? downEvent.touches[0] : downEvent;
+      const startX = startEvt.clientX;
+      const startY = startEvt.clientY;
+      const startPos = currentPos();
+      let dragging = false;
+      let lastPos = startPos;
+
+      function move(moveEvent) {
+        const evt = moveEvent.touches ? moveEvent.touches[0] : moveEvent;
+        const dx = evt.clientX - startX;
+        const dy = evt.clientY - startY;
+        if (!dragging && Math.hypot(dx, dy) < DRAG_THRESHOLD) return;
+        dragging = true;
+        moveEvent.preventDefault();
+
+        const boxRect = wrap.getBoundingClientRect();
+        const naturalW = el.naturalWidth || boxRect.width;
+        const naturalH = el.naturalHeight || boxRect.height;
+        const scale = Math.max(boxRect.width / naturalW, boxRect.height / naturalH);
+        const rangeX = boxRect.width - naturalW * scale; // <= 0
+        const rangeY = boxRect.height - naturalH * scale; // <= 0
+
+        const x = rangeX === 0 ? 50 : clamp(startPos.x + (100 * dx) / rangeX, 0, 100);
+        const y = rangeY === 0 ? 50 : clamp(startPos.y + (100 * dy) / rangeY, 0, 100);
+        lastPos = { x, y };
+        el.style.objectPosition = `${x}% ${y}%`;
+      }
+
+      function up() {
+        document.removeEventListener("mousemove", move);
+        document.removeEventListener("mouseup", up);
+        document.removeEventListener("touchmove", move);
+        document.removeEventListener("touchend", up);
+        if (dragging) {
+          PROJECT.heroPosition = lastPos;
+          postCmsEdit({ field: "hero-position", value: lastPos });
+        } else {
+          postCmsEdit({ field: "hero-replace" });
+        }
+      }
+
+      document.addEventListener("mousemove", move);
+      document.addEventListener("mouseup", up);
+      document.addEventListener("touchmove", move, { passive: false });
+      document.addEventListener("touchend", up);
+    }
+
+    function clamp(v, min, max) {
+      return Math.max(min, Math.min(max, v));
+    }
+
+    el.addEventListener("mousedown", (e) => {
+      e.preventDefault();
+      pointerDown(e);
+    });
+    el.addEventListener("touchstart", pointerDown, { passive: true });
+  }
+
   function injectEditableStyles() {
     if ($("#cms-editable-styles")) return;
     const style = document.createElement("style");
@@ -673,6 +766,18 @@
       .cms-editable-text:focus{ outline:2px solid #4d8dff; background:rgba(90,150,255,0.16); }
       .cms-editable-photo{ cursor:pointer; transition:filter .15s ease, outline-color .15s ease; outline:2px dashed rgba(90,150,255,0.4); outline-offset:-2px; }
       .cms-editable-photo:hover{ filter:brightness(0.72); outline-color:rgba(90,150,255,0.85); }
+      /* 大圖是拖曳調整位置，不是單純點擊，用抓取游標提示，且拖曳時
+         不要出現「換照片」那種整張變暗的效果，不然會誤以為在點擊。 */
+      .cms-hero-photo{ cursor:grab; }
+      .cms-hero-photo:active{ cursor:grabbing; }
+      .cms-hero-photo:hover{ filter:none; }
+      .cms-hero-photo::before{
+        content:"拖曳調整位置．點一下更換照片"; position:absolute; left:50%; bottom:12px;
+        transform:translateX(-50%); padding:6px 12px; border-radius:4px;
+        font-size:12px; font-weight:600; color:#fff; background:rgba(0,0,0,0.55);
+        opacity:0; transition:opacity .15s ease; pointer-events:none; white-space:nowrap;
+      }
+      .cms-hero-photo:hover::before{ opacity:1; }
       /* 空白的灰底佔位圖（還沒有照片）光靠虛線框不夠明顯，容易讓人
          看不出來這塊是可以點的——直接疊字說明「點擊上傳照片」。 */
       .ph.cms-editable-photo::after{
@@ -718,7 +823,7 @@
     });
 
     const heroPhotoEl = $("#hero-photo img") || $("#hero-photo .ph");
-    makePhotoClickable(heroPhotoEl, () => postCmsEdit({ field: "hero-replace" }));
+    makeHeroPhotoAdjustable(heroPhotoEl, $("#hero-photo"));
 
     // 內文照片點下去直接換照片；排版分組／模板選擇整個移到後台「內文
     // 照片」清單那邊直接做（一整排照片一起選、跟照片放在同一個地方），
