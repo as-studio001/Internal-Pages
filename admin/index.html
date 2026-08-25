@@ -556,6 +556,7 @@ const state = {
     { name: "chapter-detail", label: "章節：原型細部", file: "content/site/chapter-detail.json" },
     { name: "chapter-exhibit", label: "章節：原型展覽", file: "content/site/chapter-exhibit.json" },
     { name: "chapter-digital", label: "章節：原型數位", file: "content/site/chapter-digital.json" },
+    { name: "material-links", label: "原型建築：漢堡選單清單", file: "content/site/material-links.json" },
   ],
   editingSite: null, // { meta, item, sha, pendingUploads }
   subpages: null, // [{slug, title}]
@@ -583,10 +584,14 @@ const SUBPAGE_PAGES = {
   method: { label: "原型方法", file: "原型方法.dc.html" },
 };
 
-// 只有這三個章節的案例卡片是簡單的「照片＋連結＋標題」格式，可以自動
-// 產生；原型展覽的卡片有相簿彈窗效果，結構不同，不開放自動加入。
+// 四個章節的案例卡片都是「照片＋連結＋標題」格式，勾選後會自動把案例
+// 加進對應章節的 cases[]。原型展覽另外還有 3 張相簿彈窗卡片（ADA建築展／
+// 構竹林鐵／台北藝廊展），那 3 張結構不同（點下去開相簿，不是外部連結），
+// 是寫死在 asarch 原始碼裡的，這裡的自動連結只會動到 cases[] 陣列本身，
+// 不會影響那 3 張。
 const CASE_CARD_CHAPTERS = [
   { name: "chapter-restore", label: "原型修復", file: "content/site/chapter-restore.json" },
+  { name: "chapter-exhibit", label: "原型展覽", file: "content/site/chapter-exhibit.json" },
   { name: "chapter-detail", label: "原型細部", file: "content/site/chapter-detail.json" },
   { name: "chapter-digital", label: "原型數位", file: "content/site/chapter-digital.json" },
 ];
@@ -3676,6 +3681,41 @@ function siteEditorHtml(ed){
     `;
   }
 
+  if(meta.name === "material-links"){
+    return `
+      <div class="editor">
+        <div class="editor-head"><button class="back-link" id="backBtn">← 回到主網站內容列表</button></div>
+        <div class="field-hint" style="margin-bottom:16px">這份清單對應原型建築網站（asarch，as-structure.com）左上角漢堡選單展開的連結清單，由上到下排列。</div>
+        <div class="field-block">
+          <div class="label">選單項目</div>
+          <div id="materialLinksBlocks">
+            ${(item.links || []).map((l, i) => `
+              <div class="case-card-editor" data-link-index="${i}">
+                <div class="case-card-editor-head">
+                  <span class="step-label">第 ${i + 1} 項</span>
+                  <button type="button" class="row-remove-btn" data-remove-link="${i}" title="移除">×</button>
+                </div>
+                <div class="field-block">
+                  <label>顯示文字</label>
+                  <input type="text" data-path="links.${i}.label" value="${esc(l.label || "")}">
+                </div>
+                <div class="field-block">
+                  <label>連結網址</label>
+                  <input type="text" data-path="links.${i}.href" value="${esc(l.href || "")}">
+                </div>
+              </div>
+            `).join("")}
+          </div>
+          <button type="button" class="add-step-btn" id="addLinkBtn">${iconUpload()}<span>新增項目</span></button>
+        </div>
+        <div class="save-bar">
+          <span class="save-status" id="saveStatus"></span>
+          <button class="btn primary" id="saveBtn">儲存並發布</button>
+        </div>
+      </div>
+    `;
+  }
+
   // 章節（restore / detail / exhibit / digital）
   const hasCases = Array.isArray(item.cases);
   const hasHero = "heroPhoto" in item;
@@ -3759,6 +3799,18 @@ function renderSiteEditor(){
     app.querySelectorAll("[data-remove-para]").forEach(btn => {
       btn.addEventListener("click", () => {
         ed.item.paragraphs.splice(parseInt(btn.dataset.removePara, 10), 1);
+        rerenderCurrentEditor();
+      });
+    });
+  } else if(ed.meta.name === "material-links"){
+    ed.item.links = ed.item.links || [];
+    document.getElementById("addLinkBtn").addEventListener("click", () => {
+      ed.item.links.push({ label: "", href: "" });
+      rerenderCurrentEditor();
+    });
+    app.querySelectorAll("[data-remove-link]").forEach(btn => {
+      btn.addEventListener("click", () => {
+        ed.item.links.splice(parseInt(btn.dataset.removeLink, 10), 1);
         rerenderCurrentEditor();
       });
     });

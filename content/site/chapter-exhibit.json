@@ -24,5 +24,18 @@
     "https://as-studio001.github.io/Internal-Pages/images/site/exhibit-thumb-6.jpg",
     "https://as-studio001.github.io/Internal-Pages/images/site/exhibit-thumb-7.jpg",
     "https://as-studio001.github.io/Internal-Pages/images/site/exhibit-thumb-8.jpg"
+  ],
+  "cases": [
+    {
+      "image": "https://as-studio001.github.io/asarch/photos/case-exhibit-tnhs.jpg",
+      "href": "https://www.tnhs.com.tw/",
+      "label": {
+        "zh-Hant": "好感空間展",
+        "zh-Hans": "好感空间展",
+        "en": "\"Good Feeling Space\" Exhibition",
+        "ja": "好感空間展",
+        "ko": "호감공간전"
+      }
+    }
   ]
 }
