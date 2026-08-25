@@ -13,41 +13,7 @@
     "ja": "修復とは、建築を過去の姿に戻すことではなく、記憶と時間の意味を理解することです。素材・構法・歴史・使用の痕跡から時間の証を読み取り、保存と更新のあいだに新たな可能性を探ります。表面的な「古びた風合い」ではなく、もとの構法の論理を尊重し、現代の技術で既存建築の課題に応えます。古い建物はただ保存されるのではなく、ふたたび生活のなかへ戻り、時間そのものがデザインの一部となるのです。",
     "ko": "복원은 건축을 과거로 되돌리는 것이 아니라, 기억과 시간의 의미를 이해하는 일입니다. 재료, 구법, 역사, 사용의 흔적에서 시간의 증거를 읽어내고, 보존과 갱신 사이에서 새로운 가능성을 찾습니다. 표면적인 '낡음의 연출' 대신 원래의 구법 논리를 존중하며, 현대적 기술로 기존 건축의 진짜 문제에 응답합니다. 오래된 집은 보존에 그치지 않고 다시 삶 속으로 들어가, 시간 자체가 디자인의 일부가 됩니다."
   },
-  "cases": [
-    {
-      "image": "https://as-studio001.github.io/Internal-Pages/images/site/case-restore-xinyi.jpg",
-      "href": "https://as-studio001.github.io/Internal-Pages/",
-      "label": {
-        "zh-Hant": "台南硓𥑮石．芳宅",
-        "zh-Hans": "台南硓𥑮石．芳宅",
-        "en": "Tainan Coral-Stone Fang House",
-        "ja": "台南珊瑚礁石・芳邸",
-        "ko": "타이난 산호석・팡 주택"
-      }
-    },
-    {
-      "image": "https://as-studio001.github.io/Internal-Pages/images/site/case-restore-woodyard.jpg",
-      "href": "https://as-studio001.github.io/Internal-Pages/?case=chiayi-experimental-woodyard",
-      "label": {
-        "zh-Hant": "嘉義實驗木場",
-        "zh-Hans": "嘉义实验木场",
-        "en": "Chiayi Experimental Wood Workshop",
-        "ja": "嘉義実験木材工房",
-        "ko": "자이 실험목재공방"
-      }
-    },
-    {
-      "image": "https://as-studio001.github.io/Internal-Pages/images/site/case-restore-office.jpg",
-      "href": "https://www.mashup.com.tw/as%20studio/?page=product_shop&p_id=506003",
-      "label": {
-        "zh-Hant": "原型事務所",
-        "zh-Hans": "原型事务所",
-        "en": "AS Studio Office",
-        "ja": "原型構造事務所",
-        "ko": "원형구조사무소"
-      }
-    }
-  ],
+  "cases": [],
   "heroPhoto": "https://as-studio001.github.io/Internal-Pages/images/site/chapter01.jpg",
   "mainPhoto": "https://as-studio001.github.io/Internal-Pages/images/site/restore-main.jpg",
   "thumbnails": [
