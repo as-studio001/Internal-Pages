@@ -2,7 +2,20 @@
   "slug": "yizaijincheng-entrance",
   "title": "億載金城入口意象",
   "ledeMeta": "",
+  "tag": "",
   "hero": "images/site/case-detail-yizai.jpg",
-  "externalUrl": "https://www.mashup.com.tw/as%20studio/?page=product_shop&p_id=609194",
-  "type": "external"
+  "paragraphs": [
+    ""
+  ],
+  "photos": [],
+  "map": {
+    "address": "",
+    "lat": null,
+    "lng": null,
+    "zoom": 17
+  },
+  "designResearch": [],
+  "process": [],
+  "drawings": [],
+  "type": "subpage"
 }
