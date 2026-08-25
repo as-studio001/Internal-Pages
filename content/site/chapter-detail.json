@@ -15,17 +15,6 @@
   },
   "cases": [
     {
-      "image": "https://as-studio001.github.io/Internal-Pages/images/site/case-detail-proto1.jpg",
-      "href": "https://asstudio029.wixsite.com/ashouse1",
-      "label": {
-        "zh-Hant": "原型1號宅",
-        "zh-Hans": "原型1号宅",
-        "en": "Prototype House No. 1",
-        "ja": "プロトタイプ1号邸",
-        "ko": "프로토타입 1호 주택"
-      }
-    },
-    {
       "image": "https://as-studio001.github.io/Internal-Pages/images/site/case-detail-yizai.jpg",
       "href": "https://www.mashup.com.tw/as%20studio/?page=product_shop&p_id=609194",
       "label": {
@@ -34,6 +23,13 @@
         "en": "Yizaijincheng Fort Entrance Landmark",
         "ja": "億載金城 入口イメージ",
         "ko": "이짜이진청 요새 입구 랜드마크"
+      }
+    },
+    {
+      "image": "https://as-studio001.github.io/Internal-Pages/images/site/case-detail-proto1.jpg",
+      "href": "https://as-studio001.github.io/Internal-Pages/?case=prototype-house-1",
+      "label": {
+        "zh-Hant": "原型1號宅"
       }
     }
   ],
