@@ -38,6 +38,13 @@
       "label": {
         "zh-Hant": "原型事務所"
       }
+    },
+    {
+      "image": "https://as-studio001.github.io/Internal-Pages/images/test/_OSP9742-全景.jpg",
+      "href": "https://as-studio001.github.io/Internal-Pages/?case=test",
+      "label": {
+        "zh-Hant": "test"
+      }
     }
   ],
   "heroPhoto": "https://as-studio001.github.io/Internal-Pages/images/site/chapter01.jpg",
