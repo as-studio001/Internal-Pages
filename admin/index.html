@@ -326,7 +326,13 @@ const RAW_BASE = `https://raw.githubusercontent.com/${REPO_OWNER}/${REPO_NAME}/$
 // 放這些 function 的 Netlify 站網址。三個都要換成實際的值才能用。
 const SUPABASE_URL = "https://enjbqfgepvkpwlfqbldi.supabase.co";
 const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVuamJxZmdlcHZrcHdsZnFibGRpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODcyOTUyODQsImV4cCI6MjEwMjg3MTI4NH0.7YAlMUGocaXenA6RPdDPNu60g48GgW0Nq8xAwxThilo";
-const FUNCTIONS_BASE = "https://glittering-dodol-8e2041.netlify.app/.netlify/functions";
+// 2026-08-24：發現這裡原本寫死指向 glittering-dodol-8e2041，但這個團隊
+// （as.studio arch）在 Netlify 上真正的網站其實是 zingy-bonbon-36e6c9
+// （額度用完/升級都是這個網站）——glittering-dodol-8e2041 是另一個完全
+// 不屬於這個團隊帳號、不會再更新的舊網站，八成是當初開發階段的雛型，
+// 一直沒人把這裡改成正確的網址。已經把 GITHUB_TOKEN 環境變數設定到
+// zingy-bonbon-36e6c9 上了，改成指向這裡才對。
+const FUNCTIONS_BASE = "https://zingy-bonbon-36e6c9.netlify.app/.netlify/functions";
 
 // 設定還沒填真正的值之前（SUPABASE_URL 還是預留字串）不要讓
 // createClient 直接丟例外炸掉整支 script，不然連「尚未設定」的提示都
