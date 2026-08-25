@@ -557,7 +557,8 @@ const state = {
     { name: "chapter-exhibit", label: "章節：原型展覽", file: "content/site/chapter-exhibit.json" },
     { name: "chapter-digital", label: "章節：原型數位", file: "content/site/chapter-digital.json" },
   ],
-  editingSite: null, // { meta, item, sha, pendingUploads }
+  editingSite: null, // { meta, item, sha, pendingUploads, isNew }
+  customChapters: null, // [{slug, title}] — 除了 siteMeta 固定 5 個之外，後台自己新增的章節
   subpages: null, // [{slug, title}]
   editingSubpage: null, // { slug, item, sha, isNew, pendingUploads }
   editingHomepage: false, // 主網頁編輯器（圓點位置編輯器.html）目前是不是開著
@@ -899,7 +900,15 @@ function siteListHtml(){
       </div>
     </div>
   `).join("");
-  return `<div class="item-grid">${cards}</div>`;
+  const customCards = (state.customChapters || []).map((c, i) => `
+    <div class="item-card" data-edit-custom-chapter="${i}">
+      <div class="thumb empty" style="background:#201f1d;color:#fff;">${esc((c.title || c.slug).slice(0,2))}</div>
+      <div class="info">
+        <div class="t">章節：${esc(c.title || c.slug)}</div>
+      </div>
+    </div>
+  `).join("");
+  return `<div class="item-grid">${cards}${customCards}${addCardHtml("新增章節", "data-add-chapter")}</div>`;
 }
 
 // 子頁面（原型教學等）新增一筆只會先在「後台」repo 的 content/subpages/
@@ -940,6 +949,10 @@ function bindListEvents(){
   const el = document.getElementById("tabContent");
   if(state.tab === "subpages" && state.subpages == null){
     loadSubpageList().then(renderTabContent).catch((err) => toast(err.message || "載入子頁面失敗", true));
+    return;
+  }
+  if(state.tab === "site" && state.customChapters == null){
+    loadCustomChapters().then(renderTabContent).catch((err) => toast(err.message || "載入章節清單失敗", true));
     return;
   }
   el.querySelectorAll("[data-edit]").forEach(card => {
@@ -995,6 +1008,26 @@ function bindListEvents(){
   if(addSubpageBtn) addSubpageBtn.addEventListener("click", () => {
     openSubpageEditor("", blankSubpage(), null, true);
   });
+  el.querySelectorAll("[data-edit-custom-chapter]").forEach(card => {
+    card.addEventListener("click", async () => {
+      const idx = parseInt(card.dataset.editCustomChapter, 10);
+      const slug = state.customChapters[idx].slug;
+      try{
+        setLoading(true, "載入中…");
+        const file = `content/site/${slug}.json`;
+        const { json, sha } = await ghGetFile(file);
+        openSiteEditor({ name: slug, label: json.title?.["zh-Hant"] || slug, file }, json, sha);
+      }catch(err){
+        toast("載入失敗：" + err.message, true);
+      }finally{
+        setLoading(false);
+      }
+    });
+  });
+  const addChapterBtn = el.querySelector("[data-add-chapter]");
+  if(addChapterBtn) addChapterBtn.addEventListener("click", () => {
+    openSiteEditor(null, blankChapter(), null, true);
+  });
 }
 
 function blankCase(){
@@ -1042,9 +1075,51 @@ async function loadLinkedChapters(slug, externalUrl){
   }
 }
 
-function openSiteEditor(meta, item, sha){
-  state.editingSite = { meta, item, sha, pendingUploads: {} };
+function openSiteEditor(meta, item, sha, isNew){
+  state.editingSite = { meta, item, sha, pendingUploads: {}, isNew: !!isNew };
   render();
+}
+
+/* 新章節（除了固定的宣言／原型修復／原型細部／原型展覽／原型數位這 5
+   個之外，之後想加的章節）用跟「新案例」一樣的固定版型（標題／論述
+   文字／頂部大圖／輪播縮圖／右側大照片／案例卡片），存檔時才決定
+   slug/檔名，不用先打好標題才能開始編輯。 */
+function blankChapter(){
+  return { title: {}, description: {}, heroPhoto: "", mainPhoto: "", thumbnails: [], cases: [] };
+}
+
+const RESERVED_CHAPTER_NAMES = new Set(["chapter-restore", "chapter-detail", "chapter-exhibit", "chapter-digital"]);
+
+async function loadCustomChapters(){
+  const entries = await ghListDir("content/site");
+  const files = entries.filter((e) => e.type === "file" && /^chapter-.*\.json$/.test(e.name) && !RESERVED_CHAPTER_NAMES.has(e.name.replace(/\.json$/, "")));
+  const items = await Promise.all(files.map(async (f) => {
+    const slug = f.name.replace(/\.json$/, "");
+    try{
+      const { json } = await ghGetFile(f.path);
+      return { slug, title: (json.title && (json.title["zh-Hant"] || json.title.en)) || slug };
+    }catch(e){ return { slug, title: "（讀取失敗）" }; }
+  }));
+  state.customChapters = items;
+}
+
+/* 跟 regenerateCaseLinksManifest 同一套做法：把目前所有自訂章節的檔名
+   整理成一份索引，asarch 首頁在瀏覽器端抓這份索引，才知道除了那 4 個
+   固定章節之外還有哪些新章節要一起顯示（純資料抓取沒辦法直接列目錄，
+   一定要有這份索引檔）。 */
+async function regenerateExtraChaptersManifest(){
+  try{
+    await loadCustomChapters();
+    const body = JSON.stringify({ chapters: state.customChapters.map((c) => c.slug) }, null, 2) + "\n";
+    let sha = null;
+    try{
+      const existing = await ghGetFile("content/site/extra-chapters.json");
+      sha = existing.sha;
+    }catch(e){ /* 檔案還不存在就當新建，sha 留 null */ }
+    await ghPutFile("content/site/extra-chapters.json", utf8ToBase64(body), "Regenerate extra-chapters index via admin", sha);
+  }catch(e){
+    console.error("regenerateExtraChaptersManifest failed", e);
+  }
 }
 function closeSiteEditor(){ state.editingSite = null; render(); }
 
@@ -3745,7 +3820,7 @@ function siteEditorHtml(ed){
   const meta = ed.meta;
   const item = ed.item;
 
-  if(meta.name === "declaration"){
+  if(meta && meta.name === "declaration"){
     return `
       <div class="editor">
         <div class="editor-head"><button class="back-link" id="backBtn">← 回到主網站內容列表</button></div>
@@ -3855,7 +3930,7 @@ function renderSiteEditor(){
   bindPathInputs(ed, app);
   bindLang5Blocks(ed, app);
 
-  if(ed.meta.name === "declaration"){
+  if(ed.meta && ed.meta.name === "declaration"){
     document.getElementById("addParaBtn").addEventListener("click", () => {
       ed.item.paragraphs = ed.item.paragraphs || [];
       ed.item.paragraphs.push({ "zh-Hant":"", "zh-Hans":"", en:"", ja:"", ko:"" });
@@ -3895,12 +3970,35 @@ function renderSiteEditor(){
 }
 
 async function saveSiteEditor(ed){
+  const title = (ed.item.title && ed.item.title["zh-Hant"]) || "";
+  if(ed.isNew && !title.trim()){ toast("請至少填寫章節標題", true); return; }
+
   try{
+    setLoading(true, "儲存中…");
+
+    if(ed.isNew){
+      setLoading(true, "產生章節編號中…");
+      const existingSlugs = (state.customChapters || []).map((c) => c.slug);
+      const slug = "chapter-" + (await generateUniqueSlug(title, existingSlugs, "custom"));
+      ed.meta = { name: slug, label: title, file: `content/site/${slug}.json` };
+    }
+
     setLoading(true, "儲存中…");
     await flushPendingUploads(ed, "images/site");
     const json = JSON.stringify(ed.item, null, 2) + "\n";
     const res = await ghPutFile(ed.meta.file, utf8ToBase64(json), `Update ${ed.meta.name} via admin`, ed.sha);
     ed.sha = res.content.sha;
+
+    if(ed.isNew){
+      setLoading(true, "同步章節清單中…");
+      await regenerateExtraChaptersManifest();
+      state.customChapters = null; // 回列表時重新載入，才會看到新章節
+      ed.isNew = false;
+      toast("已發布，主網站幾分鐘內會更新");
+      closeSiteEditor();
+      return;
+    }
+
     toast("已發布，主網站幾分鐘內會更新");
   }catch(err){
     toast("儲存失敗：" + err.message, true);
