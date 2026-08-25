@@ -3,7 +3,7 @@
   "title": "test",
   "ledeMeta": "",
   "tag": "",
-  "hero": "images/test/_OSP9742-全景.jpg",
+  "hero": "images/test/螢幕擷取畫面_2026-07-31_102417.jpg",
   "paragraphs": [
     ""
   ],
@@ -17,5 +17,9 @@
   "designResearch": [],
   "process": [],
   "drawings": [],
-  "type": "subpage"
+  "type": "subpage",
+  "heroPosition": {
+    "x": 100,
+    "y": 100
+  }
 }
