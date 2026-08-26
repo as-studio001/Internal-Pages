@@ -3990,18 +3990,19 @@ class Component extends DCLogic {
 </html>
 `;
 
-// 直接向 asstudiowebsite（公開 repo）的 GitHub API 抓一個檔案的內容跟 sha，
-// 完全不經過 Netlify／github-proxy，不需要密鑰——跟「圓點位置編輯器」那顆
-// 「自動抓取目前網站內容」按鈕同一個原理。sha 是之後要覆蓋這個檔案時
-// （PUT 帶 sha）一定要有的東西，公開的 raw.githubusercontent.com 沒有
-// 這個資訊，所以用 api.github.com 的 contents 端點，一次拿到內容+sha。
+// 直接向 asstudiowebsite（公開 repo）抓一個檔案的內容跟 sha——就是
+// ghGetFileRaw(path, "asstudiowebsite")，2026-08-26 以前是獨立一份邏輯
+// （只打 api.github.com，沒有 Netlify 備援）。改成直接呼叫共用的
+// ghGetFileRaw 是因為：Internal-Pages 的讀取那次優化之後也改成優先直接
+// 打 api.github.com（見 ghFetchPublic 附近的說明），這兩邊的呼叫其實
+// 是同一個未登入額度（GitHub 的「每小時 60 次」是整個 api.github.com
+// 主機、以呼叫端 IP 為單位算的，不是分 repo 各自 60 次）——這個函式原本
+// 沒有退回 Netlify 的備援，額度用完時就直接失敗，使用者實際遇到「自動
+// 推送到 asstudiowebsite」因為 HTTP 403 整個失敗、卡住。ghGetFileRaw
+// 本身已經有「直接讀取失敗（含 403）就退回 Netlify github-proxy 重試」
+// 的備援，直接沿用，不必維護兩套幾乎一樣的邏輯。
 async function fetchAsstudiowebsitePublic(path){
-  const url = `https://api.github.com/repos/as-studio001/asstudiowebsite/contents/${path.split("/").map(encodeURIComponent).join("/")}?ref=main&_=${Date.now()}`;
-  const res = await fetch(url, { cache: "no-store" });
-  if(!res.ok) throw new Error(`asstudiowebsite 抓不到「${path}」（HTTP ${res.status}）`);
-  const data = await res.json();
-  const content = decodeURIComponent(escape(atob(data.content.replace(/\n/g, ""))));
-  return { content, sha: data.sha };
+  return ghGetFileRaw(path, "asstudiowebsite");
 }
 
 // 把一份 .dc.html 原始檔裡的 pageTitle 跟 _fallbackSections 換成目前最新的
