@@ -724,13 +724,18 @@ const ADMIN_BOT_URL = "https://gemini.google.com/gem/1zo-lHVGdRmC3j2EQ60PDWk0mEu
 // 依「有沒有給齊這些參數」判斷要不要用精簡外觀，不是每個都會生效，
 // 但給比不給更有機會拿到乾淨的外觀），並且固定停靠在目前螢幕的右下角
 // （用 screen.availWidth/availHeight 現場算，不管使用者的螢幕多大都會
-// 貼齊角落），感覺比較像一個常駐在旁邊的小助手，不是隨機彈在畫面正
-// 中間的一般分頁。
+// 貼齊右側），感覺比較像一個常駐在旁邊、貼齊螢幕右緣的側欄，不是隨機
+// 彈在畫面正中間的一般分頁。2026-08-26 依使用者截圖指定的位置調整：
+// 從「420×760、貼右下角、留 24px 邊距」改成「貼齊螢幕右緣、上緣到
+// 下緣幾乎整個滿版」，寬度不變，高度改用整個可用高度。
 document.addEventListener("click", (e) => {
   if(!e.target.closest("#adminBotBtn")) return;
-  const w = 420, h = 760;
-  const left = Math.max(0, Math.round((screen.availWidth || window.innerWidth) - w - 24));
-  const top = Math.max(0, Math.round((screen.availHeight || window.innerHeight) - h - 24));
+  const w = 420;
+  const availW = screen.availWidth || window.innerWidth;
+  const availH = screen.availHeight || window.innerHeight;
+  const h = Math.round(availH);
+  const left = Math.max(0, Math.round(availW - w));
+  const top = 0;
   const features = `width=${w},height=${h},left=${left},top=${top},toolbar=no,location=no,menubar=no,status=no,scrollbars=yes,resizable=yes,noopener`;
   window.open(ADMIN_BOT_URL, "asStudioAdminBot", features);
 });
