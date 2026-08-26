@@ -75,6 +75,13 @@
     const heroData = typeof PROJECT.hero === "string" ? { src: PROJECT.hero } : (PROJECT.hero || {});
     const img = buildImage(heroData);
     img.classList.add("ph");
+    // buildImage() 一律給每張圖 loading="lazy"，這對內文照片沒問題（本來
+    // 就在畫面外），但大圖一開啟頁面就在畫面裡，lazy 只會讓它多等一輪
+    // 判斷才開始下載——覆蓋成 eager，讓它跟標題文字幾乎同時開始出現。
+    if (heroData.src) {
+      img.loading = "eager";
+      img.fetchPriority = "high";
+    }
     // 大圖固定裁成 16:9，不同比例的原始照片交給 heroPosition（後台可以
     // 拖曳調整）決定要保留哪個部分，預設置中（50%,50%）。
     if (heroData.src) {
@@ -634,6 +641,19 @@
   }
 
   async function renderAll(project) {
+    // 標題、大圖、外部連結、影音、地圖都不需要等其他照片量測完比例才能
+    // 顯示——先用還沒量測過比例的原始資料把這些立刻畫出來。內文照片、
+    // 設計研究、施工過程、圖面可能有十幾張照片，量測比例得先把每一張
+    // 都下載解碼完才算完成；網路慢的時候，把整頁都晾在那裡等這件事做完
+    // 才顯示任何東西（包括跟這些照片完全無關的標題跟大圖），會被使用者
+    // 感覺成「頁面壞掉、卡住」，而不是「還在讀取中」。
+    PROJECT = project;
+    renderHead();
+    renderHeroPhoto();
+    renderExternalLink();
+    renderVideo();
+    renderMap();
+
     const [photos, designResearch, process, drawings] = await Promise.all([
       withMeasuredRatios(project.photos),
       withMeasuredSteps(project.designResearch),
@@ -641,15 +661,10 @@
       withMeasuredRatios(project.drawings),
     ]);
     PROJECT = Object.assign({}, project, { photos, designResearch, process, drawings });
-    renderHead();
-    renderHeroPhoto();
     renderContent();
     renderResearch();
     renderProcess();
     renderDrawings();
-    renderExternalLink();
-    renderVideo();
-    renderMap();
     bindScrollReveal();
     if (EDITABLE) enableEditing();
   }
