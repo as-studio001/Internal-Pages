@@ -81,6 +81,20 @@
   header h1 {
     font-size: 14px; font-weight: 700; letter-spacing: 0.04em; margin: 0;
   }
+  /* 特殊連線粗細滑塊——擺在頁首中間，跟左邊「拖曳任意圓點調整位置」的
+     h1、右邊 .sc-btns 三欄並排（header 本身是 justify-content:space-
+     between，加這第三個 flex 子項會自動把三塊平均推開，不用額外定位）。 */
+  .sc-special-edge-width {
+    display: flex; align-items: center; gap: 8px;
+    font-size: 12.5px; color: var(--text); opacity: 0.85;
+    white-space: nowrap;
+  }
+  .sc-special-edge-width input[type="range"] {
+    width: 110px; accent-color: var(--special);
+  }
+  .sc-special-edge-width output {
+    min-width: 28px; text-align: right; font-variant-numeric: tabular-nums;
+  }
   .sc-btns { display: flex; gap: 12px; }
   button.sc-btn {
     font-size: 13px; font-weight: 600; letter-spacing: 0.03em;
@@ -442,6 +456,11 @@
 
 <header id="pageHeader">
   <h1>圓點位置編輯器　·　拖曳任意圓點調整位置</h1>
+  <div class="sc-special-edge-width" title="調整分類/標題圓點（特殊點）彼此之間連線的粗細——一般連線的粗細固定，不能調">
+    <label for="specialEdgeWidthSlider">特殊連線粗細</label>
+    <input type="range" id="specialEdgeWidthSlider" min="0.5" max="6" step="0.1" value="2">
+    <output id="specialEdgeWidthVal" for="specialEdgeWidthSlider">2.0</output>
+  </div>
   <div class="sc-btns">
     <button type="button" class="sc-btn" id="btnImportSite" aria-label="從主網頁匯入">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -951,6 +970,16 @@
 
   const SPECIAL_IDS = new Set(['r15', 'r23', 'r28', 'r115', 'r59', 'r100', 'r101', 'r109', 'r1', 'r2']);
 
+  // 特殊點（specialIds）與特殊點之間的連線粗細——2026-08-26 新增，跟其他
+  // 一般連線分開設定，一般連線的粗細維持固定寫死（不開放調整，見
+  // createEdgeElement()）。這個值本身是 let 不是 const：滑塊拖動當下要
+  // 即時改寫所有現有的特殊-特殊連線 stroke-width（見
+  // applySpecialEdgeStrokeWidth()），而且從主網頁匯入既有內容時
+  // （applyImport()）如果貼上的內容已經有存這個值，要覆蓋成匯入進來的
+  // 數字。同步出去的機制見 buildSyncParts()／buildFullSiteText()，最後
+  // 寫進主網頁 class 裡同名的 specialEdgeStrokeWidth 欄位。
+  let specialEdgeStrokeWidth = 2;
+
   // 主視覺多語系（2026-08-03 新增）：可切換的語言清單，跟 specialIds／
   // nodeData／edgeData 一樣用複製貼上手動同步到主網頁（見 buildSyncParts()／
   // 語言管理彈窗）。每個節點的翻譯文字存在該節點物件自己的 `translations`
@@ -1162,6 +1191,12 @@
   const edgesByNode = {};
   const edgeEls = [];
 
+  // 兩端都是特殊點（specialIds）的連線，粗細吃 specialEdgeStrokeWidth
+  // （滑塊可調）；其餘一般連線固定是 1，不受滑塊影響。
+  function isSpecialEdge(a, b) {
+    return SPECIAL_IDS.has(a) && SPECIAL_IDS.has(b);
+  }
+
   // Shared by initial load, adding a connection, and rebuilding after a
   // cancelled list-structure edit. `edgesByNode[a]`/`[b]` must already
   // exist before this runs.
@@ -1169,13 +1204,23 @@
     const line = document.createElementNS(NS, 'line');
     line.setAttribute('class', 'sc-edge');
     line.setAttribute('stroke', 'var(--line)');
-    line.setAttribute('stroke-width', '1');
+    line.setAttribute('stroke-width', isSpecialEdge(a, b) ? String(specialEdgeStrokeWidth) : '1');
     edgesLayer.appendChild(line);
     const rec = { el: line, a, b };
     edgeEls.push(rec);
     edgesByNode[a].push(rec);
     edgesByNode[b].push(rec);
     return rec;
+  }
+
+  // 滑塊拖動當下呼叫——不用整個重畫（rebuildOrderFromCurrent()/renderAll()
+  // 那一套是給節點結構/位置變動用的），特殊連線的粗細不影響任何節點的
+  // 位置或連線本身的存在與否，直接改現有 <line> 元素的 stroke-width 屬性
+  // 最快、也不會打斷正在拖曳中的手勢。
+  function applySpecialEdgeStrokeWidth() {
+    edgeEls.forEach(rec => {
+      if (isSpecialEdge(rec.a, rec.b)) rec.el.setAttribute('stroke-width', String(specialEdgeStrokeWidth));
+    });
   }
 
   // Builds one node's dot/hit-target/label + drag/hover listeners. Shared
@@ -1594,7 +1639,9 @@
 
     const languagesInner = LANGUAGES.map(l => `    { code: '${l.code}', label: ${JSON.stringify(l.label)} }`).join(',\n');
 
-    return { specialIdsInner, nodeDataInner, edgeDataInner, languagesInner };
+    const specialEdgeStrokeWidthInner = String(specialEdgeStrokeWidth);
+
+    return { specialIdsInner, nodeDataInner, edgeDataInner, languagesInner, specialEdgeStrokeWidthInner };
   }
 
   // Sets up the send-icon's flight-trail path to "draw in" on hover: measure
@@ -1803,6 +1850,26 @@
     return span ? text.slice(span.start + 1, span.end - 1) : null;
   }
 
+  // 跟 findBracketSpan／extractBracketInner 同一組，但給「單一數值」的
+  // class field 用（例如 `specialEdgeStrokeWidth = 2;`），不是陣列——
+  // 找 `varName = ` 之後到下一個 `;` 為止的內容當作值本身，一樣回傳
+  // { start, end }（不含 `varName = ` 開頭，也不含結尾的 `;`），方便
+  // buildFullSiteText() 直接切開貼回新數字。
+  function findScalarAssignmentSpan(text, varName) {
+    const marker = varName + ' = ';
+    const idx = text.indexOf(marker);
+    if (idx === -1) return null;
+    const valueStart = idx + marker.length;
+    const semiIdx = text.indexOf(';', valueStart);
+    if (semiIdx === -1) return null;
+    return { start: valueStart, end: semiIdx };
+  }
+
+  function extractScalarAssignment(text, varName) {
+    const span = findScalarAssignmentSpan(text, varName);
+    return span ? text.slice(span.start, span.end).trim() : null;
+  }
+
   // Lays out the imported node list exactly the way the production page
   // (and this editor's own initial computeRingLayout()) does: walk forward
   // from a fixed 12-o'clock start (-90°), each gap = real edge-to-edge
@@ -1921,6 +1988,19 @@
       }
     }
 
+    // specialEdgeStrokeWidth 一樣選填——貼上的內容如果是這個功能還沒同步
+    // 過去之前的舊版檔案，會找不到這個欄位，維持目前編輯器裡（含本機記住
+    // 的）數字，不強制每次匯入都要重置成某個值。
+    const specialEdgeWidthText = extractScalarAssignment(blob, 'specialEdgeStrokeWidth');
+    if (specialEdgeWidthText != null) {
+      const parsedWidth = parseFloat(specialEdgeWidthText);
+      if (!Number.isNaN(parsedWidth)) {
+        specialEdgeStrokeWidth = parsedWidth;
+        refreshSpecialEdgeWidthUi();
+        applySpecialEdgeStrokeWidth();
+      }
+    }
+
     SITE_TEMPLATE = blob;
     try { localStorage.setItem(SITE_TEMPLATE_STORAGE_KEY, blob); } catch (err) {}
 
@@ -1937,24 +2017,34 @@
   function buildFullSiteText() {
     if (!SITE_TEMPLATE) return null;
     const parts = buildSyncParts();
+    // kind: 'bracket' 是 `varName = [ ... ];` 這種陣列（換掉中括號「裡面」
+    // 的內容，中括號本身留著）；'scalar' 是 `varName = 數字;` 這種單一
+    // 數值 class field（直接換掉數字本身）——specialEdgeStrokeWidth 這個
+    // 功能比較新，貼上的內容可能是還沒有這個欄位的舊版檔案，找不到就跳過
+    // 那一項，不影響其他三項照常替換（同一個 .filter(Boolean) 邏輯本來就
+    // 是這樣處理找不到的情況）。
     const targets = [
-      { varName: 'languages', inner: parts.languagesInner },
-      { varName: 'specialIds', inner: parts.specialIdsInner },
-      { varName: 'nodeData', inner: parts.nodeDataInner },
-      { varName: 'edgeData', inner: parts.edgeDataInner }
+      { varName: 'languages', inner: parts.languagesInner, kind: 'bracket' },
+      { varName: 'specialIds', inner: parts.specialIdsInner, kind: 'bracket' },
+      { varName: 'nodeData', inner: parts.nodeDataInner, kind: 'bracket' },
+      { varName: 'edgeData', inner: parts.edgeDataInner, kind: 'bracket' },
+      { varName: 'specialEdgeStrokeWidth', inner: parts.specialEdgeStrokeWidthInner, kind: 'scalar' }
     ];
     const spans = targets
       .map(t => {
-        const span = findBracketSpan(SITE_TEMPLATE, t.varName);
-        return span ? { start: span.start, end: span.end, inner: t.inner } : null;
+        const span = t.kind === 'scalar'
+          ? findScalarAssignmentSpan(SITE_TEMPLATE, t.varName)
+          : findBracketSpan(SITE_TEMPLATE, t.varName);
+        return span ? { start: span.start, end: span.end, inner: t.inner, kind: t.kind } : null;
       })
       .filter(Boolean)
       .sort((a, b) => b.start - a.start);
     if (spans.length === 0) return null;
 
     let text = SITE_TEMPLATE;
-    spans.forEach(({ start, end, inner }) => {
-      text = text.slice(0, start) + '[' + inner + ']' + text.slice(end);
+    spans.forEach(({ start, end, inner, kind }) => {
+      const replacement = kind === 'scalar' ? inner : '[' + inner + ']';
+      text = text.slice(0, start) + replacement + text.slice(end);
     });
     return text;
   }
@@ -2124,6 +2214,32 @@
     pushHistory();
     if (editingId) refreshEditAngleField();
     showToast('已重新整理所有圓點間距');
+  });
+
+  // 特殊連線粗細滑塊——本機記住上次調到多少（跟 THEME_STORAGE_KEY 同一種
+  // 做法），重新整理頁面不會又跳回預設值 2。applySpecialEdgeStrokeWidth()
+  // 在讀完本機存值之後也要立刻呼叫一次：這段程式碼在初次畫節點/連線
+  // 之後才跑，剛畫出來的特殊連線這時候身上還是 createEdgeElement() 當下
+  // 用的預設值，要在這裡補套用一次才會反映本機記住的數字。
+  const SPECIAL_EDGE_WIDTH_STORAGE_KEY = 'dotPositionEditor:specialEdgeWidth:v1';
+  try {
+    const saved = localStorage.getItem(SPECIAL_EDGE_WIDTH_STORAGE_KEY);
+    const parsed = saved != null ? parseFloat(saved) : NaN;
+    if (!Number.isNaN(parsed)) specialEdgeStrokeWidth = parsed;
+  } catch (err) {}
+  const specialEdgeWidthSlider = document.getElementById('specialEdgeWidthSlider');
+  const specialEdgeWidthVal = document.getElementById('specialEdgeWidthVal');
+  function refreshSpecialEdgeWidthUi() {
+    specialEdgeWidthSlider.value = String(specialEdgeStrokeWidth);
+    specialEdgeWidthVal.textContent = specialEdgeStrokeWidth.toFixed(1);
+  }
+  refreshSpecialEdgeWidthUi();
+  applySpecialEdgeStrokeWidth();
+  specialEdgeWidthSlider.addEventListener('input', () => {
+    specialEdgeStrokeWidth = parseFloat(specialEdgeWidthSlider.value);
+    refreshSpecialEdgeWidthUi();
+    applySpecialEdgeStrokeWidth();
+    try { localStorage.setItem(SPECIAL_EDGE_WIDTH_STORAGE_KEY, String(specialEdgeStrokeWidth)); } catch (err) {}
   });
 
   // Light/dark toggle — an explicit `data-theme` attribute always wins over
