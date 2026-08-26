@@ -130,15 +130,18 @@ button{font-family:inherit;}
   top:0;
   z-index:1000;
 }
+/* 這個 pill 原本用 backdrop-filter:blur(12px) 做玻璃感，在標題文字沒有
+   固定位置、很快就滾出畫面時沒問題；header 改成 position:sticky（一路
+   固定在畫面上）之後，這片模糊會疊在整個捲動中的大圖／內文上方持續
+   重新運算，這正是「進入案例內頁很卡」的原因——改用不透明的深色實色
+   取代模糊，效果一樣看得清楚文字，但不用每一幀都重新計算模糊。 */
 .site-header__left{
   display:flex;
   align-items:center;
   gap:20px;
   padding:16px 24px;
   border-radius:8px;
-  background-color:oklch(0.15 0 0 / 0.15);
-  -webkit-backdrop-filter:blur(12px);
-  backdrop-filter:blur(12px);
+  background-color:oklch(0.15 0 0 / 0.82);
 }
 .site-header__right{
   display:flex;
