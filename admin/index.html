@@ -48,6 +48,14 @@ input,textarea,select{ font-family:inherit; font-size:14px; }
 .btn.danger:hover{ background:#fdf1f1; border-color:var(--danger); }
 .btn.ghost{ border-color:transparent; background:none; color:var(--muted); padding:9px 10px; }
 .btn.ghost:hover{ color:var(--ink); }
+/* animate-ui 的 MessageSquareCode 圖示原本是 hover 時觸發 Framer Motion
+   動畫（這個後台沒有建置流程，裝不了那套元件，只手刻了 SVG 形狀，見
+   iconMessageSquareCode()）——這裡用純 CSS transition 做一個貼近的
+   hover 效果：滑鼠移上去時 < > 兩個括號往外滑開一點點，模擬「打開」的
+   感覺，不需要真的引入 Framer Motion。 */
+#adminBotBtn .bot-icon-bracket{ transition:transform .2s ease; }
+#adminBotBtn:hover .bot-icon-bracket-left{ transform:translateX(-1.5px); }
+#adminBotBtn:hover .bot-icon-bracket-right{ transform:translateX(1.5px); }
 .btn.small{ padding:6px 12px; font-size:12.5px; }
 .btn:disabled{ opacity:.5; cursor:default; }
 .btn svg{ width:15px; height:15px; flex-shrink:0; }
@@ -927,7 +935,7 @@ function renderTopBar(){
         <div class="site-title">後台管理<a href="https://as-studio001.github.io/asarch/" target="_blank">↗ 查看網站</a></div>
         <div class="user-box">
           <span>${esc(state.user.email)}</span>
-          <button class="btn ghost" id="adminBotBtn" title="開一個小視窗問管理員機器人（Gemini），不會離開這個編輯畫面">🤖 問機器人</button>
+          <button class="btn ghost" id="adminBotBtn" title="開一個小視窗問管理員機器人（Gemini），不會離開這個編輯畫面">${iconMessageSquareCode()}<span>AS_k</span></button>
           <button class="btn ghost" id="logoutBtn">登出</button>
         </div>
       </div>
@@ -1368,6 +1376,20 @@ function closeSubpageEditor(){ state.editingSubpage = null; render(); }
    ============================================================ */
 function iconUpload(){
   return `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M12 16V4M12 4l-4 4M12 4l4 4"/><path d="M4 16v3a1 1 0 001 1h14a1 1 0 001-1v-3"/></svg>`;
+}
+
+// Lucide 的 message-square-code（animate-ui 的 MessageSquareCode 動態
+// icon 底下用的就是這個形狀，animate-ui 本身是 React + Framer Motion
+// 元件，這個後台是沒有建置流程的純 vanilla HTML/JS，裝不了 npm 套件，
+// 所以只搬形狀（跟這個檔案其他 icon 一樣手刻 SVG），動畫效果改用
+// CSS transition 手工做一個貼近的版本（hover 時 < > 兩個括號往外滑開，
+// 見 #adminBotBtn:hover 那條 CSS 規則）。
+function iconMessageSquareCode(){
+  return `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M22 17a2 2 0 0 1-2 2H6.828a2 2 0 0 0-1.414.586l-2.202 2.202A.71.71 0 0 1 2 21.286V5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2z"/>
+    <path class="bot-icon-bracket bot-icon-bracket-left" d="m10 8-3 3 3 3"/>
+    <path class="bot-icon-bracket bot-icon-bracket-right" d="m14 14 3-3-3-3"/>
+  </svg>`;
 }
 
 function resolveSrc(pendingUploads, srcValue){
