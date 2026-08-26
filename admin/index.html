@@ -565,6 +565,54 @@ async function uploadAsset(file, folder){
   return data.path;
 }
 
+/* 章節「顯示在主網站章節」卡片本來直接拿案例自己的主視覺大圖當縮圖
+   （大圖是給整頁 16:9 全幅用的，動輒好幾百 KB~1MB+），首頁 CASES 那排
+   卡片只需要一個小小的 4:3 縮圖，卻要下載一整張大圖，是「首頁載入照片
+   很久」的原因之一。存檔勾選章節時改成另外產生一份專用縮圖（用 canvas
+   縮到卡片實際會用到的尺寸再壓縮），卡片改連到這份縮圖，不再共用原始
+   大圖。大圖沒換過就不重新產生，避免每次存檔都多壓一次、多留一份檔案。*/
+function loadImageSameOrigin(url){
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.onload = () => resolve(img);
+    img.onerror = () => reject(new Error("縮圖來源圖片讀取失敗"));
+    img.src = url;
+  });
+}
+
+async function makeCardThumbnailBlob(heroUrl, maxDimension, quality){
+  const img = await loadImageSameOrigin(heroUrl);
+  const scale = Math.min(1, maxDimension / Math.max(img.naturalWidth, img.naturalHeight));
+  const width = Math.max(1, Math.round(img.naturalWidth * scale));
+  const height = Math.max(1, Math.round(img.naturalHeight * scale));
+  const canvas = document.createElement("canvas");
+  canvas.width = width;
+  canvas.height = height;
+  canvas.getContext("2d").drawImage(img, 0, 0, width, height);
+  return new Promise((resolve) => canvas.toBlob(resolve, "image/jpeg", quality));
+}
+
+/* 只有「這個案例還沒產生過卡片縮圖」或「大圖換過了」才重新產生+上傳，
+   結果（縮圖路徑、對應的大圖路徑）記回 ed.item，讓下次存檔可以直接
+   判斷不用重做。呼叫端要記得把回傳結果寫回 ed.item 再存檔。*/
+async function ensureCardThumbnail(ed){
+  const heroPath = ed.item.hero;
+  if(!heroPath) return null;
+  if(ed.item.cardThumbnail && ed.item.cardThumbnailHero === heroPath){
+    return ed.item.cardThumbnail;
+  }
+  const heroUrl = `https://as-studio001.github.io/Internal-Pages/${heroPath}`;
+  const blob = await makeCardThumbnailBlob(heroUrl, 900, 0.78);
+  if(!blob) return null;
+  const b64 = await readFileAsBase64(blob);
+  const data = await callFunction("github-proxy", {
+    action: "uploadAsset", folder: "images/site", filename: `card-${ed.item.slug}.jpg`, content: b64,
+  });
+  ed.item.cardThumbnail = data.path;
+  ed.item.cardThumbnailHero = heroPath;
+  return data.path;
+}
+
 /* ============================================================
    路徑式讀寫（處理任意深度的巢狀資料，例如 "photos.2.caption"、
    "designResearch.0.photos.1.caption"），文字輸入用「打字當下直接寫回
@@ -2305,6 +2353,19 @@ async function saveCaseEditor(ed){
   try{
     setLoading(true, "儲存中…");
     await flushPendingUploads(ed, `images/${slug}`);
+
+    let cardThumbnail = null;
+    if(selectedChapters.length){
+      setLoading(true, "產生章節卡片縮圖中…");
+      try{
+        cardThumbnail = await ensureCardThumbnail(ed);
+      }catch(e){
+        console.error("ensureCardThumbnail failed", e);
+        // 縮圖產生失敗不該擋住整個存檔流程，退回用原始大圖當卡片圖
+      }
+    }
+
+    setLoading(true, "儲存中…");
     const json = JSON.stringify(ed.item, null, 2) + "\n";
     await ghPutFile(`content/projects/${slug}.json`, utf8ToBase64(json), `Update case ${slug} via admin`, ed.sha);
 
@@ -2313,7 +2374,7 @@ async function saveCaseEditor(ed){
       const href = caseTargetHref(slug, ed.item.externalUrl);
       const oldHref = ed.linkedHref || href;
       const card = {
-        image: `https://as-studio001.github.io/Internal-Pages/${ed.item.hero}`,
+        image: `https://as-studio001.github.io/Internal-Pages/${cardThumbnail || ed.item.hero}`,
         href,
         label: { "zh-Hant": ed.item.title },
       };
