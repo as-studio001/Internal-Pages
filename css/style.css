@@ -357,7 +357,11 @@ button{font-family:inherit;}
 .detail-panel{margin-top:2rem;}
 .detail-panel__group{padding-top:1.5rem;}
 .detail-panel__group:first-child{padding-top:0;}
-.detail-panel__group + .detail-panel__group{border-top:1px solid rgba(255,255,255,.1);}
+/* 照片區／圖面區可能其中一區是 hidden（例如常見的「只有圖面、沒有
+   照片」）——用 :not([hidden]) 而不是單純的相鄰選擇器，這樣分隔線只會
+   出現在兩區「真的都有內容顯示」的時候，不會因為前面那區隱藏了、還是
+   在第二區上面憑空冒出一條線。 */
+.detail-panel__group:not([hidden]) ~ .detail-panel__group:not([hidden]){border-top:1px solid rgba(255,255,255,.1);}
 
 /* ---------- section label：靠左標題，緊接內容，不留側邊空欄 ---------- */
 .section-label{
@@ -540,42 +544,30 @@ button{font-family:inherit;}
 .map__address{margin:0 0 .3rem;font-size:1.02rem;font-family:"Noto Sans TC",sans-serif;}
 .map__coords{margin:0;font-size:.82rem;color:var(--ink-soft);font-variant-numeric:tabular-nums;font-family:"Noto Sans TC",sans-serif;}
 
-/* ---------- 施工過程：不分類，段落接一排等大縮圖網格（照
-   herzogdemeuron.com「230 Process」頁面的固定網格排法），不顯示圖名 ---------- */
-.process-step{margin-bottom:2.5rem;}
-.process-step:last-child{margin-bottom:0;}
-.process-step__text{
-  max-width:82ch;
-  font-size:.92rem;
-  margin:0 0 1.5rem;
+/* ---------- More in Detail：照片區／圖面區共用同一套 Pinterest 風格
+   純照片圖庫——保留每張照片原始比例（不裁切），欄數依畫面寬度決定
+   （render.js 的 detailGalleryColumns()），貪婪演算法把每張照片依序丟進
+   目前最矮的一欄，欄與欄之間的柱狀交錯是 masonry 排列本來就有的樣子。
+   不顯示文字說明，只有滑鼠移到照片上才浮現圖說。 ---------- */
+.detail-gallery__masonry{display:flex;gap:12px;align-items:flex-start;width:100%;}
+.detail-gallery__col{flex:1 1 0;min-width:0;display:flex;flex-direction:column;gap:12px;}
+.detail-gallery__item{position:relative;cursor:pointer;overflow:hidden;margin:0;}
+.detail-gallery__item img,
+.detail-gallery__item .ph{display:block;width:100%;height:auto;}
+.detail-gallery__item figcaption{
+  position:absolute;inset:0;
+  display:flex;
+  align-items:flex-end;
+  padding:1rem;
+  background:linear-gradient(to top, rgba(0,0,0,.7), transparent 55%);
+  color:#fff;
+  font-size:.82rem;
   font-family:"Noto Sans TC",sans-serif;
+  opacity:0;
+  transition:opacity .2s ease;
+  pointer-events:none;
 }
-.process-thumbs{
-  display:flex;
-  flex-wrap:wrap;
-  align-items:flex-start;
-  gap:12px;
-}
-.process-thumb{
-  position:relative;
-  height:190px;
-  cursor:pointer;
-  overflow:hidden;
-}
-.process-thumb .ph,
-.process-thumb img{width:auto;height:100%;display:block;}
-
-/* ---------- 圖面：跟施工照片同樣的縮圖尺寸（固定高度、寬度依照片
-   實際比例決定），不顯示圖名，只是不分類、獨立收納 ---------- */
-.drawings-grid{
-  display:flex;
-  flex-wrap:wrap;
-  align-items:flex-start;
-  gap:12px;
-}
-.drawing-cell{cursor:pointer;height:190px;}
-.drawing-cell .ph,
-.drawing-cell img{width:auto;height:100%;display:block;}
+.detail-gallery__item:hover figcaption{opacity:1;}
 
 /* ---------- lightbox ---------- */
 .lightbox{
@@ -625,30 +617,6 @@ button{font-family:inherit;}
   .c-3,.c-4,.c-5,.c-6,.c-7,.c-8,.c-9,.c-10,.c-12{grid-column-start:1;grid-column-end:span 4;}
   .s-2,.s-3,.s-4,.s-5,.s-6,.s-7,.s-9{grid-column-start:1;}
   .block--photos{grid-template-columns:1fr !important;}
-
-  /* 手機版的施工過程/設計研究/圖面縮圖改成真的 Pinterest 式 masonry：
-     render.js 的 renderThumbGroup() 在手機寬度時，會把每張照片依序
-     丟進「目前累積高度比較矮」的那一欄（貪婪演算法），輸出成
-     .thumb-masonry > 兩個 .thumb-col，這裡只需要負責兩欄並排的
-     樣式。之前試過的兩種做法都有明確問題：
-       1. grid 兩欄配對：一排的高度是那排最高的那張決定，旁邊較矮的
-          照片下面會留一大塊黑色空白。
-       2. CSS 多欄（columns）masonry：不留空了，但完全交給瀏覽器的
-          「先填滿整欄再換欄」規則，兩欄的照片頂部常常對不齊。
-       3. 手動兩張一組配對：對齊了，但只要配對到的兩張高度差很多，
-          一樣會在那一排留下明顯空白。
-     真正的貪婪演算法動態看兩欄「目前實際的高度」決定新照片要放哪一
-     欄，兩欄總高度會盡量接近、不留大塊空白，柱狀交錯是 masonry 排列
-     本來就有的樣子，不是排列錯誤 */
-  .thumb-masonry{display:flex;gap:10px;align-items:flex-start;width:100%;}
-  .thumb-col{flex:1 1 0;min-width:0;display:flex;flex-direction:column;gap:10px;}
-  .process-thumb,.drawing-cell{height:auto;}
-  /* 真實照片：img 本身的高度依實際比例自動算，撐滿寬度就好 */
-  .process-thumb img,.drawing-cell img{width:100%;height:auto;display:block;}
-  /* 示意色塊：本身沒有內容撐開高度，靠外層 cell 的 aspect-ratio
-     （render.js 依 THUMB_RATIOS 或 item.ratio 用行內樣式設定）撐開，
-     這裡只要填滿 cell 就好 */
-  .process-thumb .ph,.drawing-cell .ph{width:100%;height:100%;}
   .map-full__canvas{height:60vh;min-height:360px;}
   .map-full__info{right:var(--side);}
 

@@ -190,7 +190,8 @@ input,textarea,select{ font-family:inherit; font-size:14px; }
 .add-photo-btn:hover{ border-color:var(--ink); color:var(--ink); }
 .add-photo-btn svg{ width:16px; height:16px; }
 
-/* step card (designResearch / process) */
+/* step card：共用的卡片樣式，主網站內容／子頁面／首頁節點編輯器等
+   多處清單編輯畫面都在用 */
 .step-card{ border:1px solid var(--line); border-radius:8px; padding:16px; margin-bottom:16px; background:#fff; }
 .step-card-head{ display:flex; justify-content:space-between; align-items:center; margin-bottom:10px; }
 .step-card-head .step-label{ font-size:12px; font-weight:700; color:var(--muted); letter-spacing:.04em; }
@@ -615,7 +616,7 @@ async function ensureCardThumbnail(ed){
 
 /* ============================================================
    路徑式讀寫（處理任意深度的巢狀資料，例如 "photos.2.caption"、
-   "designResearch.0.photos.1.caption"），文字輸入用「打字當下直接寫回
+   "detailPhotos.1.caption"），文字輸入用「打字當下直接寫回
    state，不整個重畫畫面」，只有新增/刪除/上傳這種「結構改變」的操作
    才會呼叫 rerenderEditor() 整個重畫，這樣打字就不會卡頓、游標也不會
    跳掉。
@@ -1202,7 +1203,7 @@ function blankCase(type){
     paragraphs: [""], photos: [],
     externalUrl: "", externalUrlCover: "", youtubeUrl: "",
     map: { address: "", lat: null, lng: null, zoom: 17 },
-    designResearch: [], process: [], drawings: [],
+    detailPhotos: [], drawings: [],
     published: true,
     type: "subpage",
   };
@@ -1358,7 +1359,7 @@ function bindPathInputs(ed, container){
 }
 
 /* ============================================================
-   照片清單（含圖說），designResearch/process 的每個步驟、drawings、
+   照片清單（含圖說），More in Detail 的 detailPhotos/drawings、
    案例 photos 都共用這個元件
    ============================================================ */
 function photoListHtml(ed, basePath, listId, showCaption){
@@ -1521,53 +1522,9 @@ function rerenderCurrentEditor(){
 /* ============================================================
    案例編輯器
    ============================================================ */
-function stepsHtml(ed, basePath, addLabel){
-  const steps = getPath(ed.item, basePath) || [];
-  const cards = steps.map((s, i) => `
-    <div class="step-card" data-step-index="${i}">
-      <div class="step-card-head">
-        <span class="step-label">第 ${i + 1} 段</span>
-        <button type="button" class="row-remove-btn" data-remove-step="${i}" title="移除這段">×</button>
-      </div>
-      <div class="field-block">
-        <label>文字說明</label>
-        <textarea data-path="${basePath}.${i}.body" placeholder="這個階段在做什麼">${esc(s.body || "")}</textarea>
-      </div>
-      <div class="field-block">
-        <div class="label">照片</div>
-        ${photoListHtml(ed, `${basePath}.${i}.photos`, `${basePath.replace(/\./g,"_")}_${i}_photos`, true)}
-      </div>
-    </div>
-  `).join("");
-  return `${cards}<button type="button" class="add-step-btn" data-add-step="1">${iconUpload()}<span>${addLabel}</span></button>`;
-}
-
-/* 分開處理 designResearch / process 各自的 step 事件綁定，
-   避免兩組 step-card 互相干擾 */
-function bindStepsFor(ed, basePath, containerId, folder, refresh){
-  const doRefresh = refresh || rerenderCurrentEditor;
-  const container = document.getElementById(containerId);
-  if(!container) return;
-  const list = getPath(ed.item, basePath) || [];
-  container.querySelectorAll("[data-step-index]").forEach(card => {
-    const i = parseInt(card.dataset.stepIndex, 10);
-    const listId = `${basePath.replace(/\./g,"_")}_${i}_photos`;
-    bindPhotoList(ed, `${basePath}.${i}.photos`, listId, folder, doRefresh);
-    card.querySelector("[data-remove-step]").addEventListener("click", () => {
-      list.splice(i, 1);
-      doRefresh();
-    });
-  });
-  const addBtn = container.querySelector("[data-add-step]");
-  if(addBtn) addBtn.addEventListener("click", () => {
-    list.push({ body: "", photos: [] });
-    doRefresh();
-  });
-}
-
-/* 上面幾個清單（圖面、設計研究、施工過程）只重畫自己那個容器＋用既有
-   iframe 重新推送內容，不整個重畫案例編輯畫面（不然 4 個預覽框都要
-   跟著重新載入，很卡）。 */
+/* More in Detail 底下「照片」「圖面」兩個清單，重畫方式跟其他照片清單
+   一樣：只重畫自己那個容器＋用既有 iframe 重新推送內容，不整個重畫
+   案例編輯畫面（不然 4 個預覽框都要跟著重新載入，很卡）。 */
 function refreshDrawingsList(ed, folder){
   const wrap = document.getElementById("drawingsList");
   if(!wrap){ rerenderCurrentEditor(); return; }
@@ -1578,13 +1535,13 @@ function refreshDrawingsList(ed, folder){
   postCaseProjectToIframe(ed);
 }
 
-function refreshStepsList(ed, basePath, containerId, folder){
-  const container = document.getElementById(containerId);
-  if(!container){ rerenderCurrentEditor(); return; }
-  const addLabel = basePath === "designResearch" ? "新增一段設計研究" : "新增一段施工過程";
-  container.innerHTML = stepsHtml(ed, basePath, addLabel);
-  bindStepsFor(ed, basePath, containerId, folder, () => refreshStepsList(ed, basePath, containerId, folder));
-  bindPathInputs(ed, container);
+function refreshDetailPhotosList(ed, folder){
+  const wrap = document.getElementById("detailPhotosList");
+  if(!wrap){ rerenderCurrentEditor(); return; }
+  const parent = wrap.parentElement;
+  parent.innerHTML = photoListHtml(ed, "detailPhotos", "detailPhotosList");
+  bindPhotoList(ed, "detailPhotos", "detailPhotosList", folder, () => refreshDetailPhotosList(ed, folder));
+  bindPathInputs(ed, parent);
   postCaseProjectToIframe(ed);
 }
 
@@ -1654,7 +1611,7 @@ function convertCaseType(ed, newType){
       hero: c.hero || "", heroPosition: c.heroPosition || null,
       paragraphs: [""], photos: [],
       map: { address: "", lat: null, lng: null, zoom: 17 },
-      designResearch: [], process: [], drawings: [],
+      detailPhotos: [], drawings: [],
       published: c.published !== false, type: "subpage",
     };
   }
@@ -1811,13 +1768,10 @@ function caseEditorHtml(ed){
           <div class="label">More in Detail</div>
         </div>
         <iframe id="preview_detail" class="case-live-preview" data-preview-key="detail" src="../index.html?preview=1" style="height:62vh;min-height:480px;"></iframe>
-        <div class="field-block" style="margin-top:16px">
-          <div class="label">設計研究</div>
-          <div id="designResearchList">${stepsHtml(ed, "designResearch", "新增一段設計研究")}</div>
-        </div>
+        <div class="field-hint" style="margin-top:16px">Pinterest 風格的照片圖庫，沒有文字說明，滑鼠移到照片上訪客才會看到圖說。兩區都選填——兩區都沒有照片的話，前台連「+ More in Detail」這顆按鈕都不會出現。</div>
         <div class="field-block">
-          <div class="label">施工過程</div>
-          <div id="processList">${stepsHtml(ed, "process", "新增一段施工過程")}</div>
+          <div class="label">照片</div>
+          ${photoListHtml(ed, "detailPhotos", "detailPhotosList")}
         </div>
         <div class="field-block">
           <div class="label">圖面</div>
@@ -1955,11 +1909,7 @@ function resolveCaseForPreview(item, pendingUploads){
   clone.externalUrlCover = resolve(clone.externalUrlCover);
   (clone.photos || []).forEach((p) => { p.src = resolve(p.src); });
   (clone.drawings || []).forEach((p) => { p.src = resolve(p.src); });
-  ["designResearch", "process"].forEach((kind) => {
-    (clone[kind] || []).forEach((step) => {
-      (step.photos || []).forEach((p) => { p.src = resolve(p.src); });
-    });
-  });
+  (clone.detailPhotos || []).forEach((p) => { p.src = resolve(p.src); });
   return clone;
 }
 
@@ -2227,24 +2177,15 @@ function handleCaseEdit(ed, data){
     });
     return;
   }
-  if(data.field === "step-body"){
-    ed.item[data.kind][data.stepIndex].body = data.value;
-    const ta = app.querySelector(`[data-path="${data.kind}.${data.stepIndex}.body"]`);
-    if(ta) ta.value = data.value;
-    return;
-  }
-  if(data.field === "step-photo-replace"){
+  if(data.field === "gallery-photo-replace"){
+    // More in Detail 底下「照片」「圖面」兩區都是同樣的扁平陣列
+    // ({src, caption})，data.kind 是 "detailPhotos" 或 "drawings"。
     pickImageFile((file) => {
       const key = "PENDING::" + uid();
       const previewUrl = URL.createObjectURL(file);
       ed.pendingUploads[key] = { file, previewUrl };
-      if(data.kind === "drawings"){
-        ed.item.drawings[data.photoIndex].src = key;
-        syncCompactThumb("drawingsList", data.photoIndex, previewUrl);
-      } else {
-        ed.item[data.kind][data.stepIndex].photos[data.photoIndex].src = key;
-        syncCompactThumb(`${data.kind}_${data.stepIndex}_photos`, data.photoIndex, previewUrl);
-      }
+      ed.item[data.kind][data.photoIndex].src = key;
+      syncCompactThumb(data.kind === "drawings" ? "drawingsList" : "detailPhotosList", data.photoIndex, previewUrl);
       postCaseProjectToIframe(ed);
     });
     return;
@@ -2269,18 +2210,12 @@ function handleCaseEdit(ed, data){
     });
     return;
   }
-  if(data.field === "step-add"){
-    ed.item[data.kind] = ed.item[data.kind] || [];
-    ed.item[data.kind].push({ body: "", photos: [] });
-    rerenderCurrentEditor();
-    return;
-  }
-  if(data.field === "drawing-add"){
+  if(data.field === "gallery-photo-add"){
     pickImageFile((file) => {
       const key = "PENDING::" + uid();
       ed.pendingUploads[key] = { file, previewUrl: URL.createObjectURL(file) };
-      ed.item.drawings = ed.item.drawings || [];
-      ed.item.drawings.push({ src: key, caption: "" });
+      ed.item[data.kind] = ed.item[data.kind] || [];
+      ed.item[data.kind].push({ src: key, caption: "" });
       rerenderCurrentEditor();
     });
     return;
@@ -2334,8 +2269,7 @@ function renderCaseEditor(){
   }
   bindPhotoGroups(ed);
   bindPhotoList(ed, "drawings", "drawingsList", folder(), () => refreshDrawingsList(ed, folder()));
-  bindStepsFor(ed, "designResearch", "designResearchList", folder(), () => refreshStepsList(ed, "designResearch", "designResearchList", folder()));
-  bindStepsFor(ed, "process", "processList", folder(), () => refreshStepsList(ed, "process", "processList", folder()));
+  bindPhotoList(ed, "detailPhotos", "detailPhotosList", folder(), () => refreshDetailPhotosList(ed, folder()));
 
   ensurePhotoLayout(ed);
 
