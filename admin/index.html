@@ -2427,13 +2427,18 @@ async function saveCaseEditor(ed){
     await ghPutFile(`content/projects/${slug}.json`, utf8ToBase64(json), `Update case ${slug} via admin`, ed.sha);
 
     if(selectedChapters.length || toRemove.length){
-      setLoading(true, "同步主網站章節中…");
       const href = caseTargetHref(slug, ed.item.externalUrl);
       const oldHref = ed.linkedHref || href;
+      let label = { "zh-Hant": ed.item.title };
+      if(selectedChapters.length){
+        setLoading(true, "翻譯案例卡片標題中…");
+        label = await translateCaseCardLabel(ed.item.title);
+      }
+      setLoading(true, "同步主網站章節中…");
       const card = {
         image: `https://as-studio001.github.io/Internal-Pages/${cardThumbnail || ed.item.hero}`,
         href,
-        label: { "zh-Hant": ed.item.title },
+        label,
       };
       // 不只是「新勾選的章節」才同步——本來就勾選、這次繼續勾選的章節也要
       // 一起跑一次，這樣縮圖／標題改了才會真的反映到章節卡片上（見
@@ -2465,6 +2470,35 @@ async function saveCaseEditor(ed){
   }finally{
     setLoading(false);
   }
+}
+
+// 案例勾選同步進章節卡片時，把繁中標題自動翻成其他 4 語言，寫進卡片的
+// label——跟 lang5Html 那顆「自動翻譯其他語言」按鈕背後（見上面的
+// translateLang5）用同一個 Google Translate 端點，只是這裡不依賴編輯器
+// 狀態（ed/basePath/setPath），純粹字串進、Lang5 物件出，因為呼叫點在
+// 存檔流程裡，不是使用者手動按鈕觸發。
+//
+// 2026-08-26：改成每次同步都重新翻譯，而不是仰賴「使用者事後自己跑去
+// 章節編輯器手動翻譯」——因為那樣翻的譯文存不住：這張案例只要之後被
+// 重新存檔一次（哪怕只是改內文，沒動標題），下面 addCaseCardToChapter
+// 就會把整筆卡片（含手動翻好的譯文）直接覆蓋掉，變回只有繁中。這裡讓
+// 翻譯永遠伴隨同步一起發生，跟目前標題保持同步，不會過期也不會被覆蓋
+// 掉。單一語言翻譯失敗就先用繁中頂著那個語言欄位，不留空白。
+async function translateCaseCardLabel(title){
+  const label = { "zh-Hant": title };
+  const targets = ["zh-Hans", "en", "ja", "ko"];
+  await Promise.all(targets.map(async (t) => {
+    try{
+      const url = "https://translate.googleapis.com/translate_a/single?client=gtx&sl=zh-TW&tl=" + t + "&dt=t&q=" + encodeURIComponent(title);
+      const r = await fetch(url);
+      const json = await r.json();
+      const translated = (json[0] || []).map(seg => seg[0]).join("");
+      label[t] = translated || title;
+    }catch(e){
+      label[t] = title;
+    }
+  }));
+  return label;
 }
 
 // 把一張案例卡片加進（或更新）某個章節的 cases 清單——用連結（href）當
