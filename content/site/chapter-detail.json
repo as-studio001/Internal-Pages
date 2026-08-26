@@ -18,14 +18,22 @@
       "image": "https://as-studio001.github.io/Internal-Pages/images/site/case-detail-proto1.jpg",
       "href": "https://as-studio001.github.io/Internal-Pages/?case=prototype-house-1",
       "label": {
-        "zh-Hant": "原型1號宅"
+        "zh-Hant": "原型1號宅",
+        "zh-Hans": "原型1号宅",
+        "en": "Prototype House No. 1",
+        "ja": "プロトタイプハウスNo.1",
+        "ko": "프로토타입 하우스 No.1"
       }
     },
     {
       "image": "https://as-studio001.github.io/Internal-Pages/images/site/case-detail-yizai.jpg",
       "href": "https://as-studio001.github.io/Internal-Pages/?case=yizaijincheng-entrance",
       "label": {
-        "zh-Hant": "億載金城入口意象"
+        "zh-Hant": "億載金城入口意象",
+        "zh-Hans": "亿载金城入口意象",
+        "en": "The image of the entrance to the Eternal Golden City",
+        "ja": "永遠の黄金都市への入り口のイメージ",
+        "ko": "영원한 황금도시 입구 이미지"
       }
     }
   ],
