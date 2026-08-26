@@ -458,8 +458,8 @@ button{font-family:inherit;}
 .video-section .section-label{padding:0 var(--side);}
 .video-embed{
   position:relative;
-  width:calc(100% - var(--side) * 2);
-  margin:0 var(--side);
+  width:60%;
+  margin:0 auto;
   aspect-ratio:16/9;
   background:#000;
 }
