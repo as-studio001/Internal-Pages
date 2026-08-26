@@ -2521,6 +2521,14 @@ async function deleteCurrentCase(){
   try{
     setLoading(true, "刪除中…");
     await ghDeleteFile(`content/projects/${ed.item.slug}.json`, `Delete case ${ed.item.slug} via admin`, ed.sha);
+    // 案例檔案刪掉了，但如果它本來有連結章節，那些章節的 CASES 卡片
+    // 不會自己跟著消失——不清掉的話，卡片會變成一張連到已經不存在的
+    // 案例的孤兒卡片，前台點下去會看到「找不到這個案例」。
+    const href = ed.linkedHref || caseTargetHref(ed.item.slug, ed.item.externalUrl);
+    for(const chName of (ed.linkedChapters || [])){
+      const meta = CASE_CARD_CHAPTERS.find((c) => c.name === chName);
+      if(meta) await removeCaseCardFromChapter(meta, href);
+    }
     await regenerateCaseLinksManifest();
     toast("已刪除");
     await loadCaseList();
