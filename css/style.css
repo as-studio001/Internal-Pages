@@ -113,15 +113,22 @@ button{font-family:inherit;}
    Kept in sync by hand with the main site's Header.tsx/Footer.tsx
    (as-studio001.github.io/asarch/) — same glass panels, hamburger menu
    content, logo, language switcher, and footer contact block. Colors are
-   the same oklch values Header.tsx/Footer.tsx use inline. Unlike the main
-   site this header stays in normal document flow (not position:fixed) —
-   this page's content starts with a text-only title block rather than a
-   full-bleed hero photo, so a fixed header would just cover it. */
+   the same oklch values Header.tsx/Footer.tsx use inline.
+   position:sticky (not fixed) so it stays in the flow at the top and never
+   needs a compensating padding-top on <main> — it just pins once the page
+   scrolls past it. z-index must be set explicitly here: .hero-photo's .ph
+   is position:relative with no z-index of its own, so without an explicit
+   z-index the header and the hero image both sit at the "auto" stacking
+   level and DOM order (hero comes after the header) would let the hero
+   photo paint over the pinned header — including the hamburger dropdown. */
 .site-header{
   display:flex;
   align-items:center;
   justify-content:space-between;
   padding:24px 40px;
+  position:sticky;
+  top:0;
+  z-index:1000;
 }
 .site-header__left{
   display:flex;
