@@ -110,13 +110,17 @@
     </div>
   </section>
 
-  <!-- 外部網站連結：選填，填了才顯示，排在 More in Detail 之後、影音之前 -->
+  <!-- 外部網站連結：選填，網址+封面圖都有才顯示，滿版設計跟位置地圖同一
+       套版型，排在 More in Detail 之後、影音之前 -->
   <section class="external-link-section" id="external-link-section" hidden>
-    <p class="section-label">網站</p>
-    <a class="external-link-card" id="external-link-anchor" href="#" target="_blank" rel="noreferrer">
+    <p class="external-link-section__label">網站</p>
+    <a class="external-link-section__canvas" id="external-link-anchor" href="#" target="_blank" rel="noreferrer">
+      <img id="external-link-cover" src="" alt="">
+    </a>
+    <div class="external-link-section__info">
       <span id="external-link-text"></span>
       <span class="external-link-arrow" aria-hidden="true">↗</span>
-    </a>
+    </div>
   </section>
 
   <!-- 影音介紹：選填，YouTube 連結，填了才顯示，排在網站之後、位置之前 -->

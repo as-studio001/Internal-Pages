@@ -433,19 +433,22 @@
     L.marker([m.lat, m.lng], { icon: pinIcon }).addTo(leafletMap);
   }
 
-  // 兩個都是選填：沒填就整個 hidden，不留空段落。網址/YouTube 連結格式
-  // 由使用者自己貼，不強制檢查——貼錯了大不了那個區塊連結/嵌入失效，
-  // 不該讓存檔或整頁渲染失敗。
+  // 網址、YouTube 連結格式由使用者自己貼，不強制檢查——貼錯了大不了
+  // 那個區塊連結/嵌入失效，不該讓存檔或整頁渲染失敗。網站區塊要網址
+  // 跟封面圖兩個都有才顯示——滿版設計沒有封面圖會整塊開天窗，寧可先
+  // 不顯示，也不要退回去變成一條孤零零的文字連結。
   function renderExternalLink() {
     const section = $("#external-link-section");
     if (!section) return;
     const url = (PROJECT.externalUrl || "").trim();
-    if (!url) {
+    const cover = (PROJECT.externalUrlCover || "").trim();
+    if (!url || !cover) {
       section.hidden = true;
       return;
     }
     section.hidden = false;
     $("#external-link-anchor").href = url;
+    $("#external-link-cover").src = cover;
     $("#external-link-text").textContent = url.replace(/^https?:\/\//, "").replace(/\/$/, "");
   }
 
