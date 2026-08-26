@@ -210,8 +210,8 @@
 
     <!-- 通用照片區塊：grid（直式/橫式混合裁一致比例）或 stack（原尺寸比例堆疊置中） -->
     <style>
-      .sc-section-photo-grid { display:grid; grid-template-columns:repeat(auto-fill, minmax(220px, 1fr)); gap:12px; }
-      .sc-section-photo-grid img { width:100%; aspect-ratio:4/5; object-fit:cover; display:block; }
+      .sc-section-photo-grid { display:flex; flex-wrap:wrap; gap:12px; }
+      .sc-section-photo-grid img { height:320px; width:auto; max-width:100%; object-fit:cover; display:block; }
       .sc-section-photo-stack { display:flex; flex-direction:column; align-items:center; gap:24px; }
       .sc-section-photo-stack img { max-width:100%; max-height:90vh; width:auto; height:auto; display:block; }
     </style>
