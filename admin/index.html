@@ -717,9 +717,22 @@ const ADMIN_BOT_URL = "https://gemini.google.com/gem/1zo-lHVGdRmC3j2EQ60PDWk0mEu
 // 哪個畫面就會在那個畫面按不動。改用事件代理（掛在 document 上、只掛
 // 一次，靠事件冒泡判斷點到的是不是這顆按鈕），不管哪個畫面重畫幾次、
 // 按鈕本身的 DOM 元素換了幾輪，都不用另外重新綁定。
+// 這個小視窗裡顯示的是 gemini.google.com 自己的網頁（跨網域），我們的
+// 程式碼完全碰不到裡面的內容/樣式/Logo，能調整的只有「視窗本身」這一
+// 層：用完整的視窗參數字串（不是只給 width/height）讓瀏覽器把它當成
+// 一個乾淨的小工具視窗開（沒有分頁列、書籤列、選單列——這是瀏覽器
+// 依「有沒有給齊這些參數」判斷要不要用精簡外觀，不是每個都會生效，
+// 但給比不給更有機會拿到乾淨的外觀），並且固定停靠在目前螢幕的右下角
+// （用 screen.availWidth/availHeight 現場算，不管使用者的螢幕多大都會
+// 貼齊角落），感覺比較像一個常駐在旁邊的小助手，不是隨機彈在畫面正
+// 中間的一般分頁。
 document.addEventListener("click", (e) => {
   if(!e.target.closest("#adminBotBtn")) return;
-  window.open(ADMIN_BOT_URL, "asStudioAdminBot", "width=420,height=760,noopener");
+  const w = 420, h = 760;
+  const left = Math.max(0, Math.round((screen.availWidth || window.innerWidth) - w - 24));
+  const top = Math.max(0, Math.round((screen.availHeight || window.innerHeight) - h - 24));
+  const features = `width=${w},height=${h},left=${left},top=${top},toolbar=no,location=no,menubar=no,status=no,scrollbars=yes,resizable=yes,noopener`;
+  window.open(ADMIN_BOT_URL, "asStudioAdminBot", features);
 });
 
 const SUBPAGE_PAGES = {
