@@ -12,11 +12,15 @@
 </head>
 <body>
 
-<!-- 進站白底遮罩：大圖、內文照片、地圖全部真的準備好之前先蓋住整頁，
-     不要讓訪客看到「先跑出大圖跟地圖、內文卻一直不出現」的半完成畫面。
-     後台預覽模式（?preview=1）不用這層，見 js/render.js 的 init()。 -->
+<!-- 進站遮罩：跟主網站 as-studio001.github.io/asarch/ 的 IntroLoader.tsx
+     同一支影片（assets/videos/intro.mp4），大圖、內文照片、地圖全部真的
+     準備好之前先蓋住整頁、影片持續循環播放，不要讓訪客看到「先跑出大圖
+     跟地圖、內文卻一直不出現」的半完成畫面。後台預覽模式（?preview=1）
+     不用這層，見 js/render.js 的 init()。 -->
 <div id="page-loading-overlay">
-  <img src="assets/favicon-logo.png" alt="" class="page-loading-overlay__mark">
+  <video autoplay muted loop playsinline preload="auto" class="page-loading-overlay__video">
+    <source src="assets/videos/intro.mp4" type="video/mp4">
+  </video>
 </div>
 
 <!-- ============================================================
