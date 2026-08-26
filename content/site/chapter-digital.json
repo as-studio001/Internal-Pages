@@ -68,6 +68,17 @@
         "ja": "台南の石。方寨",
         "ko": "태안석. 팡자이"
       }
+    },
+    {
+      "image": "https://as-studio001.github.io/Internal-Pages/images/test/螢幕擷取畫面_2026-08-21_121741.png",
+      "href": "https://app.netlify.com/projects/zingy-bonbon-36e6c9/deploys?filter=main",
+      "label": {
+        "zh-Hant": "測試",
+        "zh-Hans": "测试",
+        "en": "test",
+        "ko": "시험",
+        "ja": "テスト"
+      }
     }
   ],
   "mainPhoto": "https://as-studio001.github.io/Internal-Pages/images/site/digital-main.jpg",
