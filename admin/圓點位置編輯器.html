@@ -1655,6 +1655,37 @@
     sendTrailPath.style.strokeDashoffset = trailLen;
   }
 
+  // 2026-08-26 新增：每次要產生同步內容之前，先靜默重新抓一次主網頁目前
+  // 真正的檔案內容，覆蓋掉 SITE_TEMPLATE（不管是本機記住的、還是這個
+  // 分頁上次匯入時存的）——不這樣做的話，SITE_TEMPLATE 只要是舊的，
+  // buildFullSiteText() 用它當「其餘不動的部分」的底本去貼回
+  // specialIds/nodeData/edgeData/languages/specialEdgeStrokeWidth，就會把
+  // 「這個工具不知道、但主網頁後來被其他方式改過」的內容（例如直接改
+  // 原始碼修正的顏色邏輯）整個蓋回舊的樣子，使用者完全不會發現，因為
+  // 這個工具負責的那幾個欄位本身是正確更新的。
+  // 這正是 2026-08-26 實際發生過的問題：淺色模式的圓點顏色被直接改過
+  // 原始碼修正，但下一次用「自動推送到 asstudiowebsite」時，因為
+  // SITE_TEMPLATE 還是改色之前的舊快照，顏色又被蓋回去、變回顛倒的樣子
+  // ——跟這次同步「有沒有動到顏色」完全無關，純粹是底本過期。
+  // 失敗（離線、抓取被擋）時不擋住整個同步流程，退回沿用目前手上的
+  // SITE_TEMPLATE（可能是舊的，但至少同步還能動），不無聲失敗、會用
+  // toast 告知使用者。
+  async function refreshSiteTemplateSilently() {
+    try {
+      const url = 'https://raw.githubusercontent.com/as-studio001/asstudiowebsite/main/'
+        + encodeURIComponent('index.html') + '?_=' + Date.now();
+      const res = await fetch(url, { cache: 'no-store' });
+      if (!res.ok) throw new Error('HTTP ' + res.status);
+      const text = await res.text();
+      SITE_TEMPLATE = text;
+      try { localStorage.setItem(SITE_TEMPLATE_STORAGE_KEY, text); } catch (err) {}
+      return true;
+    } catch (err) {
+      showToast('重新抓取主網頁目前內容失敗（' + err.message + '），這次同步沿用上次記住的內容，可能不是最新的');
+      return false;
+    }
+  }
+
   const syncModalOverlay = document.getElementById('syncModalOverlay');
   const syncOutputAllEl = document.getElementById('syncOutputAll');
   const syncModalTitleEl = document.getElementById('syncModalTitle');
@@ -1666,7 +1697,19 @@
   // 獨立打開這個檔案時 window.parent === window，按下去等於自己傳訊息給
   // 自己，沒有任何效果，不如直接不顯示，避免誤會「按了應該有反應」。
   const isEmbeddedInParent = window.parent !== window;
-  document.getElementById('btnSyncSite').addEventListener('click', () => {
+  const btnSyncSiteEl = document.getElementById('btnSyncSite');
+  btnSyncSiteEl.addEventListener('click', async () => {
+    if (SITE_TEMPLATE) {
+      // 只有「已經匯入過、有 SITE_TEMPLATE 可以刷新」時才需要重新抓取；
+      // 完全還沒匯入過的情況（fullText 一定是 null）維持原本的分段複製
+      // 提示，不需要多這一趟網路請求。
+      btnSyncSiteEl.disabled = true;
+      const originalLabel = btnSyncSiteEl.getAttribute('aria-label');
+      btnSyncSiteEl.setAttribute('aria-label', '重新抓取主網頁最新內容中…');
+      await refreshSiteTemplateSilently();
+      btnSyncSiteEl.disabled = false;
+      btnSyncSiteEl.setAttribute('aria-label', originalLabel);
+    }
     const fullText = buildFullSiteText();
     if (fullText) {
       syncOutputAllEl.value = fullText;
