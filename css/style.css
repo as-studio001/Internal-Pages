@@ -403,7 +403,6 @@ button{font-family:inherit;}
 .external-link-section{
   width:100%;
   padding:3rem 0 4rem;
-  border-top:1px solid rgba(255,255,255,.15);
 }
 .external-link-section__label{
   margin:0 0 1.5rem;
@@ -453,7 +452,6 @@ button{font-family:inherit;}
 .video-section{
   width:100%;
   padding:3rem 0;
-  border-top:1px solid rgba(255,255,255,.15);
 }
 .video-section .section-label{padding:0 var(--side);}
 .video-embed{
