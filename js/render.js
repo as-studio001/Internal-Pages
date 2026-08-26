@@ -473,13 +473,37 @@
     const embed = $("#video-embed");
     if (!section || !embed) return;
     const id = extractYoutubeId(PROJECT.youtubeUrl);
+    embed.innerHTML = "";
     if (!id) {
       section.hidden = true;
-      embed.innerHTML = "";
       return;
     }
     section.hidden = false;
-    embed.innerHTML = `<iframe src="https://www.youtube-nocookie.com/embed/${id}" title="影音介紹" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen loading="lazy"></iframe>`;
+
+    const iframe = document.createElement("iframe");
+    iframe.src = `https://www.youtube-nocookie.com/embed/${id}`;
+    iframe.title = "影音介紹";
+    iframe.allow = "accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share";
+    iframe.allowFullscreen = true;
+    iframe.loading = "lazy";
+    embed.appendChild(iframe);
+
+    // YouTube 自己的播放器控制列裡也有一顆全螢幕按鈕，但藏在滑鼠移過去
+    // 才出現的控制列最右邊，不容易注意到——另外加一顆固定顯示的按鈕，
+    // 直接對這個 <iframe> 本身呼叫全螢幕 API（跟 iframe 裡播的是不是
+    // YouTube 無關，一般瀏覽器原生支援，不需要 iframe 內容配合）。
+    const fsBtn = document.createElement("button");
+    fsBtn.type = "button";
+    fsBtn.className = "video-embed__fullscreen";
+    fsBtn.setAttribute("aria-label", "全螢幕播放");
+    fsBtn.title = "全螢幕播放";
+    fsBtn.innerHTML =
+      '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 3H5a2 2 0 0 0-2 2v3"/><path d="M16 3h3a2 2 0 0 1 2 2v3"/><path d="M8 21H5a2 2 0 0 1-2-2v-3"/><path d="M16 21h3a2 2 0 0 0 2-2v-3"/></svg>';
+    fsBtn.addEventListener("click", () => {
+      const request = iframe.requestFullscreen || iframe.webkitRequestFullscreen || iframe.mozRequestFullScreen;
+      if (request) Promise.resolve(request.call(iframe)).catch(() => {});
+    });
+    embed.appendChild(fsBtn);
   }
 
   // More in Detail 底下「照片」是 Pinterest 風格的純照片圖庫：不裁切
