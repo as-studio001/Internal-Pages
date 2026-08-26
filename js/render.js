@@ -482,15 +482,40 @@
     embed.innerHTML = `<iframe src="https://www.youtube-nocookie.com/embed/${id}" title="影音介紹" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen loading="lazy"></iframe>`;
   }
 
-  // More in Detail 底下「照片」「圖面」兩區都是同一種 Pinterest 風格的
-  // 純照片圖庫：不裁切比例（保留照片原始長寬），每張照片依序丟進「目前
-  // 累積高度比較矮」的那一欄（貪婪演算法），欄數依畫面寬度決定。滑鼠
-  // 移上去才顯示圖說（沒有圖說就不會有那個 hover 遮罩）。
+  // More in Detail 底下「照片」是 Pinterest 風格的純照片圖庫：不裁切
+  // 比例（保留照片原始長寬），每張照片依序丟進「目前累積高度比較矮」的
+  // 那一欄（貪婪演算法），欄數依畫面寬度決定。「圖面」另外用固定網格
+  // （見 renderDrawingsGrid）——CAD／平面圖匯出的圖檔常常四周留白比例
+  // 差很多（同一張圖有的留白多、有的少），拿這種原始比例去跟其他圖面
+  // 搶「哪欄比較矮」，畫出來的排列反而七零八落，不像照片那樣好看。
+  // 兩區都一樣：滑鼠移上去才顯示圖說（沒有圖說就不會有那個 hover 遮罩）。
   function detailGalleryColumns() {
     if (!window.matchMedia) return 3;
     if (window.matchMedia("(max-width:640px)").matches) return 2;
     if (window.matchMedia("(max-width:1024px)").matches) return 3;
     return 4;
+  }
+
+  function makeGalleryFigure(item, i, list, kind, itemClass) {
+    const fig = document.createElement("figure");
+    fig.className = itemClass;
+    fig.appendChild(buildImage(item));
+    if (item.caption) {
+      const cap = document.createElement("figcaption");
+      cap.textContent = item.caption;
+      fig.appendChild(cap);
+    }
+    if (EDITABLE) {
+      fig.classList.add("cms-editable-photo");
+      fig.title = "點擊更換照片";
+      fig.addEventListener("click", (e) => {
+        e.preventDefault();
+        postCmsEdit({ field: "gallery-photo-replace", kind, photoIndex: i });
+      });
+    } else {
+      fig.addEventListener("click", () => openLightbox(list, i));
+    }
+    return fig;
   }
 
   function renderDetailGallery(containerId, items, kind) {
@@ -514,24 +539,7 @@
     });
 
     list.forEach((item, i) => {
-      const fig = document.createElement("figure");
-      fig.className = "detail-gallery__item";
-      fig.appendChild(buildImage(item));
-      if (item.caption) {
-        const cap = document.createElement("figcaption");
-        cap.textContent = item.caption;
-        fig.appendChild(cap);
-      }
-      if (EDITABLE) {
-        fig.classList.add("cms-editable-photo");
-        fig.title = "點擊更換照片";
-        fig.addEventListener("click", (e) => {
-          e.preventDefault();
-          postCmsEdit({ field: "gallery-photo-replace", kind, photoIndex: i });
-        });
-      } else {
-        fig.addEventListener("click", () => openLightbox(list, i));
-      }
+      const fig = makeGalleryFigure(item, i, list, kind, "detail-gallery__item");
       const ratio = item.ratio || 4 / 3;
       const shortIdx = heights.indexOf(Math.min(...heights));
       colEls[shortIdx].appendChild(fig);
@@ -544,12 +552,36 @@
     container.appendChild(masonry);
   }
 
+  // 圖面：固定網格，每格同樣大小、比例不合的圖用 object-fit:contain
+  // 整張縮小塞進格子裡（不裁切掉任何內容——圖面裁切掉一角就看不出完整
+  // 平面/立面了），格子背景給一點淺色，讓比較窄或比較扁的圖不會看起來
+  // 像缺了一塊。
+  function renderDrawingsGrid(containerId, items, kind) {
+    const container = $("#" + containerId);
+    if (!container) return;
+    const group = container.closest(".detail-panel__group");
+    container.innerHTML = "";
+    const list = items || [];
+    if (!list.length) {
+      if (group) group.hidden = true;
+      return;
+    }
+    if (group) group.hidden = false;
+
+    const grid = document.createElement("div");
+    grid.className = "detail-drawing-grid";
+    list.forEach((item, i) => {
+      grid.appendChild(makeGalleryFigure(item, i, list, kind, "detail-drawing-grid__item"));
+    });
+    container.appendChild(grid);
+  }
+
   function renderDetailPhotos() {
     renderDetailGallery("detail-photos-gallery", PROJECT.detailPhotos, "detailPhotos");
   }
 
   function renderDrawings() {
-    renderDetailGallery("detail-drawings-gallery", PROJECT.drawings, "drawings");
+    renderDrawingsGrid("detail-drawings-gallery", PROJECT.drawings, "drawings");
   }
 
   // More in Detail 整個區塊（含「+ More in Detail」按鈕跟上面那條分隔線）
@@ -1020,9 +1052,13 @@
       return;
     }
     const slug = params.get("case") || "laogu-fang";
-    // 內文照片、大圖、地圖圖磚都真的準備好才拿掉遮罩；網路很慢或某張
-    // 圖一直卡住的話，最多等 9 秒還是會照樣掀開頁面，不會讓訪客永遠卡在
-    // 白畫面前面。
+    // 內文照片、大圖、地圖圖磚都真的準備好才拿掉遮罩。renderAll() 本身
+    // 就要等內文照片／More in Detail 照片／圖面全部測完比例才會回傳——
+    // 案例內容多的時候（例如一個案例有 30 幾張照片）這段本來就得花上
+    // 好幾秒甚至十幾秒，是正常的「還在讀取」，不是卡住。這裡的逾時只是
+    // 真的整個掛掉時（例如某張圖片網址寫錯、永遠不會 load 也不會 error）
+    // 的最後保險，設太短反而會在正常的大案例上提早掀開頁面、讓內文還沒
+    // 渲染完就露出來——之前 9 秒就是設太短了，改成 20 秒。
     const loadSequence = (async () => {
       try {
         const project = await loadCase(slug);
@@ -1033,7 +1069,7 @@
         showError("找不到這個案例");
       }
     })();
-    await Promise.race([loadSequence, new Promise((resolve) => setTimeout(resolve, 9000))]);
+    await Promise.race([loadSequence, new Promise((resolve) => setTimeout(resolve, 20000))]);
     revealPage();
   }
 

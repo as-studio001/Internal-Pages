@@ -544,17 +544,20 @@ button{font-family:inherit;}
 .map__address{margin:0 0 .3rem;font-size:1.02rem;font-family:"Noto Sans TC",sans-serif;}
 .map__coords{margin:0;font-size:.82rem;color:var(--ink-soft);font-variant-numeric:tabular-nums;font-family:"Noto Sans TC",sans-serif;}
 
-/* ---------- More in Detail：照片區／圖面區共用同一套 Pinterest 風格
-   純照片圖庫——保留每張照片原始比例（不裁切），欄數依畫面寬度決定
-   （render.js 的 detailGalleryColumns()），貪婪演算法把每張照片依序丟進
-   目前最矮的一欄，欄與欄之間的柱狀交錯是 masonry 排列本來就有的樣子。
+/* ---------- More in Detail：「照片」是 Pinterest 風格純照片圖庫——保留
+   每張照片原始比例（不裁切），欄數依畫面寬度決定（render.js 的
+   detailGalleryColumns()），貪婪演算法把每張照片依序丟進目前最矮的一
+   欄，欄與欄之間的柱狀交錯是 masonry 排列本來就有的樣子。「圖面」另外
+   用固定網格（見下面 .detail-drawing-grid）——CAD／平面圖匯出的圖檔
+   四周留白比例常常差很多，拿masonry去排反而七零八落。兩區都一樣：
    不顯示文字說明，只有滑鼠移到照片上才浮現圖說。 ---------- */
 .detail-gallery__masonry{display:flex;gap:12px;align-items:flex-start;width:100%;}
 .detail-gallery__col{flex:1 1 0;min-width:0;display:flex;flex-direction:column;gap:12px;}
 .detail-gallery__item{position:relative;cursor:pointer;overflow:hidden;margin:0;}
 .detail-gallery__item img,
 .detail-gallery__item .ph{display:block;width:100%;height:auto;}
-.detail-gallery__item figcaption{
+.detail-gallery__item figcaption,
+.detail-drawing-grid__item figcaption{
   position:absolute;inset:0;
   display:flex;
   align-items:flex-end;
@@ -567,7 +570,31 @@ button{font-family:inherit;}
   transition:opacity .2s ease;
   pointer-events:none;
 }
-.detail-gallery__item:hover figcaption{opacity:1;}
+.detail-gallery__item:hover figcaption,
+.detail-drawing-grid__item:hover figcaption{opacity:1;}
+
+/* 圖面：固定大小的網格，比例不合的圖用 object-fit:contain 整張縮小
+   塞進格子（不裁切——裁掉一角平面圖／立面圖就看不出完整內容），格子
+   給淺色背景，扁的或窄的圖不會看起來像缺了一塊。 */
+.detail-drawing-grid{
+  display:grid;
+  grid-template-columns:repeat(auto-fill, minmax(220px, 1fr));
+  gap:12px;
+}
+.detail-drawing-grid__item{
+  position:relative;
+  aspect-ratio:4/3;
+  cursor:pointer;
+  overflow:hidden;
+  margin:0;
+  background:#eeebe3;
+}
+.detail-drawing-grid__item img,
+.detail-drawing-grid__item .ph{
+  width:100%;
+  height:100%;
+  object-fit:contain;
+}
 
 /* ---------- lightbox ---------- */
 .lightbox{
