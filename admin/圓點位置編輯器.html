@@ -1616,11 +1616,30 @@
     // 半的既有 bug 是同一組問題，一起修：有 mobileName 的話比照主網頁的
     // 欄位順序（id/name/mobileName/href）輸出；有翻譯的話在 href 後面加上
     // translations（跟主網頁 nodeData 項目的欄位順序一致，方便使用者比對）。
+    // 2026-08-26 新增：手動調過「大小」的節點（見 setNodeSize()）要把
+    // nodeRadius[id] 一起輸出成 radius 欄位，主網頁那邊才讀得到——在此
+    // 之前這個欄位完全沒有同步機制，使用者在編輯器裡調過的大小，存檔／
+    // 發布之後主網頁看起來完全沒變。只有「真的被手動調過、明顯偏離目前
+    // 連線數自動算出來的預設值」才輸出這個欄位，多數沒調過的節點維持
+    // 完全不帶這個欄位（沿用主網頁那邊依連線數自動算的公式），輸出不會
+    // 因此暴增成 116 個節點每個都多一個欄位。
+    // 這裡故意重新算一份「當下」的連線數／最大連線數，不能直接用檔案
+    // 開頭那份 degree/maxDegree——那份只在頁面剛載入時算一次，中途加減
+    // 連線不會跟著更新，拿舊的來比較會把「連線數變了、大小其實沒調過」
+    // 的節點也誤判成手動覆蓋。
+    const currentDegree = {};
+    NODE_DATA.forEach(d => { currentDegree[d.id] = adjacency[d.id].size; });
+    const currentMaxDegree = Math.max(1, ...Object.values(currentDegree));
+    function naturalRadiusFor(id) {
+      return R_MIN + (currentDegree[id] / currentMaxDegree) * (R_MAX - R_MIN);
+    }
+
     const nodeDataInner = rotatedOrder.map(id => {
       const d = NODE_DATA.find(x => x.id === id);
       let extra = '';
       if (d.mobileName) extra += `, mobileName: ${JSON.stringify(d.mobileName)}`;
       extra += `, href: ${JSON.stringify(d.href || '')}`;
+      if (Math.abs(nodeRadius[id] - naturalRadiusFor(id)) > 0.05) extra += `, radius: ${Math.round(nodeRadius[id] * 100) / 100}`;
       if (d.translations && Object.keys(d.translations).length) extra += `, translations: ${JSON.stringify(d.translations)}`;
       return `    { id: '${id}', name: ${JSON.stringify(d.name)}${extra} }`;
     }).join(',\n');
@@ -1655,6 +1674,37 @@
     sendTrailPath.style.strokeDashoffset = trailLen;
   }
 
+  // 2026-08-26 新增：每次要產生同步內容之前，先靜默重新抓一次主網頁目前
+  // 真正的檔案內容，覆蓋掉 SITE_TEMPLATE（不管是本機記住的、還是這個
+  // 分頁上次匯入時存的）——不這樣做的話，SITE_TEMPLATE 只要是舊的，
+  // buildFullSiteText() 用它當「其餘不動的部分」的底本去貼回
+  // specialIds/nodeData/edgeData/languages/specialEdgeStrokeWidth，就會把
+  // 「這個工具不知道、但主網頁後來被其他方式改過」的內容（例如直接改
+  // 原始碼修正的顏色邏輯）整個蓋回舊的樣子，使用者完全不會發現，因為
+  // 這個工具負責的那幾個欄位本身是正確更新的。
+  // 這正是 2026-08-26 實際發生過的問題：淺色模式的圓點顏色被直接改過
+  // 原始碼修正，但下一次用「自動推送到 asstudiowebsite」時，因為
+  // SITE_TEMPLATE 還是改色之前的舊快照，顏色又被蓋回去、變回顛倒的樣子
+  // ——跟這次同步「有沒有動到顏色」完全無關，純粹是底本過期。
+  // 失敗（離線、抓取被擋）時不擋住整個同步流程，退回沿用目前手上的
+  // SITE_TEMPLATE（可能是舊的，但至少同步還能動），不無聲失敗、會用
+  // toast 告知使用者。
+  async function refreshSiteTemplateSilently() {
+    try {
+      const url = 'https://raw.githubusercontent.com/as-studio001/asstudiowebsite/main/'
+        + encodeURIComponent('index.html') + '?_=' + Date.now();
+      const res = await fetch(url, { cache: 'no-store' });
+      if (!res.ok) throw new Error('HTTP ' + res.status);
+      const text = await res.text();
+      SITE_TEMPLATE = text;
+      try { localStorage.setItem(SITE_TEMPLATE_STORAGE_KEY, text); } catch (err) {}
+      return true;
+    } catch (err) {
+      showToast('重新抓取主網頁目前內容失敗（' + err.message + '），這次同步沿用上次記住的內容，可能不是最新的');
+      return false;
+    }
+  }
+
   const syncModalOverlay = document.getElementById('syncModalOverlay');
   const syncOutputAllEl = document.getElementById('syncOutputAll');
   const syncModalTitleEl = document.getElementById('syncModalTitle');
@@ -1666,7 +1716,19 @@
   // 獨立打開這個檔案時 window.parent === window，按下去等於自己傳訊息給
   // 自己，沒有任何效果，不如直接不顯示，避免誤會「按了應該有反應」。
   const isEmbeddedInParent = window.parent !== window;
-  document.getElementById('btnSyncSite').addEventListener('click', () => {
+  const btnSyncSiteEl = document.getElementById('btnSyncSite');
+  btnSyncSiteEl.addEventListener('click', async () => {
+    if (SITE_TEMPLATE) {
+      // 只有「已經匯入過、有 SITE_TEMPLATE 可以刷新」時才需要重新抓取；
+      // 完全還沒匯入過的情況（fullText 一定是 null）維持原本的分段複製
+      // 提示，不需要多這一趟網路請求。
+      btnSyncSiteEl.disabled = true;
+      const originalLabel = btnSyncSiteEl.getAttribute('aria-label');
+      btnSyncSiteEl.setAttribute('aria-label', '重新抓取主網頁最新內容中…');
+      await refreshSiteTemplateSilently();
+      btnSyncSiteEl.disabled = false;
+      btnSyncSiteEl.setAttribute('aria-label', originalLabel);
+    }
     const fullText = buildFullSiteText();
     if (fullText) {
       syncOutputAllEl.value = fullText;
@@ -1773,6 +1835,7 @@
       if (!idMatch || !nameMatch) continue;
       const hrefMatch = block.match(/href:\s*"((?:[^"\\]|\\.)*)"/);
       const mobileNameMatch = block.match(/mobileName:\s*"((?:[^"\\]|\\.)*)"/);
+      const radiusMatch = block.match(/radius:\s*([\d.]+)/);
       const translationsMatch = block.match(/translations:\s*(\{[^{}]*\})/);
       const unescape = (s) => { try { return JSON.parse('"' + s + '"'); } catch (err) { return s; } };
       const node = {
@@ -1781,6 +1844,14 @@
         href: hrefMatch ? unescape(hrefMatch[1]) : ''
       };
       if (mobileNameMatch) node.mobileName = unescape(mobileNameMatch[1]);
+      // radius 是選填的手動大小覆蓋（見 buildSyncParts() 的說明）——沒有
+      // 這個欄位的節點維持原本「依連線數自動算」的行為，computeImportLayout()
+      // 那邊會用 R_MIN 當預設，等匯入完成、算出真正的連線數之後才會被
+      // 正確的自動大小覆蓋（見那邊的說明）。
+      if (radiusMatch) {
+        const parsedRadius = parseFloat(radiusMatch[1]);
+        if (!Number.isNaN(parsedRadius)) node.radius = parsedRadius;
+      }
       if (translationsMatch) {
         // buildSyncParts() 輸出的 translations 是 JSON.stringify() 產生的
         // 標準 JSON（雙引號 key/value），可以直接 JSON.parse()。
@@ -1888,7 +1959,9 @@
     const radius = {};
     const scaled = {};
     nodesList.forEach(d => {
-      radius[d.id] = R_MIN + (degree[d.id] / maxDeg) * (R_MAX - R_MIN);
+      // 有明確帶 radius（parseImportNodeData() 從貼上的內容解析出來的手動
+      // 覆蓋值）就直接沿用，不要用連線數重新算蓋掉——沒有才照舊自動算。
+      radius[d.id] = (typeof d.radius === 'number') ? d.radius : R_MIN + (degree[d.id] / maxDeg) * (R_MAX - R_MIN);
       scaled[d.id] = radius[d.id] * DOT_SCALE;
     });
     const gap = (a, b) => (scaled[a] + scaled[b] + GAP_PADDING) / RING_RADIUS;
