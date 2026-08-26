@@ -10,8 +10,14 @@
     --bg-translucent: rgba(252, 252, 252, 0.88);
     --text: #1a1a1a;
     --line: #d9d9d9;
-    --dot: #1a1a1a;
-    --special: #808080;
+    /* 2026-08-25 同步「建築事務所首頁.dc.html」目前實際的淺色模式圓點
+       顏色（renderVals() 裡的 dotColor/specialColor，light 分支）——
+       之前這裡的 --dot/--special 兩個值其實接近互換了（--dot 是接近黑
+       的深灰、--special 是中灰，跟現在網站上「一般圓點是中灰、分類/
+       標題圓點是接近黑」剛好相反），編輯畫面看到的顏色跟真正上線後長
+       什麼樣子對不起來。 */
+    --dot: #9b9b9b;
+    --special: oklch(0.16 0 0);
     --border: #e2e2e2;
   }
   @media (prefers-color-scheme: dark) {
@@ -34,8 +40,8 @@
     --bg-translucent: rgba(252, 252, 252, 0.88);
     --text: #1a1a1a;
     --line: #d9d9d9;
-    --dot: #1a1a1a;
-    --special: #808080;
+    --dot: #9b9b9b;
+    --special: oklch(0.16 0 0);
     --border: #e2e2e2;
   }
   :root[data-theme="dark"] {
