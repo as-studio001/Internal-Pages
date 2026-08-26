@@ -82,10 +82,12 @@
   <!-- 內文：文字與照片交錯 -->
   <div class="content grid" id="content"></div>
 
-  <!-- 設計研究／施工過程／圖面整合成一個可收合區塊，預設收起，
-       點「+ More in Detail」展開。三個子區塊內部邏輯不變，只是外面
-       多包一層收合容器。互動邏輯見 js/site-chrome.js -->
-  <section class="detail-section">
+  <!-- More in Detail：兩個 Pinterest 風格的純照片圖庫（照片區／圖面區），
+       不再有文字敘述，滑鼠移到照片上才顯示圖說。兩區都選填，兩區都沒有
+       照片時整個區塊（連同按鈕、分隔線）都不顯示——見 js/render.js 的
+       updateDetailSectionVisibility()。互動（展開/收合）邏輯見
+       js/site-chrome.js。 -->
+  <section class="detail-section" id="detail-section" hidden>
     <div class="grid">
       <div class="c-12">
         <button class="detail-toggle" type="button" id="detail-toggle" aria-expanded="false" aria-controls="detail-panel">
@@ -93,17 +95,13 @@
           <span class="detail-toggle__label">More in Detail</span>
         </button>
         <div class="detail-panel" id="detail-panel" hidden>
-          <div class="detail-panel__group">
-            <p class="section-label">設計研究</p>
-            <div id="research-steps"></div>
+          <div class="detail-panel__group" id="detail-photos-group" hidden>
+            <p class="section-label">照片</p>
+            <div class="detail-gallery" id="detail-photos-gallery"></div>
           </div>
-          <div class="detail-panel__group">
-            <p class="section-label">施工過程</p>
-            <div id="process-steps"></div>
-          </div>
-          <div class="detail-panel__group">
+          <div class="detail-panel__group" id="detail-drawings-group" hidden>
             <p class="section-label">圖面</p>
-            <div class="drawings-grid" id="drawings-grid"></div>
+            <div class="detail-gallery" id="detail-drawings-gallery"></div>
           </div>
         </div>
       </div>

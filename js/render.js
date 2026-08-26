@@ -482,131 +482,85 @@
     embed.innerHTML = `<iframe src="https://www.youtube-nocookie.com/embed/${id}" title="影音介紹" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen loading="lazy"></iframe>`;
   }
 
-  // 「一段文字接一排小縮圖」是共用的敘事版型（桌面版固定高度、寬度依
-  // 照片比例自動排列），設計研究、施工過程都用同一套渲染邏輯，只是
-  // 資料來源（哪個陣列）跟掛載的容器不同。
-  const THUMB_RATIOS = [4 / 3, 3 / 4, 16 / 9, 1 / 1, 4 / 5, 3 / 2];
-
-  function isMobileLayout() {
-    return window.matchMedia && window.matchMedia("(max-width:900px)").matches;
+  // More in Detail 底下「照片」「圖面」兩區都是同一種 Pinterest 風格的
+  // 純照片圖庫：不裁切比例（保留照片原始長寬），每張照片依序丟進「目前
+  // 累積高度比較矮」的那一欄（貪婪演算法），欄數依畫面寬度決定。滑鼠
+  // 移上去才顯示圖說（沒有圖說就不會有那個 hover 遮罩）。
+  function detailGalleryColumns() {
+    if (!window.matchMedia) return 3;
+    if (window.matchMedia("(max-width:640px)").matches) return 2;
+    if (window.matchMedia("(max-width:1024px)").matches) return 3;
+    return 4;
   }
 
-  // 手機版兩欄縮圖的大概欄寬：對應 style.css 的 --side:6vw 跟兩欄
-  // 之間 10px 的 gap，用來估算每張照片縮放後的高度
-  function estimateColumnWidth() {
-    const side = window.innerWidth * 0.06;
-    return (window.innerWidth - side * 2 - 10) / 2;
-  }
-
-  // 手機版縮圖排列：真的像 Pinterest 那樣，每張照片依序丟進「目前
-  // 累積高度比較矮」的那一欄（貪婪演算法），不是死板的兩張兩張配對
-  // ——配對順序好懂，但只要中間出現一張特別高或特別矮的照片，那一整排
-  // 還是會看起來卡卡的、對不齊。貪婪演算法看的是兩欄「目前實際的
-  // 高度」，兩欄的總高度會盡量接近，不會留下大塊空白，也不強求同一排
-  // 內誰跟誰對齊——這本來就是 masonry 排列的樣子，柱狀交錯是預期中的
-  // 視覺語言，不是排列錯誤。
-  //
-  // 桌面版完全不受影響：維持原本單排、依實際比例 flex-wrap 排列。
-  function renderThumbGroup(container, items, cellClass, onCellReady, groupMeta) {
+  function renderDetailGallery(containerId, items, kind) {
+    const container = $("#" + containerId);
+    if (!container) return;
+    const group = container.closest(".detail-panel__group");
     container.innerHTML = "";
-    if (!items.length) return;
-
-    const makeCell = (item, i) => {
-      const cell = document.createElement("div");
-      cell.className = cellClass;
-      onCellReady(cell, item, i);
-      // 後台編輯模式下，點縮圖是「換照片」，不是開燈箱——兩件事互斥，
-      // 用同一顆縮圖做哪一個由 EDITABLE 決定，不會兩個行為疊在一起。
-      if (EDITABLE && groupMeta) {
-        cell.classList.add("cms-editable-photo");
-        cell.title = "點擊更換照片";
-        cell.addEventListener("click", (e) => {
-          e.preventDefault();
-          postCmsEdit({
-            field: "step-photo-replace",
-            kind: groupMeta.kind,
-            stepIndex: groupMeta.stepIndex,
-            photoIndex: i,
-          });
-        });
-      } else {
-        cell.addEventListener("click", () => openLightbox(items, i));
-      }
-      return cell;
-    };
-
-    if (!isMobileLayout()) {
-      items.forEach((item, i) => container.appendChild(makeCell(item, i)));
+    const list = items || [];
+    if (!list.length) {
+      if (group) group.hidden = true;
       return;
     }
+    if (group) group.hidden = false;
 
-    const colWidth = estimateColumnWidth();
-    const heights = [0, 0];
-    const cols = [document.createElement("div"), document.createElement("div")];
-    cols.forEach((c) => (c.className = "thumb-col"));
-    items.forEach((item, i) => {
-      const ratio = item.ratio || 4 / 3;
-      const estHeight = colWidth / ratio;
-      const shortIdx = heights[0] <= heights[1] ? 0 : 1;
-      cols[shortIdx].appendChild(makeCell(item, i));
-      heights[shortIdx] += estHeight + 10;
+    const cols = detailGalleryColumns();
+    const heights = new Array(cols).fill(0);
+    const colEls = Array.from({ length: cols }, () => {
+      const c = document.createElement("div");
+      c.className = "detail-gallery__col";
+      return c;
     });
+
+    list.forEach((item, i) => {
+      const fig = document.createElement("figure");
+      fig.className = "detail-gallery__item";
+      fig.appendChild(buildImage(item));
+      if (item.caption) {
+        const cap = document.createElement("figcaption");
+        cap.textContent = item.caption;
+        fig.appendChild(cap);
+      }
+      if (EDITABLE) {
+        fig.classList.add("cms-editable-photo");
+        fig.title = "點擊更換照片";
+        fig.addEventListener("click", (e) => {
+          e.preventDefault();
+          postCmsEdit({ field: "gallery-photo-replace", kind, photoIndex: i });
+        });
+      } else {
+        fig.addEventListener("click", () => openLightbox(list, i));
+      }
+      const ratio = item.ratio || 4 / 3;
+      const shortIdx = heights.indexOf(Math.min(...heights));
+      colEls[shortIdx].appendChild(fig);
+      heights[shortIdx] += 1 / ratio;
+    });
+
     const masonry = document.createElement("div");
-    masonry.className = "thumb-masonry";
-    cols.forEach((c) => masonry.appendChild(c));
+    masonry.className = "detail-gallery__masonry";
+    colEls.forEach((c) => masonry.appendChild(c));
     container.appendChild(masonry);
   }
 
-  function renderSteps(rootSelector, steps, kind) {
-    const root = $(rootSelector);
-    root.innerHTML = "";
-    let thumbIdx = 0;
-    (steps || []).forEach((step, stepIndex) => {
-      const stepEl = document.createElement("div");
-      stepEl.className = "process-step";
-
-      if (step.body) {
-        const p = document.createElement("p");
-        p.className = "process-step__text";
-        p.textContent = step.body;
-        p.dataset.stepKind = kind;
-        p.dataset.stepIndex = String(stepIndex);
-        stepEl.appendChild(p);
-      }
-
-      if (step.photos && step.photos.length) {
-        const row = document.createElement("div");
-        row.className = "process-thumbs";
-        renderThumbGroup(row, step.photos, "process-thumb", (cell, item) => {
-          if (!item.src) {
-            cell.style.aspectRatio = item.ratio || THUMB_RATIOS[thumbIdx++ % THUMB_RATIOS.length];
-          }
-          cell.appendChild(buildImage(item));
-        }, { kind, stepIndex });
-        stepEl.appendChild(row);
-      }
-
-      root.appendChild(stepEl);
-    });
+  function renderDetailPhotos() {
+    renderDetailGallery("detail-photos-gallery", PROJECT.detailPhotos, "detailPhotos");
   }
 
-  function renderResearch() {
-    renderSteps("#research-steps", PROJECT.designResearch, "designResearch");
-  }
-
-  function renderProcess() {
-    renderSteps("#process-steps", PROJECT.process, "process");
-  }
-
-  // 圖面（平面圖／剖面圖／立面圖等技術圖說）獨立收納一區，跟施工過程的
-  // 現場照片分開；用單純、等大的網格排列，不做錯落感。
   function renderDrawings() {
-    const root = $("#drawings-grid");
-    const drawings = PROJECT.drawings || [];
-    renderThumbGroup(root, drawings, "drawing-cell", (cell, item) => {
-      if (!item.src) cell.style.aspectRatio = item.ratio || 4 / 3;
-      cell.appendChild(buildImage(item));
-    }, { kind: "drawings" });
+    renderDetailGallery("detail-drawings-gallery", PROJECT.drawings, "drawings");
+  }
+
+  // More in Detail 整個區塊（含「+ More in Detail」按鈕跟上面那條分隔線）
+  // 是選填的：照片、圖面兩區都沒有內容就整個不顯示。後台預覽（EDITABLE）
+  // 例外——就算兩區都還是空的，也要讓管理者看得到這個區塊在哪裡。
+  function updateDetailSectionVisibility() {
+    const section = $("#detail-section");
+    if (!section) return;
+    const hasPhotos = (PROJECT.detailPhotos || []).length > 0;
+    const hasDrawings = (PROJECT.drawings || []).length > 0;
+    section.hidden = !EDITABLE && !hasPhotos && !hasDrawings;
   }
 
   // 燈箱一次記住「目前這組照片」跟「目前是第幾張」，上一張／下一張
@@ -668,18 +622,10 @@
     $$(".block").forEach((b) => io.observe(b));
   }
 
-  // 設計研究／施工過程是「一段文字接一組照片」的陣列，量測比例時
-  // 要連著每個 step 的 photos 一起處理
-  async function withMeasuredSteps(steps) {
-    const list = steps || [];
-    const measured = await Promise.all(list.map((s) => withMeasuredRatios(s.photos)));
-    return list.map((s, i) => Object.assign({}, s, { photos: measured[i] }));
-  }
-
   async function renderAll(project) {
     // 標題、大圖、外部連結、影音、地圖都不需要等其他照片量測完比例才能
     // 顯示——先用還沒量測過比例的原始資料把這些立刻畫出來。內文照片、
-    // 設計研究、施工過程、圖面可能有十幾張照片，量測比例得先把每一張
+    // More in Detail 的照片／圖面可能有十幾張照片，量測比例得先把每一張
     // 都下載解碼完才算完成；網路慢的時候，把整頁都晾在那裡等這件事做完
     // 才顯示任何東西（包括跟這些照片完全無關的標題跟大圖），會被使用者
     // 感覺成「頁面壞掉、卡住」，而不是「還在讀取中」。
@@ -690,17 +636,16 @@
     renderVideo();
     renderMap();
 
-    const [photos, designResearch, process, drawings] = await Promise.all([
+    const [photos, detailPhotos, drawings] = await Promise.all([
       withMeasuredRatios(project.photos),
-      withMeasuredSteps(project.designResearch),
-      withMeasuredSteps(project.process),
+      withMeasuredRatios(project.detailPhotos),
       withMeasuredRatios(project.drawings),
     ]);
-    PROJECT = Object.assign({}, project, { photos, designResearch, process, drawings });
+    PROJECT = Object.assign({}, project, { photos, detailPhotos, drawings });
     renderContent();
-    renderResearch();
-    renderProcess();
+    renderDetailPhotos();
     renderDrawings();
+    updateDetailSectionVisibility();
     bindScrollReveal();
     if (EDITABLE) enableEditing();
   }
@@ -929,15 +874,7 @@
       makePhotoClickable(img, () => postCmsEdit({ field: "photo-replace", index: Number(img.dataset.photoIndex) }));
     });
 
-    // 設計研究／施工過程的每一段文字說明；縮圖（含圖面）的點擊換照片
-    // 行為已經在 renderThumbGroup 裡依 EDITABLE 直接處理，這裡不用重複做
-    $$("[data-step-kind]").forEach((p) => {
-      makeTextEditable(p, (val) =>
-        postCmsEdit({ field: "step-body", kind: p.dataset.stepKind, stepIndex: Number(p.dataset.stepIndex), value: val })
-      );
-    });
-
-    // 「新增」按鈕：讓全新案例（內文段落、照片、設計研究／施工過程、
+    // 「新增」按鈕：讓全新案例（內文段落、照片、More in Detail 的照片／
     // 圖面都還是空的）也能整個從這個即時預覽直接開始建立內容，不用
     // 先跑去下面的清單新增第一筆之後才看得到東西可以點。
     // #content 是 CSS Grid（12 欄），直接把按鈕塞進去會被當成一般格子
@@ -953,17 +890,21 @@
       addRow.appendChild(makeAddButton("新增照片", () => postCmsEdit({ field: "photo-add" })));
       contentRoot.appendChild(addRow);
     }
-    const researchRoot = $("#research-steps");
-    if (researchRoot) {
-      researchRoot.appendChild(makeAddButton("新增一段設計研究", () => postCmsEdit({ field: "step-add", kind: "designResearch" })));
+    // 兩個圖庫在照片一張都沒有時，renderDetailGallery 會連同外層那個
+    // .detail-panel__group 一起 hidden——EDITABLE 模式要把它們重新
+    // 顯示出來，不然全新案例會完全看不到「照片」「圖面」這兩個標籤跟
+    // 可以按的「新增」按鈕。
+    const detailPhotosRoot = $("#detail-photos-gallery");
+    if (detailPhotosRoot) {
+      const group = detailPhotosRoot.closest(".detail-panel__group");
+      if (group) group.hidden = false;
+      detailPhotosRoot.appendChild(makeAddButton("新增照片", () => postCmsEdit({ field: "gallery-photo-add", kind: "detailPhotos" })));
     }
-    const processRoot = $("#process-steps");
-    if (processRoot) {
-      processRoot.appendChild(makeAddButton("新增一段施工過程", () => postCmsEdit({ field: "step-add", kind: "process" })));
-    }
-    const drawingsRoot = $("#drawings-grid");
+    const drawingsRoot = $("#detail-drawings-gallery");
     if (drawingsRoot) {
-      drawingsRoot.appendChild(makeAddButton("新增圖面", () => postCmsEdit({ field: "drawing-add" })));
+      const group = drawingsRoot.closest(".detail-panel__group");
+      if (group) group.hidden = false;
+      drawingsRoot.appendChild(makeAddButton("新增圖面", () => postCmsEdit({ field: "gallery-photo-add", kind: "drawings" })));
     }
   }
 
