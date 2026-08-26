@@ -364,6 +364,39 @@ button{font-family:inherit;}
 
 .block--solo .ph{height:auto;aspect-ratio:16/9;}
 
+/* ---------- 外部網站／影音：都選填，排在 More in Detail 之後、位置之前，
+   沒填資料的那個整個 hidden，不留空段落 ---------- */
+.external-link-section,.video-section{
+  width:100%;
+  padding:3rem 0;
+  border-top:1px solid rgba(255,255,255,.15);
+}
+.external-link-section .section-label,.video-section .section-label{padding:0 var(--side);}
+.external-link-card{
+  display:inline-flex;
+  align-items:center;
+  gap:.6rem;
+  margin:0 var(--side);
+  font-family:"Noto Sans TC",sans-serif;
+  font-size:1.05rem;
+  color:var(--ink);
+  text-decoration:none;
+  border-bottom:1px solid var(--ink);
+  padding-bottom:.15rem;
+  transition:opacity .2s ease;
+}
+.external-link-card:hover{opacity:.6;}
+.external-link-arrow{font-size:1.1rem;transition:transform .2s ease;}
+.external-link-card:hover .external-link-arrow{transform:translate(2px,-2px);}
+.video-embed{
+  position:relative;
+  width:calc(100% - var(--side) * 2);
+  margin:0 var(--side);
+  aspect-ratio:16/9;
+  background:#000;
+}
+.video-embed iframe{position:absolute;inset:0;width:100%;height:100%;border:0;}
+
 /* ---------- map：標題在地圖之前、座標地址在地圖之下，都是正常文件流，
    不再疊在地圖圖片上 ---------- */
 .map-full{

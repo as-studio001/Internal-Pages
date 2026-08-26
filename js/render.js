@@ -401,6 +401,44 @@
     L.marker([m.lat, m.lng], { icon: pinIcon }).addTo(leafletMap);
   }
 
+  // 兩個都是選填：沒填就整個 hidden，不留空段落。網址/YouTube 連結格式
+  // 由使用者自己貼，不強制檢查——貼錯了大不了那個區塊連結/嵌入失效，
+  // 不該讓存檔或整頁渲染失敗。
+  function renderExternalLink() {
+    const section = $("#external-link-section");
+    if (!section) return;
+    const url = (PROJECT.externalUrl || "").trim();
+    if (!url) {
+      section.hidden = true;
+      return;
+    }
+    section.hidden = false;
+    $("#external-link-anchor").href = url;
+    $("#external-link-text").textContent = url.replace(/^https?:\/\//, "").replace(/\/$/, "");
+  }
+
+  // 接受 watch?v=、youtu.be/、embed/、shorts/ 幾種常見網址形式，抓出
+  // 11 碼的影片 ID 換成可嵌入的 embed 網址；抓不到就當作沒填。
+  function extractYoutubeId(url) {
+    if (!url) return null;
+    const m = String(url).match(/(?:youtu\.be\/|youtube\.com\/(?:watch\?v=|embed\/|shorts\/))([\w-]{11})/);
+    return m ? m[1] : null;
+  }
+
+  function renderVideo() {
+    const section = $("#video-section");
+    const embed = $("#video-embed");
+    if (!section || !embed) return;
+    const id = extractYoutubeId(PROJECT.youtubeUrl);
+    if (!id) {
+      section.hidden = true;
+      embed.innerHTML = "";
+      return;
+    }
+    section.hidden = false;
+    embed.innerHTML = `<iframe src="https://www.youtube-nocookie.com/embed/${id}" title="影音介紹" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen loading="lazy"></iframe>`;
+  }
+
   // 「一段文字接一排小縮圖」是共用的敘事版型（桌面版固定高度、寬度依
   // 照片比例自動排列），設計研究、施工過程都用同一套渲染邏輯，只是
   // 資料來源（哪個陣列）跟掛載的容器不同。
@@ -606,10 +644,12 @@
     renderHead();
     renderHeroPhoto();
     renderContent();
-    renderMap();
     renderResearch();
     renderProcess();
     renderDrawings();
+    renderExternalLink();
+    renderVideo();
+    renderMap();
     bindScrollReveal();
     if (EDITABLE) enableEditing();
   }
@@ -889,7 +929,7 @@
     hero: [".page-head", ".hero-photo"],
     content: ["#content"],
     detail: [".detail-section"],
-    map: [".map-full"],
+    map: [".external-link-section", ".video-section", ".map-full"],
   };
 
   let focused = false;

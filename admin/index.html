@@ -1151,6 +1151,7 @@ function blankCase(type){
   return {
     slug: "", title: "", ledeMeta: "", tag: "", hero: "",
     paragraphs: [""], photos: [],
+    externalUrl: "", youtubeUrl: "",
     map: { address: "", lat: null, lng: null, zoom: 17 },
     designResearch: [], process: [], drawings: [],
     type: "subpage",
@@ -1718,7 +1719,7 @@ function caseEditorHtml(ed){
               </label>
             `).join("")}
           </div>
-          <div class="field-hint">勾選後，存檔時會自動把這個案例（用主視覺大圖、案名、這個案例的網址）加進該章節主網站上的案例卡片列表，不用再另外去「主網站內容」手動加</div>
+          <div class="field-hint">勾選後，存檔時會自動把這個案例（用主視覺大圖、案名）加進該章節主網站上的案例卡片列表，不用再另外去「主網站內容」手動加。卡片網址預設連到這個案例自己的內頁，但如果在下面「④ 網站、影音與位置」填了外部網站連結，會改連到那個外部網址。</div>
         </div>
       </div>
 
@@ -1767,10 +1768,21 @@ function caseEditorHtml(ed){
       <div class="preview-section">
         <div class="preview-section-head">
           <span class="preview-section-num">4</span>
-          <div class="label">位置</div>
+          <div class="label">網站、影音與位置</div>
         </div>
-        <iframe id="preview_map" class="case-live-preview" data-preview-key="map" src="../index.html?preview=1" style="height:42vh;min-height:320px;"></iframe>
+        <iframe id="preview_map" class="case-live-preview" data-preview-key="map" src="../index.html?preview=1" style="height:52vh;min-height:400px;"></iframe>
         <div class="field-block" style="margin-top:16px">
+          <div class="label">外部網站連結（選填）</div>
+          <input type="text" data-path="externalUrl" placeholder="https://…" value="${esc(c.externalUrl || "")}">
+          <div class="field-hint">填了會在內頁顯示一個「網站」區塊連過去；上面「顯示在主網站章節」如果有勾選，章節卡片也會改連到這個網址。</div>
+        </div>
+        <div class="field-block">
+          <div class="label">YouTube 影音連結（選填）</div>
+          <input type="text" data-path="youtubeUrl" placeholder="https://www.youtube.com/watch?v=…" value="${esc(c.youtubeUrl || "")}">
+          <div class="field-hint">填了會在內頁「網站」之後嵌入這支影片。</div>
+        </div>
+        <div class="field-block" style="margin-top:16px">
+          <div class="label">位置</div>
           <div class="two-col">
             <div>
               <label>地址</label>
