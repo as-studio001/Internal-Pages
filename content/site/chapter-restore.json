@@ -18,21 +18,33 @@
       "image": "https://as-studio001.github.io/Internal-Pages/images/site/card-chiayi-experimental-woodyard.jpg",
       "href": "https://as-studio001.github.io/Internal-Pages/?case=chiayi-experimental-woodyard",
       "label": {
-        "zh-Hant": "嘉義實驗木場"
+        "zh-Hant": "嘉義實驗木場",
+        "zh-Hans": "嘉义实验木场",
+        "en": "Chiayi Experimental Woodyard",
+        "ja": "嘉義実験木材園",
+        "ko": "자이 실험적 목공소"
       }
     },
     {
       "image": "https://as-studio001.github.io/Internal-Pages/images/site/case-restore-office.jpg",
       "href": "https://as-studio001.github.io/Internal-Pages/?case=as-studio-office",
       "label": {
-        "zh-Hant": "原型事務所"
+        "zh-Hant": "原型事務所",
+        "zh-Hans": "原型事务所",
+        "en": "prototype office",
+        "ja": "プロトタイプオフィス",
+        "ko": "프로토타입 사무실"
       }
     },
     {
       "image": "https://as-studio001.github.io/Internal-Pages/images/site/card-laogu-fang.jpg",
       "href": "https://asas2026.wixsite.com/mysite/%E6%96%B0%E7%94%9F%E5%A0%B4%E5%9F%9F",
       "label": {
-        "zh-Hant": "台南硓𥑮石．芳宅"
+        "zh-Hant": "台南硓𥑮石．芳宅",
+        "zh-Hans": "台南硓𥑮石．芳宅",
+        "en": "Tainan stone. Fangzhai",
+        "ja": "台南の石。方寨",
+        "ko": "태안석. 팡자이"
       }
     }
   ],
