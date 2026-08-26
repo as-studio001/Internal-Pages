@@ -575,11 +575,12 @@ button{font-family:inherit;}
 
 /* 圖面：固定大小的網格，比例不合的圖用 object-fit:contain 整張縮小
    塞進格子（不裁切——裁掉一角平面圖／立面圖就看不出完整內容），格子
-   給淺色背景，扁的或窄的圖不會看起來像缺了一塊。 */
+   給淺色背景，扁的或窄的圖不會看起來像缺了一塊。格子最小寬度拉大到
+   380px（原本 220px 太小，平面圖上的標註文字幾乎看不清楚）。 */
 .detail-drawing-grid{
   display:grid;
-  grid-template-columns:repeat(auto-fill, minmax(220px, 1fr));
-  gap:12px;
+  grid-template-columns:repeat(auto-fill, minmax(380px, 1fr));
+  gap:16px;
 }
 .detail-drawing-grid__item{
   position:relative;
