@@ -109,6 +109,36 @@ button{font-family:inherit;}
 .ph[data-ph="sketch"]{background:#f0f0f0;}
 .ph[data-ph="drawing"]{background:#f7f7f7;}
 
+/* ---------- 進站白底遮罩 ----------
+   z-index 蓋過 sticky header（1000）跟選單/語言下拉（1001），確保頁面
+   還沒準備好的時候擋住一切，包括頂部導覽列本身。 */
+#page-loading-overlay{
+  position:fixed;
+  inset:0;
+  z-index:2000;
+  background:#fff;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  transition:opacity .5s ease;
+}
+#page-loading-overlay.is-hidden{opacity:0;pointer-events:none;}
+.page-loading-overlay__mark{
+  width:56px;
+  height:56px;
+  /* assets/favicon-logo.png 是給深色底用的白色標誌，這裡是白底，
+     invert(1) 直接把白色線條換成黑色，透明背景不受影響 */
+  filter:invert(1);
+  animation:page-loading-pulse 1.6s ease-in-out infinite;
+}
+@keyframes page-loading-pulse{
+  0%,100%{opacity:.3;}
+  50%{opacity:1;}
+}
+@media (prefers-reduced-motion:reduce){
+  .page-loading-overlay__mark{animation:none;opacity:1;}
+}
+
 /* ---------- header / footer ----------
    Kept in sync by hand with the main site's Header.tsx/Footer.tsx
    (as-studio001.github.io/asarch/) — same glass panels, hamburger menu

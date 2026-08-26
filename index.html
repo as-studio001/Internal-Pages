@@ -12,6 +12,13 @@
 </head>
 <body>
 
+<!-- 進站白底遮罩：大圖、內文照片、地圖全部真的準備好之前先蓋住整頁，
+     不要讓訪客看到「先跑出大圖跟地圖、內文卻一直不出現」的半完成畫面。
+     後台預覽模式（?preview=1）不用這層，見 js/render.js 的 init()。 -->
+<div id="page-loading-overlay">
+  <img src="assets/favicon-logo.png" alt="" class="page-loading-overlay__mark">
+</div>
+
 <!-- ============================================================
      頁首:與主站 as-studio001.github.io/asarch/ 的 Header.tsx 同步
      (漢堡選單項目、logo、語言切換鈕),互動邏輯見 js/site-chrome.js

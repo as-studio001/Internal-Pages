@@ -15,6 +15,18 @@
   // render.js 真正產生的頁面，所見即所得，不是另外做一份長得像的介面。
   let EDITABLE = false;
 
+  // 進站白底遮罩要等大圖、地圖都真的準備好（不只是 DOM 建好，圖真的
+  // 下載/解碼完成、地圖圖磚真的載入完成）才能拿掉，用兩個各自獨立的
+  // deferred 追蹤——真正的頁面流程（init()）只用一次，preview 模式
+  // 完全不看這兩個，不需要考慮重複建立的問題。
+  function createDeferred() {
+    let resolve;
+    const promise = new Promise((res) => { resolve = res; });
+    return { promise, resolve };
+  }
+  let heroReady = createDeferred();
+  let mapReady = createDeferred();
+
   /**
    * 建立一張圖片。
    * - 若資料含有 src（真實照片路徑），就輸出 <img>
@@ -81,6 +93,11 @@
     if (heroData.src) {
       img.loading = "eager";
       img.fetchPriority = "high";
+      img.addEventListener("load", () => heroReady.resolve(), { once: true });
+      img.addEventListener("error", () => heroReady.resolve(), { once: true });
+    } else {
+      // 沒有真的照片（示意色塊），沒有東西需要等
+      heroReady.resolve();
     }
     // 大圖固定裁成 16:9，不同比例的原始照片交給 heroPosition（後台可以
     // 拖曳調整）決定要保留哪個部分，預設置中（50%,50%）。
@@ -384,7 +401,10 @@
       leafletMap.remove();
       leafletMap = null;
     }
-    if (typeof L === "undefined" || m.lat == null || m.lng == null) return;
+    if (typeof L === "undefined" || m.lat == null || m.lng == null) {
+      mapReady.resolve();
+      return;
+    }
 
     leafletMap = L.map("site-map", {
       zoomControl: true,
@@ -394,10 +414,15 @@
     }).setView([m.lat, m.lng], m.zoom || 14);
 
     // 國土測繪中心 PHOTO2：免金鑰的台灣正射影像圖磚
-    L.tileLayer(
+    const tiles = L.tileLayer(
       "https://wmts.nlsc.gov.tw/wmts/PHOTO2/default/GoogleMapsCompatible/{z}/{y}/{x}",
       { maxZoom: 19, attribution: "圖資來源：內政部國土測繪中心" }
     ).addTo(leafletMap);
+    // 'load' 是目前畫面需要的圖磚全部載入完成才會觸發一次；圖磚伺服器
+    // 偶爾會有個別圖磚一直載入失敗，保險起見額外設一個較短的逾時，
+    // 不讓地圖圖磚卡住整個進站遮罩。
+    tiles.on("load", () => mapReady.resolve());
+    setTimeout(() => mapReady.resolve(), 4000);
 
     const pinIcon = L.divIcon({
       className: "",
@@ -1014,21 +1039,44 @@
     if (window.parent) window.parent.postMessage({ type: "cms-preview-ready" }, "*");
   }
 
+  // 白底遮罩淡出、真正移除——只呼叫一次也沒關係，是最後只執行一次的
+  // 收尾動作，不是可以重複觸發的開關。
+  function revealPage(instant) {
+    const overlay = $("#page-loading-overlay");
+    if (!overlay) return;
+    if (instant) {
+      overlay.remove();
+      return;
+    }
+    overlay.classList.add("is-hidden");
+    setTimeout(() => overlay.remove(), 550);
+  }
+
   async function init() {
     bindLightboxClose();
     const params = new URLSearchParams(location.search);
     if (params.get("preview") === "1") {
+      // 後台的即時預覽 iframe 需要立刻看到畫面才能編輯，不套用進站遮罩
+      revealPage(true);
       initPreviewMode();
       return;
     }
     const slug = params.get("case") || "laogu-fang";
-    try {
-      const project = await loadCase(slug);
-      await renderAll(project);
-    } catch (err) {
-      console.error(err);
-      showError("找不到這個案例");
-    }
+    // 內文照片、大圖、地圖圖磚都真的準備好才拿掉遮罩；網路很慢或某張
+    // 圖一直卡住的話，最多等 9 秒還是會照樣掀開頁面，不會讓訪客永遠卡在
+    // 白畫面前面。
+    const loadSequence = (async () => {
+      try {
+        const project = await loadCase(slug);
+        await renderAll(project);
+        await Promise.all([heroReady.promise, mapReady.promise]);
+      } catch (err) {
+        console.error(err);
+        showError("找不到這個案例");
+      }
+    })();
+    await Promise.race([loadSequence, new Promise((resolve) => setTimeout(resolve, 9000))]);
+    revealPage();
   }
 
   init();
