@@ -1212,15 +1212,22 @@ function blankCase(type){
 function openCaseEditor(item, sha, isNew){
   state.editingCase = { item, sha, isNew, pendingUploads: {}, linkedChapters: [], linkedHref: null };
   render();
-  if(!isNew && item.slug) loadLinkedChapters(item.slug, item.externalUrl);
+  if(!isNew && item.slug) loadLinkedChapters(item.slug, item.externalUrl, item.type);
 }
 function closeCaseEditor(){ state.editingCase = null; render(); }
 
-// 一個案例實際的跳轉網址：填了「外部連結網址」就用那個，沒填就是這個
-// 案例自己的內頁——章節卡片、漢堡選單清單都用同一個判斷式。
-function caseTargetHref(slug, externalUrl){
-  const trimmed = (externalUrl || "").trim();
-  return trimmed || `https://as-studio001.github.io/Internal-Pages/?case=${slug}`;
+// 一個案例實際的跳轉網址：只有「外部連結網頁」（type === "external"，
+// 本身就沒有內頁內容，存在的唯一目的就是跳出去）才會用外部網址；一般
+// 子網頁一律連自己的內頁，不管有沒有另外在④填了「外部網站連結」——
+// 那個欄位只負責這個案例自己內頁裡的「網站」區塊，不該連帶把首頁的
+// 章節卡片也導去別的網站，不然訪客從首頁點進來，看到的不是這個案例
+// 真正的內頁內容，而是被直接帶去了別的網址。
+function caseTargetHref(slug, externalUrl, type){
+  if(type === "external"){
+    const trimmed = (externalUrl || "").trim();
+    if(trimmed) return trimmed;
+  }
+  return `https://as-studio001.github.io/Internal-Pages/?case=${slug}`;
 }
 
 /* 打開一個既有案例時，順便去問三個章節的 JSON 裡有沒有已經連結這個
@@ -1229,8 +1236,8 @@ function caseTargetHref(slug, externalUrl){
    算出來的 href 存到 linkedHref——如果之後存檔時「外部連結網址」被改
    掉，才知道舊的卡片是用哪個網址連結的，可以正確換掉而不是留下一筆
    孤兒卡片 */
-async function loadLinkedChapters(slug, externalUrl){
-  const href = caseTargetHref(slug, externalUrl);
+async function loadLinkedChapters(slug, externalUrl, type){
+  const href = caseTargetHref(slug, externalUrl, type);
   const found = [];
   for(const meta of CASE_CARD_CHAPTERS){
     try{
@@ -1736,7 +1743,7 @@ function caseEditorHtml(ed){
               </label>
             `).join("")}
           </div>
-          <div class="field-hint">勾選後，存檔時會自動把這個案例（用主視覺大圖、案名）加進該章節主網站上的案例卡片列表，不用再另外去「主網站內容」手動加。卡片網址預設連到這個案例自己的內頁，但如果在下面「④ 網站、影音與位置」填了外部網站連結，會改連到那個外部網址。</div>
+          <div class="field-hint">勾選後，存檔時會自動把這個案例（用主視覺大圖、案名）加進該章節主網站上的案例卡片列表，不用再另外去「主網站內容」手動加。卡片一律連到這個案例自己的內頁——下面「④ 網站、影音與位置」的外部網站連結只影響這個案例內頁裡的「網站」區塊，不會連帶把首頁卡片也導去別的網址。</div>
         </div>
       </div>
 
@@ -1799,7 +1806,7 @@ function caseEditorHtml(ed){
         <div class="field-block">
           <div class="label">外部網站連結（選填）</div>
           <input type="text" data-path="externalUrl" placeholder="https://…" value="${esc(c.externalUrl || "")}">
-          <div class="field-hint">上面「顯示在主網站章節」如果有勾選，章節卡片也會改連到這個網址。封面圖直接在上面的預覽裡點擊上傳／拖曳調整位置（跟第 1 區塊的主視覺大圖同一種操作），網址、封面圖兩個都要有才會在內頁顯示「網站」這個滿版區塊。</div>
+          <div class="field-hint">這個欄位只會在這個案例自己的內頁顯示一個「網站」滿版區塊，不會影響首頁的章節卡片（章節卡片一律連到這個案例的內頁）。封面圖直接在上面的預覽裡點擊上傳／拖曳調整位置（跟第 1 區塊的主視覺大圖同一種操作），網址、封面圖兩個都要有才會顯示。</div>
         </div>
         <div class="field-block">
           <div class="label">YouTube 影音連結（選填）</div>
@@ -2361,7 +2368,7 @@ async function saveCaseEditor(ed){
     await ghPutFile(`content/projects/${slug}.json`, utf8ToBase64(json), `Update case ${slug} via admin`, ed.sha);
 
     if(selectedChapters.length || toRemove.length){
-      const href = caseTargetHref(slug, ed.item.externalUrl);
+      const href = caseTargetHref(slug, ed.item.externalUrl, ed.item.type);
       const oldHref = ed.linkedHref || href;
       let label = { "zh-Hant": ed.item.title };
       if(selectedChapters.length){
@@ -2491,12 +2498,12 @@ async function regenerateCaseLinksManifest(){
     const items = await Promise.all(files.map(async f => {
       try{
         const { json } = await ghGetFile(f.path);
-        return { slug: json.slug || f.name.replace(/\.json$/, ""), title: json.title || "", externalUrl: json.externalUrl || "" };
+        return { slug: json.slug || f.name.replace(/\.json$/, ""), title: json.title || "", externalUrl: json.externalUrl || "", type: json.type || "subpage" };
       }catch(e){ return null; }
     }));
     const links = items
       .filter(it => it && it.title)
-      .map(it => ({ label: it.title, href: caseTargetHref(it.slug, it.externalUrl) }))
+      .map(it => ({ label: it.title, href: caseTargetHref(it.slug, it.externalUrl, it.type) }))
       .filter((l) => eligibleHrefs.has(l.href));
     const body = JSON.stringify({ links }, null, 2) + "\n";
     let sha = null;
@@ -2527,7 +2534,7 @@ async function deleteCurrentCase(){
     // 案例檔案刪掉了，但如果它本來有連結章節，那些章節的 CASES 卡片
     // 不會自己跟著消失——不清掉的話，卡片會變成一張連到已經不存在的
     // 案例的孤兒卡片，前台點下去會看到「找不到這個案例」。
-    const href = ed.linkedHref || caseTargetHref(ed.item.slug, ed.item.externalUrl);
+    const href = ed.linkedHref || caseTargetHref(ed.item.slug, ed.item.externalUrl, ed.item.type);
     for(const chName of (ed.linkedChapters || [])){
       const meta = CASE_CARD_CHAPTERS.find((c) => c.name === chName);
       if(meta) await removeCaseCardFromChapter(meta, href);
