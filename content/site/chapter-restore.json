@@ -15,13 +15,6 @@
   },
   "cases": [
     {
-      "image": "https://as-studio001.github.io/Internal-Pages/images/site/card-laogu-fang.jpg",
-      "href": "https://as-studio001.github.io/Internal-Pages/?case=laogu-fang",
-      "label": {
-        "zh-Hant": "台南硓𥑮石．芳宅"
-      }
-    },
-    {
       "image": "https://as-studio001.github.io/Internal-Pages/images/site/card-chiayi-experimental-woodyard.jpg",
       "href": "https://as-studio001.github.io/Internal-Pages/?case=chiayi-experimental-woodyard",
       "label": {
