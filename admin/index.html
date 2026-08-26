@@ -730,9 +730,9 @@ async function loadCaseList(){
   const items = await Promise.all(files.map(async f => {
     try{
       const { json } = await ghGetFile(f.path);
-      return { slug: json.slug || f.name.replace(/\.json$/, ""), title: json.title || "", ledeMeta: json.ledeMeta || "", hero: json.hero || "", type: json.type || "subpage", published: json.published !== false };
+      return { slug: json.slug || f.name.replace(/\.json$/, ""), title: json.title || "", ledeMeta: json.ledeMeta || "", hero: json.hero || "", type: json.type || "subpage", published: json.published !== false, externalUrl: json.externalUrl || "" };
     }catch(e){
-      return { slug: f.name.replace(/\.json$/, ""), title: "（讀取失敗）", ledeMeta: "", hero: "", type: "subpage", published: true };
+      return { slug: f.name.replace(/\.json$/, ""), title: "（讀取失敗）", ledeMeta: "", hero: "", type: "subpage", published: true, externalUrl: "" };
     }
   }));
   state.cases = items;
@@ -1832,6 +1832,17 @@ function caseEditorHtml(ed){
         </div>
         <iframe id="preview_map" class="case-live-preview" data-preview-key="map" src="../index.html?preview=1" style="height:52vh;min-height:400px;"></iframe>
         <div class="field-block" style="margin-top:16px">
+          <div class="label">套用既有的外部連結網頁（選填）</div>
+          <select data-external-case-picker>
+            <option value="">－－不套用，自己填網址／上傳封面圖－－</option>
+            ${(state.cases || [])
+              .filter((it) => it.type === "external" && it.externalUrl && it.slug !== c.slug)
+              .map((it) => `<option value="${esc(it.slug)}">${esc(it.title || it.slug)}</option>`)
+              .join("")}
+          </select>
+          <div class="field-hint">已經在「原型未來」這類外部連結網頁裡建立過的網址／封面圖，可以直接在這裡選一次帶過來，不用重新上傳同一張圖。選了之後下面兩個欄位會自動填好，還是可以再自己改。</div>
+        </div>
+        <div class="field-block">
           <div class="label">外部網站連結（選填）</div>
           <input type="text" data-path="externalUrl" placeholder="https://…" value="${esc(c.externalUrl || "")}">
           <div class="field-hint">上面「顯示在主網站章節」如果有勾選，章節卡片也會改連到這個網址。</div>
@@ -2303,6 +2314,16 @@ function renderCaseEditor(){
 
   const folder = () => `images/${ed.item.slug || "tmp"}`;
   bindCoverDropEvents(ed, "externalUrlCover", folder());
+  const externalPicker = document.querySelector("[data-external-case-picker]");
+  if(externalPicker){
+    externalPicker.addEventListener("change", () => {
+      const picked = (state.cases || []).find((it) => it.slug === externalPicker.value);
+      if(!picked) return;
+      ed.item.externalUrl = picked.externalUrl || "";
+      ed.item.externalUrlCover = picked.hero || "";
+      rerenderCurrentEditor();
+    });
+  }
   bindPhotoGroups(ed);
   bindPhotoList(ed, "drawings", "drawingsList", folder(), () => refreshDrawingsList(ed, folder()));
   bindStepsFor(ed, "designResearch", "designResearchList", folder(), () => refreshStepsList(ed, "designResearch", "designResearchList", folder()));
