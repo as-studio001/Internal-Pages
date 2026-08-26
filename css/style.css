@@ -419,7 +419,8 @@ button{font-family:inherit;}
   display:block;
   position:relative;
   aspect-ratio:16/9;
-  margin:0 var(--side);
+  width:60%;
+  margin:0 auto;
   overflow:hidden;
   background:#000;
 }
