@@ -393,9 +393,9 @@ button{font-family:inherit;}
 
 .block--solo .ph{height:auto;aspect-ratio:16/9;}
 
-/* ---------- 外部網站：網址+封面圖都有才顯示，滿版設計，版面結構
-   （標題在上、內容滿版、說明文字在下）直接比照下面的 .map-full，讓
-   兩個「補充資訊」區塊看起來是同一套語言，不是一條孤零零的文字連結 ---------- */
+/* ---------- 外部網站：網址+封面圖都有才顯示，16:9 封面（跟主視覺大圖
+   同一種裁切比例／後台可拖曳調整），不顯示網址文字，右下角一個小箭頭
+   圓鈕當作「這是外部連結」的提示就好 ---------- */
 .external-link-section{
   width:100%;
   padding:3rem 0 4rem;
@@ -414,31 +414,36 @@ button{font-family:inherit;}
 .external-link-section__canvas{
   display:block;
   position:relative;
-  height:60vh;
-  min-height:400px;
+  aspect-ratio:16/9;
   margin:0 var(--side);
   overflow:hidden;
   background:#000;
 }
-.external-link-section__canvas img{
+.external-link-section__canvas .external-link-section__cover{
   width:100%;
   height:100%;
   object-fit:cover;
   transition:transform .6s ease;
 }
-.external-link-section__canvas:hover img{transform:scale(1.03);}
-.external-link-section__info{
-  margin-top:1.5rem;
-  padding:0 var(--side);
+.external-link-section__canvas:hover .external-link-section__cover{transform:scale(1.03);}
+.external-link-section__arrow{
+  position:absolute;
+  right:1.25rem;
+  bottom:1.25rem;
+  z-index:1;
+  width:2.2rem;
+  height:2.2rem;
   display:flex;
   align-items:center;
-  gap:.5rem;
-  font-family:"Noto Sans TC",sans-serif;
-  font-size:.95rem;
-  color:var(--ink);
+  justify-content:center;
+  border-radius:50%;
+  background:rgba(0,0,0,.55);
+  color:#fff;
+  font-size:1.15rem;
+  pointer-events:none;
+  transition:transform .2s ease, background-color .2s ease;
 }
-.external-link-arrow{font-size:1.1rem;transition:transform .2s ease;}
-.external-link-section__canvas:hover ~ .external-link-section__info .external-link-arrow{transform:translate(2px,-2px);}
+.external-link-section__canvas:hover .external-link-section__arrow{transform:translate(2px,-2px);background:rgba(0,0,0,.75);}
 /* ---------- 影音：選填，排在網站之後、位置之前，沒填就整個 hidden ---------- */
 .video-section{
   width:100%;

@@ -1845,12 +1845,7 @@ function caseEditorHtml(ed){
         <div class="field-block">
           <div class="label">外部網站連結（選填）</div>
           <input type="text" data-path="externalUrl" placeholder="https://…" value="${esc(c.externalUrl || "")}">
-          <div class="field-hint">上面「顯示在主網站章節」如果有勾選，章節卡片也會改連到這個網址。</div>
-        </div>
-        <div class="field-block">
-          <div class="label">網站封面圖</div>
-          ${coverDropHtml("externalUrlCover", resolveSrc(ed.pendingUploads, c.externalUrlCover), true)}
-          <div class="field-hint">網址、封面圖都要有才會在內頁顯示「網站」這個滿版區塊（截一張該網站首頁的畫面當封面即可）；只填網址沒放封面圖不會顯示。</div>
+          <div class="field-hint">上面「顯示在主網站章節」如果有勾選，章節卡片也會改連到這個網址。封面圖直接在上面的預覽裡點擊上傳／拖曳調整位置（跟第 1 區塊的主視覺大圖同一種操作），網址、封面圖兩個都要有才會在內頁顯示「網站」這個滿版區塊。</div>
         </div>
         <div class="field-block">
           <div class="label">YouTube 影音連結（選填）</div>
@@ -1957,6 +1952,7 @@ function resolveCaseForPreview(item, pendingUploads){
   const clone = JSON.parse(JSON.stringify(item));
   const resolve = (v) => (pendingUploads[v] ? pendingUploads[v].previewUrl : v);
   clone.hero = resolve(clone.hero);
+  clone.externalUrlCover = resolve(clone.externalUrlCover);
   (clone.photos || []).forEach((p) => { p.src = resolve(p.src); });
   (clone.drawings || []).forEach((p) => { p.src = resolve(p.src); });
   ["designResearch", "process"].forEach((kind) => {
@@ -2207,6 +2203,19 @@ function handleCaseEdit(ed, data){
     ed.item.heroPosition = data.value;
     return;
   }
+  if(data.field === "external-cover-replace"){
+    pickImageFile((file) => {
+      const key = "PENDING::" + uid();
+      ed.pendingUploads[key] = { file, previewUrl: URL.createObjectURL(file) };
+      ed.item.externalUrlCover = key;
+      postCaseProjectToIframe(ed);
+    });
+    return;
+  }
+  if(data.field === "external-cover-position"){
+    ed.item.externalUrlCoverPosition = data.value;
+    return;
+  }
   if(data.field === "photo-replace"){
     pickImageFile((file) => {
       const key = "PENDING::" + uid();
@@ -2313,7 +2322,6 @@ function renderCaseEditor(){
   });
 
   const folder = () => `images/${ed.item.slug || "tmp"}`;
-  bindCoverDropEvents(ed, "externalUrlCover", folder());
   const externalPicker = document.querySelector("[data-external-case-picker]");
   if(externalPicker){
     externalPicker.addEventListener("change", () => {

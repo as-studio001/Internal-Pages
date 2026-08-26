@@ -433,23 +433,31 @@
     L.marker([m.lat, m.lng], { icon: pinIcon }).addTo(leafletMap);
   }
 
-  // 網址、YouTube 連結格式由使用者自己貼，不強制檢查——貼錯了大不了
-  // 那個區塊連結/嵌入失效，不該讓存檔或整頁渲染失敗。網站區塊要網址
-  // 跟封面圖兩個都有才顯示——滿版設計沒有封面圖會整塊開天窗，寧可先
-  // 不顯示，也不要退回去變成一條孤零零的文字連結。
+  // 網址格式由使用者自己貼，不強制檢查——貼錯了大不了那個區塊連結失效，
+  // 不該讓存檔或整頁渲染失敗。訪客看到的版本要網址跟封面圖兩個都有才
+  // 顯示——滿版設計沒有封面圖會整塊開天窗。後台預覽（EDITABLE）例外：
+  // 就算還沒填也要讓區塊留著，封面圖用跟大圖同一套佔位圖＋點擊上傳，
+  // 不然沒東西可以點著開始上傳第一張封面圖。
   function renderExternalLink() {
     const section = $("#external-link-section");
-    if (!section) return;
+    const anchor = $("#external-link-anchor");
+    if (!section || !anchor) return;
     const url = (PROJECT.externalUrl || "").trim();
     const cover = (PROJECT.externalUrlCover || "").trim();
-    if (!url || !cover) {
+    if (!EDITABLE && (!url || !cover)) {
       section.hidden = true;
       return;
     }
     section.hidden = false;
-    $("#external-link-anchor").href = url;
-    $("#external-link-cover").src = cover;
-    $("#external-link-text").textContent = url.replace(/^https?:\/\//, "").replace(/\/$/, "");
+    anchor.href = url || "#";
+    anchor.querySelectorAll(".external-link-section__cover").forEach((n) => n.remove());
+    const img = buildImage(cover ? { src: cover } : {});
+    img.classList.add("external-link-section__cover");
+    if (cover) {
+      const pos = PROJECT.externalUrlCoverPosition || { x: 50, y: 50 };
+      img.style.objectPosition = `${pos.x}% ${pos.y}%`;
+    }
+    anchor.insertBefore(img, anchor.firstChild);
   }
 
   // 接受 watch?v=、youtu.be/、embed/、shorts/ 幾種常見網址形式，抓出
@@ -747,17 +755,20 @@
   /**
    * 大圖固定裁成 16:9，但原始照片比例不一定剛好符合，裁切時一定會犧牲
    * 掉上下或左右其中一段——這裡讓使用者直接在預覽裡拖曳照片本身，
-   * 自由決定要保留畫面的哪個部分（存成 heroPosition 的 x/y 百分比，
+   * 自由決定要保留畫面的哪個部分（存成 positionField 的 x/y 百分比，
    * 對應 CSS object-position）。跟「點一下換照片」共用同一張圖，用移動
    * 距離分辨：滑鼠按下後幾乎沒移動就當作「點擊」（換照片），移動超過
    * 一點門檻才當作「拖曳」（調整位置），放開滑鼠才真的送出新位置。
+   * 泛化成通用版本（原本是 hero 專用），外部網站封面圖也是同一套 16:9
+   * 裁切、需要同一種拖曳調整，靠 positionField/positionMsg/replaceMsg
+   * 三個參數區分要讀寫 PROJECT 的哪個欄位、postCmsEdit 要用哪個 field。
    */
-  function makeHeroPhotoAdjustable(el, wrap) {
+  function makeAdjustablePhoto(el, wrap, positionField, positionMsg, replaceMsg) {
     if (!el) return;
     const isRealPhoto = el.tagName === "IMG";
     if (!isRealPhoto) {
       // 還沒有照片，沒有位置可以拖，跟其他佔位圖一樣單純點擊上傳。
-      makePhotoClickable(el, () => postCmsEdit({ field: "hero-replace" }));
+      makePhotoClickable(el, () => postCmsEdit({ field: replaceMsg }));
       return;
     }
     el.classList.add("cms-editable-photo");
@@ -768,7 +779,7 @@
     const DRAG_THRESHOLD = 4;
 
     function currentPos() {
-      const p = (typeof PROJECT.heroPosition === "object" && PROJECT.heroPosition) || { x: 50, y: 50 };
+      const p = (typeof PROJECT[positionField] === "object" && PROJECT[positionField]) || { x: 50, y: 50 };
       return { x: p.x, y: p.y };
     }
 
@@ -807,10 +818,10 @@
         document.removeEventListener("touchmove", move);
         document.removeEventListener("touchend", up);
         if (dragging) {
-          PROJECT.heroPosition = lastPos;
-          postCmsEdit({ field: "hero-position", value: lastPos });
+          PROJECT[positionField] = lastPos;
+          postCmsEdit({ field: positionMsg, value: lastPos });
         } else {
-          postCmsEdit({ field: "hero-replace" });
+          postCmsEdit({ field: replaceMsg });
         }
       }
 
@@ -906,7 +917,10 @@
     });
 
     const heroPhotoEl = $("#hero-photo img") || $("#hero-photo .ph");
-    makeHeroPhotoAdjustable(heroPhotoEl, $("#hero-photo"));
+    makeAdjustablePhoto(heroPhotoEl, $("#hero-photo"), "heroPosition", "hero-position", "hero-replace");
+
+    const extCoverEl = $("#external-link-anchor img") || $("#external-link-anchor .ph");
+    makeAdjustablePhoto(extCoverEl, $("#external-link-anchor"), "externalUrlCoverPosition", "external-cover-position", "external-cover-replace");
 
     // 內文照片點下去直接換照片；排版分組／模板選擇整個移到後台「內文
     // 照片」清單那邊直接做（一整排照片一起選、跟照片放在同一個地方），

@@ -110,17 +110,15 @@
     </div>
   </section>
 
-  <!-- 外部網站連結：選填，網址+封面圖都有才顯示，滿版設計跟位置地圖同一
-       套版型，排在 More in Detail 之後、影音之前 -->
+  <!-- 外部網站連結：選填，網址+封面圖都有才顯示，16:9 滿版封面（可拖曳
+       調整位置，跟最上面主視覺大圖同一套機制），不顯示網址文字，排在
+       More in Detail 之後、影音之前。封面圖／佔位圖由 js/render.js 動態
+       建立、插入這個 <a> 裡面，跟 #hero-photo 是同一套做法。 -->
   <section class="external-link-section" id="external-link-section" hidden>
     <p class="external-link-section__label">網站</p>
     <a class="external-link-section__canvas" id="external-link-anchor" href="#" target="_blank" rel="noreferrer">
-      <img id="external-link-cover" src="" alt="">
+      <span class="external-link-section__arrow" aria-hidden="true">↗</span>
     </a>
-    <div class="external-link-section__info">
-      <span id="external-link-text"></span>
-      <span class="external-link-arrow" aria-hidden="true">↗</span>
-    </div>
   </section>
 
   <!-- 影音介紹：選填，YouTube 連結，填了才顯示，排在網站之後、位置之前 -->
