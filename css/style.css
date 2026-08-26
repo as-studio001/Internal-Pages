@@ -604,7 +604,10 @@ button{font-family:inherit;}
   align-items:center;
   justify-content:center;
   flex-direction:column;
-  z-index:100;
+  /* 要蓋過 sticky header（1000）跟它的選單/語言下拉（1001）——header
+     加上 position:sticky 之後這裡沒跟著調高，導致燈箱開著時右上角的
+     語言切換圖示會疊在燈箱自己的關閉按鈕上面，變成一個奇怪的複合圖示 */
+  z-index:2100;
   padding:5vh 5vw;
 }
 .lightbox.open{display:flex;}
