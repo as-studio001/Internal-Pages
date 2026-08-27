@@ -708,15 +708,16 @@ const HERO_PREVIEW_URL = "https://as-studio001.github.io/asarch/?preview=1";
 const HERO_PREVIEW_REF_W = 1600;
 const HERO_PREVIEW_REF_H = 900;
 
-// 管理員交接用的問答機器人（Gemini Gem）——Google 那邊回應的標頭直接寫
-// X-Frame-Options: DENY，不能嵌進 iframe（親自 curl 確認過），沒有繞過
-// 的方法。改成用 window.open() 開一個獨立的小視窗（不是嵌在頁面裡，是
-// 瀏覽器另開一個真正的頂層視窗，不受 X-Frame-Options 限制），固定用
-// 同一個視窗名稱（"asStudioAdminBot"）——這樣按第二次不會又開一個重複
-// 的視窗，瀏覽器會直接把原本那個視窗帶到最前面，效果類似一個常駐在
-// 旁邊的小助手視窗，同時後台這頁本身不會被導離開、不會遺失正在編輯的
-// 內容。
-const ADMIN_BOT_URL = "https://gemini.google.com/gem/1zo-lHVGdRmC3j2EQ60PDWk0mEuv5XDBA?usp=sharing";
+// 管理員交接用的問答機器人——原本是 Gemini Gem，2026-08-26 改成
+// NotebookLM 筆記本。Google 的網頁（不管是 gemini.google.com 還是
+// notebooklm.google.com）一律回 X-Frame-Options: DENY，不能嵌進
+// iframe，沒有繞過的方法。改成用 window.open() 開一個獨立的小視窗
+// （不是嵌在頁面裡，是瀏覽器另開一個真正的頂層視窗，不受
+// X-Frame-Options 限制），固定用同一個視窗名稱（"asStudioAdminBot"）
+// ——這樣按第二次不會又開一個重複的視窗，瀏覽器會直接把原本那個視窗
+// 帶到最前面，效果類似一個常駐在旁邊的小助手視窗，同時後台這頁本身
+// 不會被導離開、不會遺失正在編輯的內容。
+const ADMIN_BOT_URL = "https://notebook.google.com/notebook/0798b1eb-5d49-44c4-ab3d-f2d8a0ecb61a?authuser=1";
 
 // renderTopBar() 在後台每個畫面（案例列表、案例編輯器、主網站內容、
 // 子頁面、主網頁、使用者管理……）都會被各自獨立呼叫一次，每次都是整段
