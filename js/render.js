@@ -371,6 +371,35 @@
       insertChunk(chunks[chunkPos], templates[chunkPos]);
       chunkPos++;
     }
+
+    applyRowAlignment(root);
+  }
+
+  // 已修正：一排並排的照片各自維持真實比例，高度不一定一樣（.block--photos 的
+  // align-items:end 讓矮的那張貼齊高的下緣，見 style.css）。但插入位置剛好讓兩組
+  // 照片緊接在一起、中間沒有段落文字隔開時，兩排都底部切齊，矮的那張還是會在
+  // 「整排的上方」留白——這塊白剛好卡在前一排的下緣跟這一排矮圖之間，看起來像
+  // 莫名其妙的死白。
+  //
+  // 解法是讓相鄰的連續排「交替」對齊方向——第一排底部切齊、緊接著的第二排改
+  // 頂部切齊（加 block--photos--align-start，見 style.css），兩排矮的那張因此都
+  // 貼向彼此中間的接縫，原本躲不掉的留白被推到最外側（第一排的頂端、最後一排
+  // 的底端），那裡本來就緊接著段落文字或下一段內容，留白看起來就像正常的區塊
+  // 間距，不會卡在兩排照片正中間顯得莫名其妙。單獨一排（前後都是文字或只有它
+  // 自己）維持預設的底部切齊，不用加這個 class。
+  function applyRowAlignment(root) {
+    let previousWasRow = false;
+    let previousAlign = "end";
+    Array.from(root.children).forEach((el) => {
+      if (!el.classList.contains("block--photos")) {
+        previousWasRow = false;
+        return;
+      }
+      const align = previousWasRow ? (previousAlign === "end" ? "start" : "end") : "end";
+      if (align === "start") el.classList.add("block--photos--align-start");
+      previousAlign = align;
+      previousWasRow = true;
+    });
   }
 
   // 後台「產生自動排版」用：跑一次跟 renderContent 全自動模式一樣的分組

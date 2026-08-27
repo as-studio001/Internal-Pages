@@ -393,6 +393,12 @@ button{font-family:inherit;}
    下面留一大塊空白，跟下一排內容中間卡一段死白；改成 align-items:end
    讓這排統一「底部切齊」，矮的貼齊高的下緣，不會有懸空留白。 */
 .block--photos{display:grid;gap:1.25rem;align-items:end;}
+/* 已修正：連續兩排照片中間沒有文字隔開時，兩排都底部切齊的話，矮的那張
+   會在「整排上方」留白，卡在前一排下緣跟這一排矮圖之間，看起來像莫名其妙
+   的死白。js/render.js 的 applyRowAlignment() 會在這種情況幫第二排加這個
+   class，改成頂部切齊——兩排矮的那張因此都貼向彼此中間的接縫，留白被推
+   到最外側（原本就緊接段落文字的地方），不會卡在兩排照片正中間。 */
+.block--photos--align-start{align-items:start;}
 .block--photos .ph{height:auto;aspect-ratio:4/3;}
 /* 連續直幅照片（2～3 張）：等寬等高並排，不做大小不一 */
 .block--photos--portrait .ph{aspect-ratio:3/4;}
