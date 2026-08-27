@@ -63,6 +63,10 @@
   function buildImage(data) {
     if (data.src) {
       if (isVideoSrc(data.src)) {
+        // 圖片框裡的影片單純當一張會動的圖片看：不給控制列、不能拖動
+        // 進度、播完自動從頭重播——刻意不設 controls（連進度條都不給），
+        // 想要看得到控制列、可以調整播放進度的完整播放器，是點開放大
+        // （燈箱）之後才有的，見 showLightboxItem()。
         const video = document.createElement("video");
         video.src = data.src;
         video.muted = true;
@@ -70,6 +74,10 @@
         video.playsInline = true;
         video.autoplay = true;
         video.preload = "auto";
+        video.controls = false;
+        video.disablePictureInPicture = true;
+        video.setAttribute("controlslist", "nodownload nofullscreen noremoteplayback noplaybackrate");
+        video.setAttribute("disableremoteplayback", "");
         if (data.caption) video.setAttribute("aria-label", data.caption);
         return video;
       }

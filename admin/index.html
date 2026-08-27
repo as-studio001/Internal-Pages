@@ -381,7 +381,9 @@ function isImageOrVideoFile(file){
 function mediaThumbHtml(src, extraAttrs){
   const url = esc(src);
   const attrs = extraAttrs || "";
-  if(isVideoPath(src)) return `<video src="${url}" muted loop playsinline autoplay ${attrs}></video>`;
+  // 縮圖裡的影片單純當一張會動的圖片看：不給控制列、不能拖動進度、播完
+  // 自動從頭重播——刻意不加 controls，連進度條都不給看到。
+  if(isVideoPath(src)) return `<video src="${url}" muted loop playsinline autoplay controlslist="nodownload nofullscreen noremoteplayback noplaybackrate" disableremoteplayback disablepictureinpicture ${attrs}></video>`;
   return `<img src="${url}" alt="" ${attrs}>`;
 }
 // Netlify Function／GitHub Contents API 這條上傳路徑對檔案大小很敏感
