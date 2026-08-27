@@ -361,6 +361,41 @@ function esc(str){
 }
 function uid(){ return Math.random().toString(36).slice(2, 9); }
 
+/* 圖片框區域(大圖/內文照片/More in Detail/外部連結封面……)全部改成
+   同時支援上傳一般圖片、GIF、影片檔——GIF 本身就是 image/* 底下的
+   格式，瀏覽器原生就會播放動畫，不需要額外處理；真正要另外處理的是
+   影片檔，後台自己畫面上的縮圖統一走 mediaThumbHtml()：副檔名判斷是
+   影片就用 <video>（靜音、自動循環播放，當縮圖單純看畫面用，跟照片
+   一樣），不是就照舊用 <img>。跟前台 js/render.js 的 isVideoSrc() 邏輯
+   一致，但這是純前端顯示判斷，兩邊各自獨立維護一份，不共用模組。 */
+const VIDEO_EXT_RE = /\.(mp4|webm|mov|m4v|ogv)(\?.*)?$/i;
+function isVideoPath(path){
+  return VIDEO_EXT_RE.test(String(path || ""));
+}
+function isVideoFile(file){
+  return !!(file && file.type && file.type.startsWith("video/"));
+}
+function isImageOrVideoFile(file){
+  return !!(file && file.type && (file.type.startsWith("image/") || file.type.startsWith("video/")));
+}
+function mediaThumbHtml(src, extraAttrs){
+  const url = esc(src);
+  const attrs = extraAttrs || "";
+  if(isVideoPath(src)) return `<video src="${url}" muted loop playsinline autoplay ${attrs}></video>`;
+  return `<img src="${url}" alt="" ${attrs}>`;
+}
+// Netlify Function／GitHub Contents API 這條上傳路徑對檔案大小很敏感
+// （GitHub 那端的限制、加上 base64 編碼膨脹 1/3），照片會先自動壓縮，
+// 但影片/GIF 沒辦法用同一招瘦身——上傳前先擋掉太大的檔案，給清楚的
+// 錯誤訊息，總比讓它送出去、卡在後端才失敗、跳出一段看不懂的技術錯誤好。
+const MAX_UPLOAD_BYTES = 4 * 1024 * 1024;
+function assertUploadSize(file){
+  if(file.size > MAX_UPLOAD_BYTES){
+    const mb = (file.size / 1024 / 1024).toFixed(1);
+    throw new Error(`檔案太大（${mb}MB）：影片／GIF 檔上傳大小上限約 4MB，請先剪短或壓縮後再上傳，較長的完整影片建議改用「YouTube 影音連結」欄位嵌入。`);
+  }
+}
+
 /* 中文輸入法打英數字時，句點／@ 這類符號有時候會被自動轉成「全形」
    （看起來很像，但是不同的字元），拿去驗證 email 格式會直接被判定
    invalid format。這裡把全形字元（U+FF01~FF5E）轉回對應的半形字元
@@ -568,9 +603,17 @@ function sanitizeFilename(name){
    放 images/site/），檔名衝突就自動加時間戳記，回傳最終路徑 */
 async function uploadAsset(file, folder){
   const compressed = await compressImageFile(file, 2400, 0.82);
+  assertUploadSize(compressed);
   const filename = sanitizeFilename(compressed.name);
   const b64 = await readFileAsBase64(compressed);
-  const data = await callFunction("github-proxy", { action: "uploadAsset", folder, filename, content: b64 });
+  // 一般照片經過壓縮後通常遠小於 1MB，走 GitHub 原本那支「Contents API」
+  // 就好；影片／GIF 沒辦法壓縮瘦身，體積比較大時改用後端的 Git Data API
+  // 路徑（見 github-proxy.js 的 uploadViaBlob），才不會卡在 Contents API
+  // 單檔上限。用「壓縮後檔案是不是明顯偏大」判斷，不是只看副檔名——同樣
+  // 邏輯，門檻抓保守一點（900KB），寧可小檔案也走比較慢的那條路，不要
+  // 大檔案誤走進小檔案那條路失敗。
+  const useBlob = compressed.size > 900 * 1024;
+  const data = await callFunction("github-proxy", { action: "uploadAsset", folder, filename, content: b64, useBlob });
   return data.path;
 }
 
@@ -1066,7 +1109,7 @@ function caseCardHtml(c, i){
   return `
     <div class="item-card" data-edit="${i}">
       <div class="thumb ${c.hero ? "" : "empty"}">
-        ${c.hero ? `<img src="${esc(rawUrl(c.hero))}" alt="" loading="lazy">` : "尚無主視覺"}
+        ${c.hero ? mediaThumbHtml(rawUrl(c.hero), 'loading="lazy"') : "尚無主視覺"}
         ${c.published === false ? `<span style="position:absolute;top:8px;left:8px;background:#3a3a3a;color:#fff;font-size:11px;padding:2px 8px;border-radius:4px;">已下架</span>` : ""}
       </div>
       <div class="info">
@@ -1402,10 +1445,10 @@ function coverDropHtml(fieldPath, imgSrc, small){
   return `
     <div class="cover-drop ${imgSrc ? "has-image" : ""} ${small ? "small" : ""}" data-cover-field="${esc(fieldPath)}">
       ${imgSrc
-        ? `<img src="${esc(imgSrc)}" alt=""><div class="replace-hint">點擊或拖曳圖片以更換</div>`
-        : `<div class="placeholder">${iconUpload()}<span>點擊或拖曳圖片</span></div>`
+        ? `${mediaThumbHtml(imgSrc)}<div class="replace-hint">點擊或拖曳圖片／影片以更換</div>`
+        : `<div class="placeholder">${iconUpload()}<span>點擊或拖曳圖片／影片／GIF</span></div>`
       }
-      <input type="file" accept="image/*" style="display:none">
+      <input type="file" accept="image/*,video/*" style="display:none">
     </div>
   `;
 }
@@ -1422,7 +1465,7 @@ function bindCoverDropEvents(ed, fieldPath, folder){
   ["dragleave","drop"].forEach(evt => dropEl.addEventListener(evt, e => { e.preventDefault(); dropEl.classList.remove("drag-over"); }));
   dropEl.addEventListener("drop", e => {
     const file = e.dataTransfer.files && e.dataTransfer.files[0];
-    if(file && file.type.startsWith("image/")) handleCoverFile(ed, fieldPath, file);
+    if(isImageOrVideoFile(file)) handleCoverFile(ed, fieldPath, file);
   });
 }
 
@@ -1454,7 +1497,7 @@ function photoListHtml(ed, basePath, listId, showCaption){
   const rows = list.map((p, i) => `
     <div class="photo-row" data-photo-index="${i}" draggable="true">
       <span class="drag-handle" title="拖曳調整順序">⠿</span>
-      <div class="thumb"><img src="${esc(resolveSrc(ed.pendingUploads, p.src))}" alt=""></div>
+      <div class="thumb">${mediaThumbHtml(resolveSrc(ed.pendingUploads, p.src))}</div>
       ${showCaption === false ? "" : `<input type="text" data-path="${basePath}.${i}.caption" value="${esc(p.caption || "")}" placeholder="圖說（選填）">`}
       <button type="button" class="row-remove-btn" data-remove-photo="${i}" title="移除">×</button>
     </div>
@@ -1482,14 +1525,14 @@ function bindPhotoList(ed, basePath, listId, folder, refresh){
   });
   const addBtn = wrap.querySelector("[data-add-photo]");
   const fileInput = document.createElement("input");
-  fileInput.type = "file"; fileInput.accept = "image/*"; fileInput.multiple = true; fileInput.style.display = "none";
+  fileInput.type = "file"; fileInput.accept = "image/*,video/*"; fileInput.multiple = true; fileInput.style.display = "none";
   addBtn.after(fileInput);
   addBtn.addEventListener("click", () => fileInput.click());
   fileInput.addEventListener("change", () => addPhotoFiles(ed, basePath, Array.from(fileInput.files), doRefresh));
   ["dragover","dragenter"].forEach(evt => wrap.addEventListener(evt, e => { e.preventDefault(); wrap.classList.add("drag-over"); }));
   ["dragleave","drop"].forEach(evt => wrap.addEventListener(evt, e => { e.preventDefault(); wrap.classList.remove("drag-over"); }));
   wrap.addEventListener("drop", e => {
-    const files = Array.from(e.dataTransfer.files || []).filter(f => f.type.startsWith("image/"));
+    const files = Array.from(e.dataTransfer.files || []).filter(isImageOrVideoFile);
     if(files.length) addPhotoFiles(ed, basePath, files, doRefresh);
   });
 
@@ -1528,7 +1571,7 @@ function imageListHtml(ed, basePath, listId){
   const list = getPath(ed.item, basePath) || [];
   const rows = list.map((src, i) => `
     <div class="photo-row" data-photo-index="${i}">
-      <div class="thumb"><img src="${esc(resolveSrc(ed.pendingUploads, src))}" alt=""></div>
+      <div class="thumb">${mediaThumbHtml(resolveSrc(ed.pendingUploads, src))}</div>
       <button type="button" class="row-remove-btn" data-remove-image="${i}" title="移除">×</button>
     </div>
   `).join("");
@@ -1553,7 +1596,7 @@ function bindImageList(ed, basePath, listId, folder){
   });
   const addBtn = wrap.querySelector("[data-add-image]");
   const fileInput = document.createElement("input");
-  fileInput.type = "file"; fileInput.accept = "image/*"; fileInput.multiple = true; fileInput.style.display = "none";
+  fileInput.type = "file"; fileInput.accept = "image/*,video/*"; fileInput.multiple = true; fileInput.style.display = "none";
   addBtn.after(fileInput);
   addBtn.addEventListener("click", () => fileInput.click());
   fileInput.addEventListener("change", () => {
@@ -2083,7 +2126,7 @@ function photoGroupCardHtml(ed, g, gi, photos, paragraphs){
         ${g.photos.map((i) => `
           <div class="photo-row" data-photo-index="${i}" draggable="true">
             <span class="drag-handle" title="拖曳調整順序／跟別組交換">⠿</span>
-            <div class="thumb"><img src="${esc(resolveSrc(ed.pendingUploads, photos[i].src))}" alt=""></div>
+            <div class="thumb">${mediaThumbHtml(resolveSrc(ed.pendingUploads, photos[i].src))}</div>
             <input type="text" data-path="photos.${i}.caption" value="${esc(photos[i].caption || "")}" placeholder="圖說（選填）">
             <button type="button" class="row-remove-btn" data-remove-photo="${i}" title="移除">×</button>
           </div>
@@ -2154,14 +2197,14 @@ function bindPhotoGroups(ed){
 
   const addBtn = wrap.querySelector("[data-add-photo]");
   const fileInput = document.createElement("input");
-  fileInput.type = "file"; fileInput.accept = "image/*"; fileInput.multiple = true; fileInput.style.display = "none";
+  fileInput.type = "file"; fileInput.accept = "image/*,video/*"; fileInput.multiple = true; fileInput.style.display = "none";
   addBtn.after(fileInput);
   addBtn.addEventListener("click", () => fileInput.click());
   fileInput.addEventListener("change", () => addPhotoFiles(ed, "photos", Array.from(fileInput.files), refresh));
   ["dragover","dragenter"].forEach(evt => wrap.addEventListener(evt, e => { e.preventDefault(); wrap.classList.add("drag-over"); }));
   ["dragleave","drop"].forEach(evt => wrap.addEventListener(evt, e => { e.preventDefault(); wrap.classList.remove("drag-over"); }));
   wrap.addEventListener("drop", e => {
-    const files = Array.from(e.dataTransfer.files || []).filter(f => f.type.startsWith("image/"));
+    const files = Array.from(e.dataTransfer.files || []).filter(isImageOrVideoFile);
     if(files.length) addPhotoFiles(ed, "photos", files, refresh);
   });
 
@@ -2210,7 +2253,7 @@ function refreshPhotoGroups(ed){
 function pickImageFile(cb){
   const input = document.createElement("input");
   input.type = "file";
-  input.accept = "image/*";
+  input.accept = "image/*,video/*";
   input.addEventListener("change", () => { if(input.files[0]) cb(input.files[0]); });
   input.click();
 }

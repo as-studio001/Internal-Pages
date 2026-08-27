@@ -52,7 +52,7 @@ body{ top:0 !important; }
 a{color:inherit;text-decoration:none;}
 p{margin:0 0 1.3em;}
 p:last-child{margin-bottom:0;}
-img{display:block;max-width:100%;}
+img,video{display:block;max-width:100%;}
 button{font-family:inherit;}
 
 /* ---------- 12-column grid ---------- */
@@ -582,6 +582,7 @@ button{font-family:inherit;}
 .detail-gallery__col{flex:1 1 0;min-width:0;display:flex;flex-direction:column;gap:12px;}
 .detail-gallery__item{position:relative;cursor:pointer;overflow:hidden;margin:0;}
 .detail-gallery__item img,
+.detail-gallery__item video,
 .detail-gallery__item .ph{display:block;width:100%;height:auto;}
 .detail-gallery__item figcaption,
 .detail-drawing-grid__item figcaption{
@@ -618,6 +619,7 @@ button{font-family:inherit;}
   background:#eeebe3;
 }
 .detail-drawing-grid__item img,
+.detail-drawing-grid__item video,
 .detail-drawing-grid__item .ph{
   width:100%;
   height:100%;

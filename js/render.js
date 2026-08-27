@@ -27,13 +27,52 @@
   let heroReady = createDeferred();
   let mapReady = createDeferred();
 
+  // 圖片框區域（大圖／內文照片／More in Detail／外部連結封面……）除了照片
+  // 跟 GIF，也支援直接放影片檔——GIF 本身就是 image/* 底下的格式，瀏覽器
+  // 原生就會播放動畫，<img> 不用改；真正要另外處理的是影片檔，靠副檔名
+  // 判斷該輸出 <video> 還是 <img>。跟 admin/index.html 的 isVideoPath()
+  // 邏輯一致，但這是純前端顯示判斷，兩邊各自獨立維護一份，不共用模組。
+  const VIDEO_EXT_RE = /\.(mp4|webm|mov|m4v|ogv)(\?.*)?$/i;
+  function isVideoSrc(src) {
+    return VIDEO_EXT_RE.test(String(src || ""));
+  }
+
+  // <img> 用 load/error 判斷「這個檔案真的下載/解碼完了」；<video> 沒有
+  // load 事件，要改聽 loadeddata（第一格畫面真的可以播了）。呼叫端（例如
+  // 進站前的 heroReady 判斷）不用管兩者差異，統一呼叫這個函式綁定。
+  function bindMediaReady(el, onReady, onError) {
+    const readyEvent = el.tagName === "VIDEO" ? "loadeddata" : "load";
+    el.addEventListener(readyEvent, onReady, { once: true });
+    el.addEventListener("error", onError || onReady, { once: true });
+  }
+
+  // <video> 用 videoWidth/videoHeight，<img> 用 naturalWidth/naturalHeight
+  // ——量測比例、算裁切拖曳範圍都需要先知道該讀哪一組屬性。
+  function mediaNaturalSize(el) {
+    if (el.tagName === "VIDEO") return { w: el.videoWidth, h: el.videoHeight };
+    return { w: el.naturalWidth, h: el.naturalHeight };
+  }
+
   /**
-   * 建立一張圖片。
-   * - 若資料含有 src（真實照片路徑），就輸出 <img>
+   * 建立一張圖片／影片。
+   * - 若資料含有 src（真實檔案路徑），依副檔名判斷輸出 <img>（含 GIF）或
+   *   <video>（靜音、自動循環播放，跟照片一樣單純當畫面裡的一張圖看；
+   *   放大看的燈箱模式另外會顯示控制列，見 showLightboxItem()）
    * - 若只有 ph（示意色塊代號，僅供本機測試用），輸出示意色塊 div
    */
   function buildImage(data) {
     if (data.src) {
+      if (isVideoSrc(data.src)) {
+        const video = document.createElement("video");
+        video.src = data.src;
+        video.muted = true;
+        video.loop = true;
+        video.playsInline = true;
+        video.autoplay = true;
+        video.preload = "auto";
+        if (data.caption) video.setAttribute("aria-label", data.caption);
+        return video;
+      }
       const img = document.createElement("img");
       img.src = data.src;
       img.alt = data.caption || "";
@@ -47,13 +86,22 @@
   }
 
   /**
-   * 讀取一張真實照片的實際寬高比例（naturalWidth / naturalHeight）。
-   * 後台上傳的都是真實照片，不需要使用者自己填寫「比例」這種技術欄位，
+   * 讀取一張真實照片/影片的實際寬高比例（寬/高）。
+   * 後台上傳的都是真實檔案，不需要使用者自己填寫「比例」這種技術欄位，
    * 交錯排版演算法要用的 ratio 一律由瀏覽器自動量測。
    */
   function measureRatio(photo) {
     if (photo.ratio) return Promise.resolve(photo.ratio);
     if (!photo.src) return Promise.resolve(4 / 3);
+    if (isVideoSrc(photo.src)) {
+      return new Promise((resolve) => {
+        const video = document.createElement("video");
+        video.preload = "metadata";
+        video.onloadedmetadata = () => resolve(video.videoWidth / video.videoHeight || 16 / 9);
+        video.onerror = () => resolve(16 / 9);
+        video.src = photo.src;
+      });
+    }
     return new Promise((resolve) => {
       const img = new Image();
       img.onload = () => resolve(img.naturalWidth / img.naturalHeight || 4 / 3);
@@ -90,11 +138,14 @@
     // buildImage() 一律給每張圖 loading="lazy"，這對內文照片沒問題（本來
     // 就在畫面外），但大圖一開啟頁面就在畫面裡，lazy 只會讓它多等一輪
     // 判斷才開始下載——覆蓋成 eager，讓它跟標題文字幾乎同時開始出現。
+    // （這兩個屬性是 <img> 專用的，大圖若是影片檔就跳過，video 本來就
+    // 沒有 loading="lazy" 這種延遲載入機制）
     if (heroData.src) {
-      img.loading = "eager";
-      img.fetchPriority = "high";
-      img.addEventListener("load", () => heroReady.resolve(), { once: true });
-      img.addEventListener("error", () => heroReady.resolve(), { once: true });
+      if (img.tagName === "IMG") {
+        img.loading = "eager";
+        img.fetchPriority = "high";
+      }
+      bindMediaReady(img, () => heroReady.resolve());
     } else {
       // 沒有真的照片（示意色塊），沒有東西需要等
       heroReady.resolve();
@@ -657,13 +708,29 @@
   function showLightboxItem() {
     const item = lightboxItems[lightboxIndex];
     const img = $("#lightbox-img");
+    const video = $("#lightbox-video");
     const cap = $("#lightbox-caption");
-    if (item.src) {
+    // 放大看的燈箱模式跟畫面裡的縮圖不一樣：影片這裡改成有控制列、非
+    // 靜音、不自動播放——放大看通常就是想仔細看/聽這支影片，跟縮圖那種
+    // 「背景循環播放當一張圖看」的用途不同。
+    video.pause();
+    video.removeAttribute("src");
+    if (item.src && isVideoSrc(item.src)) {
+      video.src = item.src;
+      video.controls = true;
+      video.muted = false;
+      video.autoplay = false;
+      video.style.display = "";
+      img.style.display = "none";
+      img.removeAttribute("src");
+    } else if (item.src) {
       img.src = item.src;
       img.style.display = "";
+      video.style.display = "none";
     } else {
       img.removeAttribute("src");
       img.style.display = "none";
+      video.style.display = "none";
     }
     cap.textContent = item.caption || "";
   }
@@ -683,13 +750,16 @@
 
   function bindLightboxClose() {
     const lb = $("#lightbox");
-    $("#lightbox-close").addEventListener("click", () => lb.classList.remove("open"));
+    // 關閉燈箱(不管哪種方式)都要順便把可能正在播的影片暫停掉，不然
+    // 燈箱關掉、畫面看不到了，聲音/畫面還在背景繼續播。
+    const close = () => { lb.classList.remove("open"); const v = $("#lightbox-video"); if (v) v.pause(); };
+    $("#lightbox-close").addEventListener("click", close);
     $("#lightbox-prev").addEventListener("click", (e) => { e.stopPropagation(); stepLightbox(-1); });
     $("#lightbox-next").addEventListener("click", (e) => { e.stopPropagation(); stepLightbox(1); });
-    lb.addEventListener("click", (e) => { if (e.target === lb) lb.classList.remove("open"); });
+    lb.addEventListener("click", (e) => { if (e.target === lb) close(); });
     document.addEventListener("keydown", (e) => {
       if (!lb.classList.contains("open")) return;
-      if (e.key === "Escape") lb.classList.remove("open");
+      if (e.key === "Escape") close();
       if (e.key === "ArrowLeft") stepLightbox(-1);
       if (e.key === "ArrowRight") stepLightbox(1);
     });
@@ -795,7 +865,7 @@
    */
   function makeAdjustablePhoto(el, wrap, positionField, positionMsg, replaceMsg) {
     if (!el) return;
-    const isRealPhoto = el.tagName === "IMG";
+    const isRealPhoto = el.tagName === "IMG" || el.tagName === "VIDEO";
     if (!isRealPhoto) {
       // 還沒有照片，沒有位置可以拖，跟其他佔位圖一樣單純點擊上傳。
       makePhotoClickable(el, () => postCmsEdit({ field: replaceMsg }));
@@ -830,8 +900,9 @@
         moveEvent.preventDefault();
 
         const boxRect = wrap.getBoundingClientRect();
-        const naturalW = el.naturalWidth || boxRect.width;
-        const naturalH = el.naturalHeight || boxRect.height;
+        const size = mediaNaturalSize(el);
+        const naturalW = size.w || boxRect.width;
+        const naturalH = size.h || boxRect.height;
         const scale = Math.max(boxRect.width / naturalW, boxRect.height / naturalH);
         const rangeX = boxRect.width - naturalW * scale; // <= 0
         const rangeY = boxRect.height - naturalH * scale; // <= 0
@@ -946,10 +1017,10 @@
       makeTextEditable(p, (val) => postCmsEdit({ field: "paragraph", index: Number(p.dataset.paragraphIndex), value: val }));
     });
 
-    const heroPhotoEl = $("#hero-photo img") || $("#hero-photo .ph");
+    const heroPhotoEl = $("#hero-photo img") || $("#hero-photo video") || $("#hero-photo .ph");
     makeAdjustablePhoto(heroPhotoEl, $("#hero-photo"), "heroPosition", "hero-position", "hero-replace");
 
-    const extCoverEl = $("#external-link-anchor img") || $("#external-link-anchor .ph");
+    const extCoverEl = $("#external-link-anchor img") || $("#external-link-anchor video") || $("#external-link-anchor .ph");
     makeAdjustablePhoto(extCoverEl, $("#external-link-anchor"), "externalUrlCoverPosition", "external-cover-position", "external-cover-replace");
 
     // 內文照片點下去直接換照片；排版分組／模板選擇整個移到後台「內文
