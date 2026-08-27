@@ -11,7 +11,11 @@ const REPO_BRANCH = "main";
 // 子頁面」需要順便在 asstudiowebsite（子頁面實際部署的 repo）建立對應的
 // .dc.html 骨架，才會帶 body.repo 指定寫到那邊。白名單是防呆，不讓呼叫者
 // 透過這支 function 寫進服務帳號 token 能碰到的其他任意 repo。
-const ALLOWED_REPOS = new Set(["Internal-Pages", "asstudiowebsite"]);
+// bamboo（as-studio001/bamboo，林鐵構竹展）2026-08-27 加入——那邊另外做了
+// 一支獨立的後台頁面（bamboo repo 自己的 public/admin.html），跟這裡共用
+// 同一個 Supabase 專案／同一批登入使用者、也共用這支 Netlify Function，
+// 不重新申請一套後端，只是寫入的目標 repo 換成 bamboo 自己。
+const ALLOWED_REPOS = new Set(["Internal-Pages", "asstudiowebsite", "bamboo"]);
 
 function apiBase(repo) {
   return `https://api.github.com/repos/${REPO_OWNER}/${repo}`;
