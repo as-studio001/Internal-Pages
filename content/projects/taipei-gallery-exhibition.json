@@ -13,7 +13,20 @@
     "四、入林深處｜感知到達一個巔峰\n經過一系列的感受堆疊，我們將感官回到內心的感受，是一種「歸鄉」的行為。\n透過大型畫作的畫面，我們對世界的認知將重新改觀，透過藝術家的眼睛也重新理解自己。",
     "<b>案件類型　</b>展覽\n<b>基地位置　</b>台北市大安區\n<b>展場面積　</b>400m²\n<b>業　　主　</b>香港PHD集團（Property Holdings Development Group）\n<b>建築設計　</b>原型建築\n<b>設計專案　</b>原型建築 陳韻愉\n<b>施工單位　</b>與木製研\n<b>施工時間　</b>2026年1月 - 2026年1月\n<b>照片提供　</b>PAVILION TAIPEI"
   ],
-  "photos": [],
+  "photos": [
+    {
+      "src": "images/taipei-gallery-exhibition/Enscape_2026-01-12-12-04-31.jpg",
+      "caption": ""
+    },
+    {
+      "src": "images/taipei-gallery-exhibition/1787897281521-Enscape_2026-01-12-12-52-22.jpg",
+      "caption": ""
+    },
+    {
+      "src": "images/taipei-gallery-exhibition/1787897282539-Enscape_2026-01-12-12-30-14.jpg",
+      "caption": ""
+    }
+  ],
   "map": {
     "address": "",
     "lat": null,
@@ -24,5 +37,16 @@
   "process": [],
   "drawings": [],
   "type": "subpage",
-  "published": false
+  "published": false,
+  "photoLayout": [
+    {
+      "photos": [
+        0,
+        1,
+        2
+      ],
+      "afterParagraph": 1,
+      "template": "big-left-stack-right"
+    }
+  ]
 }
