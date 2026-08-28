@@ -25,6 +25,48 @@ function encPath(path) {
   return path.split("/").map(encodeURIComponent).join("/");
 }
 
+// 安全防呆（2026-08-28 補上）：以前每支動作（getFile/putFile/deleteFile/
+// uploadAsset/createBlob/commitBlobs）的 path/folder 完全信任前端傳來的
+// 字串，只有 encPath() 把字元編碼過，沒有限制「這條路徑到底能不能碰」。
+// 正常情況下後台只會透過既有的表單/按鈕呼叫，前端本身不會傳出危險路徑
+// ——但這支 function 認證的是「這個 Supabase 使用者是不是登入中」，不是
+// 「這個請求是不是真的從 admin/index.html 送出來的」：任何一個有效登入
+// 帳號（後台目前沒有分級權限，邀請進來就是完整權限），只要照 API 格式
+// 直接呼叫這支 function（例如用瀏覽器開發人員工具、或寫一支腳本），就
+// 能繞過前端畫面，把 path 換成任意字串——沒有這道檢查的話，等於可以
+// 用共用的 GITHUB_TOKEN 覆寫或刪除倉庫裡的任何檔案，包括這支 function
+// 自己的原始碼（netlify/functions/*.js）、CI 設定（.github/）、甚至後台
+// 網頁本身（admin/index.html），造成比「亂改案例內容」嚴重得多的後果
+// （例如在這支 function 裡植入後門，之後所有存檔動作都被動手腳）。
+// 這裡統一擋掉：路徑裡出現 ".." 這種可能用來跳出預期資料夾的片段一律
+// 拒絕；已知這支 function 目前唯一合法會寫入的兩個 repo（Internal-Pages／
+// asstudiowebsite）另外套用白名單，只放行實際會用到的資料夾/副檔名；
+// bamboo（另一個團隊自己的系統共用同一支 function，我們不熟悉他們的
+// 檔案結構，只套用上面的通用防呆，不額外限制資料夾）。
+function assertSafePath(repo, path) {
+  if (typeof path !== "string" || !path) throw new Error("path required");
+  const segments = path.split("/");
+  if (segments.some((seg) => seg === "." || seg === "..")) {
+    throw new Error("path 不能包含 .. 這種跳出資料夾的片段");
+  }
+  if (path.startsWith("netlify/") || path === "netlify.toml" || path.startsWith(".github/")) {
+    throw new Error("這條路徑不允許透過這支 function 寫入/刪除（觸碰到部署設定或 Function 原始碼本身）");
+  }
+  if (repo === "Internal-Pages") {
+    if (path.startsWith("admin/")) throw new Error("不允許透過這支 function 改動後台網頁本身");
+    if (!(path.startsWith("content/") || path.startsWith("images/"))) {
+      throw new Error("Internal-Pages 只允許寫入 content/ 或 images/ 底下的檔案");
+    }
+  } else if (repo === "asstudiowebsite") {
+    const isDcHtml = !path.includes("/") && path.endsWith(".dc.html");
+    const isKnownRoot = path === "index.html" || path === "建築事務所首頁.dc.html";
+    const isImages = path.startsWith("images/");
+    if (!(isDcHtml || isKnownRoot || isImages)) {
+      throw new Error("asstudiowebsite 只允許寫入根目錄的 .dc.html 頁面、首頁相關檔案，或 images/ 底下的檔案");
+    }
+  }
+}
+
 async function gh(repo, path, opts) {
   opts = opts || {};
   opts.headers = Object.assign(
@@ -133,12 +175,14 @@ exports.handler = async (event) => {
 
   try {
     if (body.action === "getFile") {
+      assertSafePath(repo, body.path);
       const res = await gh(repo, `/contents/${encPath(body.path)}?ref=${REPO_BRANCH}&_=${Date.now()}`);
       if (!res.ok) return json(res.status, { error: await res.text() });
       return json(200, await res.json());
     }
 
     if (body.action === "listDir") {
+      assertSafePath(repo, body.path);
       const res = await gh(repo, `/contents/${encPath(body.path)}?ref=${REPO_BRANCH}&_=${Date.now()}`);
       if (res.status === 404) return json(200, []);
       if (!res.ok) return json(res.status, { error: await res.text() });
@@ -146,6 +190,7 @@ exports.handler = async (event) => {
     }
 
     if (body.action === "putFile") {
+      assertSafePath(repo, body.path);
       const putBody = { message: body.message, content: body.content, branch: REPO_BRANCH };
       if (body.sha) putBody.sha = body.sha;
       const res = await gh(repo, `/contents/${encPath(body.path)}`, {
@@ -158,6 +203,7 @@ exports.handler = async (event) => {
     }
 
     if (body.action === "deleteFile") {
+      assertSafePath(repo, body.path);
       const res = await gh(repo, `/contents/${encPath(body.path)}`, {
         method: "DELETE",
         headers: { "Content-Type": "application/json" },
@@ -171,6 +217,7 @@ exports.handler = async (event) => {
     // uploadAsset 的行為一樣，只是現在改成一次 request 由這裡處理完。
     if (body.action === "uploadAsset") {
       const path = `${body.folder}/${body.filename}`;
+      assertSafePath(repo, path);
       // 一般照片（已經過前端壓縮，通常遠小於 1MB）走這條路：GitHub 的
       // 「Create/Update file contents」這支 API 單次 PUT 有檔案大小上限
       // （官方文件寫明 base64 內容上限約 1MB），一般照片穩穩在門檻內，
@@ -224,6 +271,7 @@ exports.handler = async (event) => {
     if (body.action === "commitBlobs") {
       const entries = body.entries || [];
       if (!entries.length) return json(400, { error: "no entries" });
+      entries.forEach((e) => assertSafePath(repo, e.path));
       const treeEntries = entries.map((e) => ({ path: e.path, mode: "100644", type: "blob", sha: e.sha }));
       const commitSha = await commitTreeEntries(
         repo,
