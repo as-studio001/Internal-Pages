@@ -1,7 +1,7 @@
 {
   "slug": "taipei-gallery-exhibition",
-  "title": "台北藝廊展",
-  "ledeMeta": "",
+  "title": "藝軒 PAVILION",
+  "ledeMeta": "台北市 / 台灣 / 2025 / 展覽",
   "tag": "",
   "hero": "https://as-studio001.github.io/asarch/photos/gallery-taipei-1.jpg",
   "paragraphs": [
@@ -17,5 +17,6 @@
   "designResearch": [],
   "process": [],
   "drawings": [],
-  "type": "subpage"
+  "type": "subpage",
+  "published": false
 }
