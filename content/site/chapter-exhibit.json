@@ -47,17 +47,6 @@
         "ja": "竹林アイロン",
         "ko": "대나무 숲 철"
       }
-    },
-    {
-      "image": "https://as-studio001.github.io/Internal-Pages/images/site/case-exhibit-tnhs.jpg",
-      "href": "https://as-studio001.github.io/Internal-Pages/?case=good-feeling-space-exhibition",
-      "label": {
-        "zh-Hant": "好感空間展",
-        "zh-Hans": "好感空间展",
-        "en": "Good Feeling Space Exhibition",
-        "ja": "いい感じの空間展",
-        "ko": "기분 좋은 공간 전시"
-      }
     }
   ]
 }
