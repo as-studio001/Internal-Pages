@@ -394,7 +394,7 @@ const MAX_UPLOAD_BYTES = 4 * 1024 * 1024;
 function assertUploadSize(file){
   if(file.size > MAX_UPLOAD_BYTES){
     const mb = (file.size / 1024 / 1024).toFixed(1);
-    throw new Error(`檔案太大（${mb}MB）：影片／GIF 檔上傳大小上限約 4MB，請先剪短或壓縮後再上傳，較長的完整影片建議改用「YouTube 影音連結」欄位嵌入。`);
+    throw new Error(`檔案太大（${mb}MB）：單一檔案上傳大小上限約 4MB。照片通常會先自動壓縮到遠低於這個門檻，會擋到這裡多半是影片／GIF 檔——請先剪短或壓縮後再上傳，較長的完整影片建議改用「YouTube 影音連結」欄位嵌入。`);
   }
 }
 
@@ -601,22 +601,17 @@ function sanitizeFilename(name){
   return name.replace(/[^\w.\-一-鿿]+/g, "_");
 }
 
-/* 上傳一張照片到指定資料夾（案例照片放 images/<slug>/，主網站案例卡片
-   放 images/site/），檔名衝突就自動加時間戳記，回傳最終路徑 */
-async function uploadAsset(file, folder){
+/* 幫一張照片/影片建立好 GitHub blob（只是把檔案內容先送上去，還沒真的
+   「加進」倉庫、也還沒佔用檔名路徑）。blob 建立跟其他照片的 blob 建立
+   互相獨立，可以真的同時送、不會互搶分支——真正「寫進倉庫」的動作是
+   flushPendingUploads() 最後統一呼叫的 commitBlobs()，見那裡的說明。 */
+async function createBlobForUpload(file){
   const compressed = await compressImageFile(file, 2400, 0.82);
   assertUploadSize(compressed);
   const filename = sanitizeFilename(compressed.name);
   const b64 = await readFileAsBase64(compressed);
-  // 一般照片經過壓縮後通常遠小於 1MB，走 GitHub 原本那支「Contents API」
-  // 就好；影片／GIF 沒辦法壓縮瘦身，體積比較大時改用後端的 Git Data API
-  // 路徑（見 github-proxy.js 的 uploadViaBlob），才不會卡在 Contents API
-  // 單檔上限。用「壓縮後檔案是不是明顯偏大」判斷，不是只看副檔名——同樣
-  // 邏輯，門檻抓保守一點（900KB），寧可小檔案也走比較慢的那條路，不要
-  // 大檔案誤走進小檔案那條路失敗。
-  const useBlob = compressed.size > 900 * 1024;
-  const data = await callFunction("github-proxy", { action: "uploadAsset", folder, filename, content: b64, useBlob });
-  return data.path;
+  const data = await callFunction("github-proxy", { action: "createBlob", content: b64 });
+  return { filename, sha: data.sha };
 }
 
 /* 章節「顯示在主網站章節」卡片本來直接拿案例自己的主視覺大圖當縮圖
@@ -1612,28 +1607,59 @@ function bindImageList(ed, basePath, listId, folder){
   });
 }
 
-/* 把 ed.item 裡所有指向 pendingUploads 的暫時 key，實際上傳到對應資料夾，換成正式路徑 */
-/* 存檔時要上傳的照片一次全部排隊、限制同時最多 4 張一起傳（不是一張
-   傳完才傳下一張），存一個有好幾張新照片的案例會快很多；GitHub API
-   還是有速率限制，4 個同時跑是安全、不會被擋掉的量。 */
+/* 把 ed.item 裡所有指向 pendingUploads 的暫時 key，實際上傳到對應資料夾，換成正式路徑。
+   2026-08-28 改版：以前是「一張照片＝一次獨立 commit」，一次存好幾張
+   （尤其 10~20+ 張）常常延宕、卡住甚至失敗——原因是這麼多次 commit
+   密集寫進同一個 GitHub 分支，GitHub 那邊常常互搶、觸發速率限制，前面
+   的 commit 還沒真的落地，後面的就已經送出去，反覆重試又更久。
+   現在改成兩階段：①先把每張照片各自建立成一個 blob（blob 建立互相
+   獨立，不動到分支，可以真的同時送出，不會互搶）；②全部 blob 都建好
+   之後，才用「一次 commitBlobs 呼叫」把它們全部一起寫進同一個 commit
+   ——不管存 1 張還是 20 張，永遠只有 1 次真正寫入分支的動作。 */
 async function flushPendingUploads(ed, folder){
   const keys = Object.keys(ed.pendingUploads);
   if(keys.length === 0) return;
-  const concurrency = Math.min(4, keys.length);
+  const concurrency = Math.min(6, keys.length);
   let cursor = 0;
   let done = 0;
   setLoading(true, `壓縮並上傳圖片中… (0/${keys.length})`);
+  const results = new Array(keys.length);
   async function worker(){
     while(cursor < keys.length){
-      const key = keys[cursor++];
-      const finalPath = await uploadAsset(ed.pendingUploads[key].file, folder);
-      replaceValueDeep(ed.item, key, finalPath);
-      delete ed.pendingUploads[key];
+      const i = cursor++;
+      results[i] = await createBlobForUpload(ed.pendingUploads[keys[i]].file);
       done++;
       setLoading(true, `壓縮並上傳圖片中… (${done}/${keys.length})`);
     }
   }
   await Promise.all(Array.from({ length: concurrency }, worker));
+
+  // 同一次存檔裡兩張照片壓縮/整理過後剛好同名的話（少見，但發生過），
+  // 在這裡統一處理掉，不用像以前那樣個別跟 GitHub 重試一次。
+  const usedPaths = new Set();
+  const entries = results.map((r, i) => {
+    let path = `${folder}/${r.filename}`;
+    if(usedPaths.has(path)){
+      const dot = r.filename.lastIndexOf(".");
+      const stem = dot === -1 ? r.filename : r.filename.slice(0, dot);
+      const ext = dot === -1 ? "" : r.filename.slice(dot);
+      path = `${folder}/${stem}-${Date.now()}-${i}${ext}`;
+    }
+    usedPaths.add(path);
+    return { path, sha: r.sha, key: keys[i] };
+  });
+
+  setLoading(true, `寫入 GitHub 中…（${entries.length} 個檔案）`);
+  await callFunction("github-proxy", {
+    action: "commitBlobs",
+    entries: entries.map((e) => ({ path: e.path, sha: e.sha })),
+    message: `Upload ${entries.length} file(s) via admin`,
+  });
+
+  entries.forEach((e) => {
+    replaceValueDeep(ed.item, e.key, e.path);
+    delete ed.pendingUploads[e.key];
+  });
 }
 function replaceValueDeep(obj, oldVal, newVal){
   if(Array.isArray(obj)){ obj.forEach(v => replaceValueDeep(v, oldVal, newVal)); return; }
@@ -2699,7 +2725,7 @@ async function deleteCurrentCase(){
    schema），時間軸／手風琴／案例輪播／得獎清單這些只有少數子頁才有的
    特殊模組還沒做，之後要做哪一頁再個別設計。
    ============================================================ */
-// uploadAsset() 只回傳相對於「這個後台」repo 的路徑（例如
+// flushPendingUploads() 換回來的都只是相對於「這個後台」repo 的路徑（例如
 // "images/subpages/teaching/xxx.jpg"），子頁面實際部署在另一個 repo／
 // 網域（asstudiowebsite），畫廊照片的舊資料則是相對於「子頁面自己網站」
 // 的路徑（例如 "uploads/實習.jpg"）——兩種相對路徑的基準網址不一樣，不能

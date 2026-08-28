@@ -183,6 +183,53 @@ exports.handler = async (event) => {
       return json(200, { path: finalPath });
     }
 
+    // 一次存檔要傳好幾張照片時，改用這兩支（createBlob → 逐一各自建立
+    // blob，互相獨立、可以真的同時送出，不會搶著更新分支；commitBlobs →
+    // 全部 blob 都建好之後再一次呼叫，把它們一起寫進「同一個 commit」）
+    // 取代原本一張照片一次 commit 的做法——20 張照片以前是 20 次各自
+    // 獨立的 commit（GitHub 對同一個分支密集連續寫入，容易彼此卡住甚至
+    // 失敗），現在不管存幾張，永遠只有 1 次 commit，而且不會跟同一次存檔
+    // 裡的其他照片互搶分支更新。
+    if (body.action === "createBlob") {
+      const blob = await ghJson(repo, "/git/blobs", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ content: body.content, encoding: "base64" }),
+      });
+      return json(200, { sha: blob.sha });
+    }
+
+    if (body.action === "commitBlobs") {
+      const entries = body.entries || [];
+      if (!entries.length) return json(400, { error: "no entries" });
+      const ref = await ghJson(repo, `/git/refs/heads/${REPO_BRANCH}`);
+      const parentCommitSha = ref.object.sha;
+      const parentCommit = await ghJson(repo, `/git/commits/${parentCommitSha}`);
+      const newTree = await ghJson(repo, "/git/trees", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          base_tree: parentCommit.tree.sha,
+          tree: entries.map((e) => ({ path: e.path, mode: "100644", type: "blob", sha: e.sha })),
+        }),
+      });
+      const newCommit = await ghJson(repo, "/git/commits", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          message: body.message || `Upload ${entries.length} file(s) via admin`,
+          tree: newTree.sha,
+          parents: [parentCommitSha],
+        }),
+      });
+      await ghJson(repo, `/git/refs/heads/${REPO_BRANCH}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ sha: newCommit.sha }),
+      });
+      return json(200, { ok: true, commit: newCommit.sha });
+    }
+
     return json(400, { error: "unknown action" });
   } catch (e) {
     return json(500, { error: e.message });
