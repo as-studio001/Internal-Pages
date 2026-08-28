@@ -3,7 +3,7 @@
   "title": "南寧老屋",
   "ledeMeta": "台南市 / 台灣 / 2025 / 三年展",
   "tag": "",
-  "hero": "images/nanning-old-house/1787889303031-4.jpg",
+  "hero": "images/nanning-old-house/4.jpg",
   "heroPosition": null,
   "paragraphs": [
     "本案位於台南市中西區的核心區域，周邊商業繁榮人潮來往，然而在南寧街的巷弄中佇立著一棟50年的古典洋房。\n居住在城市鬧區，卻仍徜徉在老屋獨特氣質的空間，是本次的主軸。",
@@ -12,11 +12,15 @@
   ],
   "photos": [
     {
-      "src": "images/nanning-old-house/3.jpg",
+      "src": "images/nanning-old-house/site.jpg",
       "caption": ""
     },
     {
       "src": "images/nanning-old-house/sec.jpg",
+      "caption": ""
+    },
+    {
+      "src": "images/nanning-old-house/1787892395060-3.jpg",
       "caption": ""
     }
   ],
@@ -26,19 +30,46 @@
     "lng": null,
     "zoom": 17
   },
-  "detailPhotos": [],
-  "drawings": [],
-  "published": false,
+  "detailPhotos": [
+    {
+      "src": "images/nanning-old-house/1.jpg",
+      "caption": ""
+    },
+    {
+      "src": "images/nanning-old-house/1787892396154-2.jpg",
+      "caption": ""
+    },
+    {
+      "src": "images/nanning-old-house/1787892397886-5.jpg",
+      "caption": ""
+    }
+  ],
+  "drawings": [
+    {
+      "src": "images/nanning-old-house/1f.jpg",
+      "caption": ""
+    },
+    {
+      "src": "images/nanning-old-house/2f.jpg",
+      "caption": ""
+    },
+    {
+      "src": "images/nanning-old-house/1787892402424-rf.jpg",
+      "caption": ""
+    }
+  ],
+  "published": true,
   "type": "subpage",
+  "cardThumbnail": "images/site/card-nanning-old-house.jpg",
+  "cardThumbnailHero": "images/nanning-old-house/1787889303031-4.jpg",
   "photoLayout": [
     {
       "photos": [
         0,
-        1
+        1,
+        2
       ],
-      "afterParagraph": 1
+      "afterParagraph": 2
     }
-  ],
-  "cardThumbnail": "images/site/card-nanning-old-house.jpg",
-  "cardThumbnailHero": "images/nanning-old-house/1787889303031-4.jpg"
+  ]
 }
