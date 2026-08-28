@@ -41,12 +41,16 @@
   "photoLayout": [
     {
       "photos": [
-        0,
         1,
         2
       ],
-      "afterParagraph": 1,
-      "template": "big-left-stack-right"
+      "afterParagraph": 1
+    },
+    {
+      "photos": [
+        0
+      ],
+      "afterParagraph": 1
     }
   ]
 }
