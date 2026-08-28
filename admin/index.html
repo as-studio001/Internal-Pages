@@ -261,9 +261,19 @@ input,textarea,select{ font-family:inherit; font-size:14px; }
 }
 .photo-group-thumbs{ display:flex; flex-wrap:wrap; gap:10px; margin-bottom:10px; }
 .photo-group-thumbs .photo-row{ flex:1 1 220px; min-width:200px; margin-bottom:0; }
-.photo-group-controls{ display:flex; flex-wrap:wrap; gap:16px; padding-top:10px; border-top:1px dashed var(--line); }
+.photo-group-controls{ display:flex; flex-wrap:wrap; gap:16px; align-items:center; padding-top:10px; border-top:1px dashed var(--line); }
 .photo-group-controls label{ display:flex; align-items:center; gap:8px; font-size:12.5px; color:var(--muted); }
 .photo-group-controls select{ padding:6px 8px; border:1px solid var(--line); border-radius:5px; background:#fff; color:var(--ink); font-size:12.5px; }
+.row-split-btn{
+  flex-shrink:0; width:28px; height:28px; border-radius:50%; border:1px solid var(--line);
+  background:#fff; color:var(--muted); font-size:13px; line-height:1;
+}
+.row-split-btn:hover{ color:var(--ink); border-color:var(--ink); }
+.merge-group-btn{
+  margin-left:auto; padding:7px 12px; border-radius:6px; border:1.5px dashed var(--line);
+  background:none; color:var(--muted); font-size:12.5px; font-weight:600;
+}
+.merge-group-btn:hover{ border-color:var(--ink); color:var(--ink); }
 
 .empty-note{ color:var(--muted); font-size:13px; font-style:italic; }
 .chapter-picker{ display:flex; flex-wrap:wrap; gap:10px; }
@@ -2179,9 +2189,40 @@ function setGroupTemplate(ed, groupIndex, templateId){
   }
 }
 
-function photoGroupCardHtml(ed, g, gi, photos, paragraphs){
+/* 手動拆分/合併「內文照片」的排版分組——拆分把某一張照片獨立成新的
+   一排（插在原本那組後面）；合併則是把這一組跟緊接在後面的那一組併成
+   同一排。兩者都只是重新調整 photoLayout 這份分組清單本身（不動照片
+   陣列、不動張數），所以只要局部重畫這個區塊＋通知預覽 iframe 就好，
+   不像新增/刪除/跨組拖曳照片那樣需要整組回退成自動排版重算。 */
+function splitPhotoFromGroup(ed, groupIndex, photoIndex){
+  const layout = getValidPhotoLayout(ed);
+  if(!layout || !layout[groupIndex]) return;
+  const group = layout[groupIndex];
+  const pos = group.photos.indexOf(photoIndex);
+  if(pos === -1 || group.photos.length <= 1) return; // 已經是單張，沒得拆
+  group.photos.splice(pos, 1);
+  delete group.template; // 張數變了，舊模板可能不再對應這一排，退回自動判斷
+  layout.splice(groupIndex + 1, 0, { photos: [photoIndex], afterParagraph: group.afterParagraph });
+  refreshPhotoGroups(ed);
+  postCaseProjectToIframe(ed);
+}
+
+function mergeGroupWithNext(ed, groupIndex){
+  const layout = getValidPhotoLayout(ed);
+  if(!layout || !layout[groupIndex] || !layout[groupIndex + 1]) return;
+  const group = layout[groupIndex];
+  const next = layout[groupIndex + 1];
+  group.photos = group.photos.concat(next.photos);
+  delete group.template; // 合併後張數變了，舊模板不再對應，退回自動判斷
+  layout.splice(groupIndex + 1, 1);
+  refreshPhotoGroups(ed);
+  postCaseProjectToIframe(ed);
+}
+
+function photoGroupCardHtml(ed, g, gi, photos, paragraphs, isLast){
   const matching = PHOTO_TEMPLATES.filter((t) => t.count === g.photos.length);
   const current = g.template || "";
+  const canSplit = g.photos.length > 1;
   return `
     <div class="photo-group-card" data-group-index="${gi}">
       <div class="photo-group-thumbs">
@@ -2190,6 +2231,7 @@ function photoGroupCardHtml(ed, g, gi, photos, paragraphs){
             <span class="drag-handle" title="拖曳調整順序／跟別組交換">⠿</span>
             <div class="thumb">${mediaThumbHtml(resolveSrc(ed.pendingUploads, photos[i].src))}</div>
             <input type="text" data-path="photos.${i}.caption" value="${esc(photos[i].caption || "")}" placeholder="圖說（選填）">
+            ${canSplit ? `<button type="button" class="row-split-btn" data-split-photo="${i}" data-split-group="${gi}" title="把這張照片拆成獨立的一排">⇱</button>` : ""}
             <button type="button" class="row-remove-btn" data-remove-photo="${i}" title="移除">×</button>
           </div>
         `).join("")}
@@ -2207,6 +2249,7 @@ function photoGroupCardHtml(ed, g, gi, photos, paragraphs){
             ${paragraphs.map((_, pi) => `<option value="${pi + 1}" ${g.afterParagraph === pi + 1 ? "selected" : ""}>第 ${pi + 1} 段文字後</option>`).join("")}
           </select>
         </label>
+        ${isLast ? "" : `<button type="button" class="merge-group-btn" data-merge-group="${gi}" title="把下一排的照片併進這一排，變成同一整排">↓ 跟下一排合併</button>`}
       </div>
     </div>
   `;
@@ -2226,7 +2269,7 @@ function photoGroupsHtml(ed){
   const layout = getValidPhotoLayout(ed);
   const paragraphs = ed.item.paragraphs || [];
   const groupsHtml = layout
-    ? layout.map((g, gi) => photoGroupCardHtml(ed, g, gi, photos, paragraphs)).join("")
+    ? layout.map((g, gi) => photoGroupCardHtml(ed, g, gi, photos, paragraphs, gi === layout.length - 1)).join("")
     : `<div class="empty-note">正在自動排版中…</div>`;
   return `
     <div class="photo-list-drop" id="photosList">
@@ -2300,6 +2343,16 @@ function bindPhotoGroups(ed){
       const gi = Number(sel.dataset.groupAfter);
       if(layout && layout[gi]) layout[gi].afterParagraph = Number(sel.value);
       postCaseProjectToIframe(ed);
+    });
+  });
+  wrap.querySelectorAll("[data-split-photo]").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      splitPhotoFromGroup(ed, Number(btn.dataset.splitGroup), Number(btn.dataset.splitPhoto));
+    });
+  });
+  wrap.querySelectorAll("[data-merge-group]").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      mergeGroupWithNext(ed, Number(btn.dataset.mergeGroup));
     });
   });
 }
