@@ -459,18 +459,48 @@ function isInviteOrRecoveryLink(){
   return !!AUTH_LINK_TYPE;
 }
 
-async function callFunction(name, payload){
-  const res = await fetch(`${FUNCTIONS_BASE}/${name}`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "Authorization": "Bearer " + (authSession ? authSession.access_token : ""),
-    },
-    body: JSON.stringify(payload || {}),
-  });
+function sleep(ms){ return new Promise((resolve) => setTimeout(resolve, ms)); }
+
+const CALL_FUNCTION_MAX_ATTEMPTS = 4;
+
+/* 2026-08-28：一次存好幾張照片時發現，偶爾單一次呼叫會因為暫時性的
+   問題失敗（網路瞬斷、Netlify Function 冷啟動太久、GitHub 那端短暫
+   忙碌回 502/503/429），以前是失敗一次就整批放棄，使用者要整個重存。
+   現在對「看起來只是暫時性」的失敗自動重試幾次（間隔遞增），只有真的
+   多試幾次都不行、或本來就是使用者需要處理的錯誤（例如 401 沒登入、
+   400 資料本身有問題）才會真正把錯誤丟出來。 */
+async function callFunction(name, payload, attempt){
+  attempt = attempt || 1;
+  let res;
+  try{
+    res = await fetch(`${FUNCTIONS_BASE}/${name}`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": "Bearer " + (authSession ? authSession.access_token : ""),
+      },
+      body: JSON.stringify(payload || {}),
+    });
+  }catch(networkErr){
+    // fetch 本身丟出例外＝根本連不上（斷線、DNS、Netlify 那端瞬間打不
+    // 通），這種過幾秒通常會恢復，不是使用者能處理的錯誤。
+    if(attempt < CALL_FUNCTION_MAX_ATTEMPTS){
+      await sleep(attempt * 700);
+      return callFunction(name, payload, attempt + 1);
+    }
+    throw new Error(`連不上伺服器，請檢查網路連線後再試一次（${name}）`);
+  }
   let data = {};
   try{ data = await res.json(); }catch(e){}
   if(!res.ok){
+    // 5xx（伺服器那端暫時出問題）或 429（暫時被限流）通常重試就會好；
+    // 其他 4xx 狀態代表這次請求本身有問題（例如登入過期、參數不對），
+    // 重試也不會變好，直接把錯誤丟出去讓使用者/工程師看得到真正原因。
+    const transient = res.status >= 500 || res.status === 429;
+    if(transient && attempt < CALL_FUNCTION_MAX_ATTEMPTS){
+      await sleep(attempt * 700);
+      return callFunction(name, payload, attempt + 1);
+    }
     // 把 action/repo/path 標在錯誤訊息前面（例如 "[getFile @asstudiowebsite
     // 原型原點.dc.html]"），跨 repo 動作變多之後，光看「Not Found」很難猜
     // 是哪一步、對哪個 repo/路徑失敗，這樣使用者回報錯誤畫面就能直接定位。
@@ -624,12 +654,19 @@ function sanitizeFilename(name){
    互相獨立，可以真的同時送、不會互搶分支——真正「寫進倉庫」的動作是
    flushPendingUploads() 最後統一呼叫的 commitBlobs()，見那裡的說明。 */
 async function createBlobForUpload(file){
-  const compressed = await compressImageFile(file, 2400, 0.82);
-  assertUploadSize(compressed);
-  const filename = sanitizeFilename(compressed.name);
-  const b64 = await readFileAsBase64(compressed);
-  const data = await callFunction("github-proxy", { action: "createBlob", content: b64 });
-  return { filename, sha: data.sha };
+  try{
+    const compressed = await compressImageFile(file, 2400, 0.82);
+    assertUploadSize(compressed);
+    const filename = sanitizeFilename(compressed.name);
+    const b64 = await readFileAsBase64(compressed);
+    const data = await callFunction("github-proxy", { action: "createBlob", content: b64 });
+    return { filename, sha: data.sha };
+  }catch(err){
+    // 一次存好幾張照片時，直接說是「第幾張／哪個檔名」出問題，不要讓
+    // 使用者猜是哪一張——尤其一次存 10 張以上，光看到一句籠統的錯誤
+    // 訊息完全不知道該重傳哪一張。
+    throw new Error(`「${file.name}」上傳失敗：${err.message || err}`);
+  }
 }
 
 /* 章節「顯示在主網站章節」卡片本來直接拿案例自己的主視覺大圖當縮圖
