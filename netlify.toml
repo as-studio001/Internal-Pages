@@ -19,3 +19,8 @@
 
 [functions]
   directory = "netlify/functions"
+
+# 2026-08-28：確認 github-proxy.js 的 ALLOWED_REPOS 已經加了 "bamboo"，但實際部署還是
+# 回「repo not allowed」——這一行只是刻意動一下 netlify.toml 本身，強制觸發一次真正的
+# 重新部署（上面的 ignore 規則會判斷這個檔案有變動，不會被跳過），排除「commit 有推上去
+# 但部署沒真的重新跑」這個可能性。確認部署狀態恢復正常之後這行可以刪掉。
