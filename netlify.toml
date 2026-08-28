@@ -1,26 +1,18 @@
 [build]
   publish = "."
   command = "true"
-  # 這個 Netlify 站其實只負責跑 netlify/functions/ 底下那幾支 Function
-  # （github-proxy 等），跟後台其他內容（content/ 底下的案例/章節資料、
-  # admin/index.html 本身）完全無關——但 Netlify 預設是「repo 裡任何
-  # 檔案一變動就整個重新部署」，導致每次在後台按「儲存並發布」（背後
-  # 其實是對 Internal-Pages 這個 repo 推一到多筆 git commit）都會白白
-  # 觸發一次完整重新部署，一次部署約 15 credits，一天之內就能把
-  # Personal plan 一整個月 1000 credits 的額度燒光（2026-08-25 實際發生
-  # 過，Production deploys 65 次吃掉 975 credits，Function 呼叫本身
-  # 4,777 次只吃 1 credit）。
-  # 這行指令的意思：跟上一次「真的有部署」的那個 commit 比，如果
-  # netlify.toml 或 netlify/ 資料夾（Function 原始碼）完全沒有變動，
-  # 這個指令就會用 --quiet 安靜地找不到差異、結束碼是 0——Netlify 看到
-  # 結束碼 0 就會跳過這次部署，不算 credits；只要真的改到 Function
-  # 程式碼本身，指令才會找到差異、結束碼非 0，Netlify 才會照常建置部署。
-  ignore = "git diff --quiet $CACHED_COMMIT_REF $COMMIT_REF -- netlify.toml netlify/"
+  # 2026-08-25 曾經加過一個 ignore 指令，想省掉「後台隨便存個內容就整個
+  # 重新部署」白燒的 Netlify credits（部署一次約 15 credits，Function
+  # 呼叫本身很便宜）。2026-08-28 移除：發現這個 ignore 規則把「真的該
+  # 部署」的 commit 也一起擋掉了（Netlify 的部署紀錄整批顯示
+  # Skipped，包括故意去改 netlify/functions/github-proxy.js、要觸發真正
+  # 部署的那幾次），導致 github-proxy.js 新增的 createBlob／commitBlobs
+  # 動作、ALLOWED_REPOS 白名單更新，遲遲沒有真的上線，造成「一次存多張
+  # 照片就存檔失敗（[createBlob] unknown action）」——比省下的 credits
+  # 嚴重得多。目前這個規則的判斷邏輯有問題（或跟這個 Netlify 專案目前
+  # 的版本不相容，實際原因還沒查清楚），先移除、恢復「一有 push 就照常
+  # 重新部署」，確保 Function 程式碼的改動一定會真的上線，額度優化之後
+  # 再另外處理，不要在這個問題還沒查清楚之前又重新加回去。
 
 [functions]
   directory = "netlify/functions"
-
-# 2026-08-28：確認 github-proxy.js 的 ALLOWED_REPOS 已經加了 "bamboo"，但實際部署還是
-# 回「repo not allowed」——這一行只是刻意動一下 netlify.toml 本身，強制觸發一次真正的
-# 重新部署（上面的 ignore 規則會判斷這個檔案有變動，不會被跳過），排除「commit 有推上去
-# 但部署沒真的重新跑」這個可能性。確認部署狀態恢復正常之後這行可以刪掉。
