@@ -1,0 +1,41 @@
+{
+  "slug": "nanning-old-house",
+  "title": "南寧老屋",
+  "ledeMeta": "台南市 / 台灣 / 2025 / 三年展",
+  "tag": "",
+  "hero": "images/nanning-old-house/1787889303031-4.jpg",
+  "heroPosition": null,
+  "paragraphs": [
+    "本案位於台南市中西區的核心區域，周邊商業繁榮人潮來往，然而在南寧街的巷弄中佇立著一棟50年的古典洋房。\n居住在城市鬧區，卻仍徜徉在老屋獨特氣質的空間，是本次的主軸。",
+    "木材，是貫徹本案的手法，我們將其視為創造空間的鑰匙，在營造空間的同時，亦作為結構補強的元素，並利用卡扣的設計方式，錯落的嵌入於各重點區域。\n新材料的溫度與質感，將老屋的混凝土牆面、磨石子地板完美襯托，使老屋翻新多一種截然不同的類型。"
+  ],
+  "photos": [
+    {
+      "src": "images/nanning-old-house/3.jpg",
+      "caption": ""
+    },
+    {
+      "src": "images/nanning-old-house/sec.jpg",
+      "caption": ""
+    }
+  ],
+  "map": {
+    "address": "",
+    "lat": null,
+    "lng": null,
+    "zoom": 17
+  },
+  "detailPhotos": [],
+  "drawings": [],
+  "published": true,
+  "type": "subpage",
+  "photoLayout": [
+    {
+      "photos": [
+        0,
+        1
+      ],
+      "afterParagraph": 1
+    }
+  ]
+}
