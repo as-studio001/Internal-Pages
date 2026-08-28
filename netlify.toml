@@ -1,18 +1,28 @@
 [build]
   publish = "."
   command = "true"
-  # 2026-08-25 曾經加過一個 ignore 指令，想省掉「後台隨便存個內容就整個
-  # 重新部署」白燒的 Netlify credits（部署一次約 15 credits，Function
-  # 呼叫本身很便宜）。2026-08-28 移除：發現這個 ignore 規則把「真的該
-  # 部署」的 commit 也一起擋掉了（Netlify 的部署紀錄整批顯示
-  # Skipped，包括故意去改 netlify/functions/github-proxy.js、要觸發真正
-  # 部署的那幾次），導致 github-proxy.js 新增的 createBlob／commitBlobs
-  # 動作、ALLOWED_REPOS 白名單更新，遲遲沒有真的上線，造成「一次存多張
-  # 照片就存檔失敗（[createBlob] unknown action）」——比省下的 credits
-  # 嚴重得多。目前這個規則的判斷邏輯有問題（或跟這個 Netlify 專案目前
-  # 的版本不相容，實際原因還沒查清楚），先移除、恢復「一有 push 就照常
-  # 重新部署」，確保 Function 程式碼的改動一定會真的上線，額度優化之後
-  # 再另外處理，不要在這個問題還沒查清楚之前又重新加回去。
+  # 這個 Netlify 站其實只負責跑 netlify/functions/ 底下那幾支 Function
+  # （github-proxy 等），跟後台其他內容（content/ 底下的案例/章節資料、
+  # admin/index.html 本身）完全無關——但 Netlify 預設是「repo 裡任何
+  # 檔案一變動就整個重新部署」，導致每次在後台按「儲存並發布」都會白白
+  # 觸發一次完整重新部署，一次部署約 15 credits，密集存檔很快就能把
+  # 額度燒光（2026-08-25 第一次發生：Production deploys 65 次吃掉 975
+  # credits）。
+  #
+  # 2026-08-25 加了下面這道 ignore 指令；2026-08-28 一度被誤判成「這個
+  # 規則邏輯有問題、把真的該部署的也擋掉了」而整個移除——事後查證，
+  # 2026-08-28 那次真正的原因其實是**帳號當下的 Netlify 額度真的已經用
+  # 完**（Deploys 記錄寫的是「Skipped due to account credit usage
+  # exceeded」，不是這個 ignore 規則的判斷結果），使用者儲值額度之後，
+  # 下一次部署馬上就正常成功了，證明規則本身沒有問題。現在重新加回來，
+  # 邏輯跟 2026-08-25 那版完全一樣：跟上一次「真的有部署」的那個 commit
+  # 比，如果 netlify.toml 或 netlify/ 資料夾（Function 原始碼）完全沒有
+  # 變動，這個指令就會用 --quiet 安靜地找不到差異、結束碼是 0——Netlify
+  # 看到結束碼 0 就會跳過這次部署，不算 credits；只要真的改到 Function
+  # 程式碼本身，指令才會找到差異、結束碼非 0，Netlify 才會照常建置部署。
+  # **以後如果又看到一整批 Skipped，先點進去看實際的 skip 原因文字，
+  # 不要只看到「Skipped」三個字就假設是這道規則造成的。**
+  ignore = "git diff --quiet $CACHED_COMMIT_REF $COMMIT_REF -- netlify.toml netlify/"
 
 [functions]
   directory = "netlify/functions"
