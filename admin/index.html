@@ -974,11 +974,19 @@ function renderSetPassword(){
   });
 }
 
+// BAMBOO_ADMIN_URL：bamboo 專案自己的後台網址，跟這裡共用同一個 Supabase 專案／同一批
+// 登入使用者、同一組 Netlify Functions（github-proxy 的 ALLOWED_REPOS 已經加了 bamboo）。
+// 兩邊後台是各自獨立部署（這裡是 GitHub Pages，bamboo 是它自己 Vercel 上的 /admin），
+// 不是同一個網站的兩個分頁，所以這個連結是整頁導覽過去，不是原地切換畫面——過去那邊
+// 如果瀏覽器裡還留著 Supabase 的登入狀態（同一個瀏覽器、之前登入過那個網域）會直接
+// 進去；沒有的話要再登入一次，這是不同網域各自存一份登入狀態的正常限制。
+const BAMBOO_ADMIN_URL = "https://bamboo-sage.vercel.app/admin";
+
 function renderTopBar(){
   return `
     <div class="top-bar">
       <div class="wrap">
-        <div class="site-title">後台管理<a href="https://as-studio001.github.io/asarch/" target="_blank">↗ 查看網站</a></div>
+        <div class="site-title">後台管理<a href="https://as-studio001.github.io/asarch/" target="_blank">↗ 查看網站</a><a href="${BAMBOO_ADMIN_URL}" target="_blank">↗ bamboo 後台</a></div>
         <div class="user-box">
           <span>${esc(state.user.email)}</span>
           <button class="btn ghost" id="adminBotBtn" title="開一個小視窗問管理員機器人，不會離開這個編輯畫面">${iconMessageSquareCode()}<span>AS_k</span></button>
