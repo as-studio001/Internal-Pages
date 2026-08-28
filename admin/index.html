@@ -1424,14 +1424,19 @@ function caseTargetHref(slug, externalUrl, type){
    之後存檔時，如果外部連結網址被改掉了，才知道每個章節原本的卡片是
    用哪個網址連結的，可以正確換掉而不是留下孤兒卡片。 */
 async function loadLinkedChapters(item){
-  const found = [];
-  for(const meta of CASE_CARD_CHAPTERS){
+  // 2026-08-28：以前用 for 迴圈一個一個 await，4 個章節等於 4 次「依序」
+  // 網路來回——每次打開既有案例編輯畫面都要等，累加起來很有感。這 4 個
+  // 讀取彼此完全獨立（各自讀不同的章節檔案），改成同時發出去，時間變成
+  // 「最慢那一個」而不是「全部加起來」。
+  const results = await Promise.all(CASE_CARD_CHAPTERS.map(async (meta) => {
     try{
       const { json } = await ghGetFile(meta.file);
       const href = caseHrefForChapter(item, meta);
-      if((json.cases || []).some((c) => c.href === href)) found.push({ name: meta.name, href });
+      if((json.cases || []).some((c) => c.href === href)) return { name: meta.name, href };
     }catch(e){ /* 忽略單一章節讀取失敗，不擋住整個編輯畫面 */ }
-  }
+    return null;
+  }));
+  const found = results.filter(Boolean);
   if(state.editingCase && state.editingCase.item.slug === item.slug){
     state.editingCase.linkedChapterHrefs = found;
     state.editingCase.linkedChapters = found.map((f) => f.name);
@@ -2658,6 +2663,16 @@ async function saveCaseEditor(ed){
       // 如果這次存檔把「外部連結網址」改掉了（該章節的 href 因此變了），
       // 已經連結的章節卡片是用舊網址比對的，要先用舊網址移除，不然會
       // 留下一筆用舊網址、更新不到的孤兒卡片，而不是把它換成新網址。
+      // 2026-08-28：以前這兩個迴圈是一個一個 await，selectedChapters／
+      // toRemove 兩邊每碰到一個章節就要等它讀完＋寫完才輪到下一個——但
+      // 每個章節各自對應完全不同的檔案（chapter-restore.json、
+      // chapter-exhibit.json……），selectedChapters 跟 toRemove 這兩組
+      // 章節名單本身也不會重疊（同一個章節不可能同時「這次要連」又「這次
+      // 要移除」），彼此互不干擾，改成同時發出去——存檔時間從「章節數
+      // 加總」變成「最慢那一個章節」，勾越多章節省越多。單一章節內部
+      // 「先移除舊網址、再加新網址」這個順序還是照舊保留（同一個檔案，
+      // 不能打亂順序）。
+      const chapterTasks = [];
       for(const chName of selectedChapters){
         const meta = CASE_CARD_CHAPTERS.find((c) => c.name === chName);
         if(!meta) continue;
@@ -2669,16 +2684,19 @@ async function saveCaseEditor(ed){
           href,
           label,
         };
-        if(oldHref !== href) await removeCaseCardFromChapter(meta, oldHref);
-        await addCaseCardToChapter(meta, card);
+        chapterTasks.push((async () => {
+          if(oldHref !== href) await removeCaseCardFromChapter(meta, oldHref);
+          await addCaseCardToChapter(meta, card);
+        })());
       }
       for(const chName of toRemove){
         const meta = CASE_CARD_CHAPTERS.find((c) => c.name === chName);
         if(!meta) continue;
         const oldEntry = (ed.linkedChapterHrefs || []).find((e) => e.name === chName);
         const oldHref = oldEntry ? oldEntry.href : caseHrefForChapter(ed.item, meta);
-        await removeCaseCardFromChapter(meta, oldHref);
+        chapterTasks.push(removeCaseCardFromChapter(meta, oldHref));
       }
+      await Promise.all(chapterTasks);
     }
 
     setLoading(true, "同步漢堡選單中…");
@@ -2768,13 +2786,14 @@ async function removeCaseCardFromChapter(meta, href){
 async function regenerateCaseLinksManifest(){
   try{
     const eligibleHrefs = new Set();
-    for(const meta of CASE_CARD_CHAPTERS){
-      if(!meta.hamburger) continue;
+    // 這幾個章節各自是獨立檔案，讀取順序不影響結果，同時發出去省時間
+    // （這支函式幾乎每次案例存檔/刪除都會跑，值得省）。
+    await Promise.all(CASE_CARD_CHAPTERS.filter((m) => m.hamburger).map(async (meta) => {
       try{
         const { json } = await ghGetFile(meta.file);
         (json.cases || []).forEach((c) => eligibleHrefs.add(c.href));
       }catch(e){ /* 忽略單一章節讀取失敗，不擋住整個重新產生流程 */ }
-    }
+    }));
     const entries = await ghListDir("content/projects");
     const files = entries.filter(e => e.type === "file" && e.name.endsWith(".json"));
     const items = await Promise.all(files.map(async f => {
@@ -2816,13 +2835,14 @@ async function deleteCurrentCase(){
     // 案例檔案刪掉了，但如果它本來有連結章節，那些章節的 CASES 卡片
     // 不會自己跟著消失——不清掉的話，卡片會變成一張連到已經不存在的
     // 案例的孤兒卡片，前台點下去會看到「找不到這個案例」。
-    for(const chName of (ed.linkedChapters || [])){
+    // 各章節各自獨立檔案，同時移除即可，不用一個一個等
+    await Promise.all((ed.linkedChapters || []).map((chName) => {
       const meta = CASE_CARD_CHAPTERS.find((c) => c.name === chName);
-      if(!meta) continue;
+      if(!meta) return null;
       const oldEntry = (ed.linkedChapterHrefs || []).find((e) => e.name === chName);
       const href = oldEntry ? oldEntry.href : caseHrefForChapter(ed.item, meta);
-      await removeCaseCardFromChapter(meta, href);
-    }
+      return removeCaseCardFromChapter(meta, href);
+    }));
     await regenerateCaseLinksManifest();
     toast("已刪除");
     await loadCaseList();
