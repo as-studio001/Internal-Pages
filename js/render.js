@@ -1194,6 +1194,7 @@
     const loadSequence = (async () => {
       try {
         const project = await loadCase(slug);
+        document.title = project.title;
         await renderAll(project);
         await Promise.all([heroReady.promise, mapReady.promise]);
       } catch (err) {

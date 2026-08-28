@@ -320,6 +320,14 @@ input,textarea,select{ font-family:inherit; font-size:14px; }
 // 會讀到已經被清空的網址，導致邀請信點進來直接跳過設密碼、直接登入。
 let AUTH_LINK_TYPE = (/type=(invite|recovery)/.exec(location.hash) || [])[1] || null;
 
+// 跨後台切換時「同一次登入兩邊通用」用的交接參數——見下面 crossAdminUrl()／init() 的說明。
+// 一定要在 supabase.createClient() 之前就先讀走，理由跟上面 AUTH_LINK_TYPE 一樣：
+// supabase-js 自己也會偵測網址 hash 來建立 session、建立完會把 hash 清掉，如果我們自己的
+// 判斷邏輯等 createClient 呼叫完才去讀，常常會讀到已經被清空的網址。
+const _handoffHash = new URLSearchParams(location.hash.replace(/^#/, ""));
+const HANDOFF_ACCESS_TOKEN = _handoffHash.get("handoff_at");
+const HANDOFF_REFRESH_TOKEN = _handoffHash.get("handoff_rt");
+
 const REPO_OWNER = "as-studio001";
 const REPO_NAME = "Internal-Pages";
 const REPO_BRANCH = "main";
@@ -969,11 +977,37 @@ function renderSetPassword(){
   });
 }
 
+// BAMBOO_ADMIN_URL：bamboo 專案自己的後台網址，跟這裡共用同一個 Supabase 專案／同一批
+// 登入使用者、同一組 Netlify Functions（github-proxy 的 ALLOWED_REPOS 已經加了 bamboo）。
+// 兩邊後台是各自獨立部署（這裡是 GitHub Pages，bamboo 是它自己 Vercel 上的 /admin），
+// 不是同一個網站的兩個分頁——不同網域瀏覽器本來就會各自存一份登入狀態，直接整頁導覽
+// 過去的話，沒登入過那個網域還是要重新輸入帳密一次。
+//
+// 解法是「登入交接」：點連結的當下，把這個分頁目前手上的 Supabase session（access
+// token／refresh token）直接帶在目的網址的 hash 上一起過去（crossAdminUrl()），對面
+// 那支後台開頭一偵測到網址帶了這兩個參數，就直接拿去呼叫 supabase-js 的 setSession()，
+// 等於直接「換上」這個 session，不用重新輸入帳密——效果上就是「同一次登入兩邊通用」。
+// 這個做法沿用 Supabase 自己邀請信／忘記密碼連結本來就在用的模式（同樣是把 token 放在
+// 網址 hash 帶過去，hash 不會送到伺服器，只有接收端的 JS 讀得到），不是另外發明一套；
+// 接收端讀完會立刻把 hash 從網址列清掉（見 init()），不會讓 token 留在網址列或瀏覽
+// 紀錄裡太久。兩邊都沒有登入中的 session 時，crossAdminUrl() 就只回傳原始網址，對面
+// 一樣會照平常顯示登入畫面，不會出錯。
+function crossAdminUrl(baseUrl){
+  if(authSession && authSession.access_token && authSession.refresh_token){
+    const at = encodeURIComponent(authSession.access_token);
+    const rt = encodeURIComponent(authSession.refresh_token);
+    return `${baseUrl}#handoff_at=${at}&handoff_rt=${rt}`;
+  }
+  return baseUrl;
+}
+
+const BAMBOO_ADMIN_URL = "https://bamboo-sage.vercel.app/admin";
+
 function renderTopBar(){
   return `
     <div class="top-bar">
       <div class="wrap">
-        <div class="site-title">後台管理<a href="https://as-studio001.github.io/asarch/" target="_blank">↗ 查看網站</a></div>
+        <div class="site-title">後台管理<a href="https://as-studio001.github.io/asarch/" target="_blank">↗ 查看網站</a><a href="${crossAdminUrl(BAMBOO_ADMIN_URL)}" target="_blank">↗ bamboo 後台</a></div>
         <div class="user-box">
           <span>${esc(state.user.email)}</span>
           <button class="btn ghost" id="adminBotBtn" title="開一個小視窗問管理員機器人，不會離開這個編輯畫面">${iconMessageSquareCode()}<span>AS_k</span></button>
@@ -4943,11 +4977,26 @@ function renderHomepageEditor(){
 (async function init(){
   if(SETUP_INCOMPLETE){ render(); return; }
 
+  // 從另一邊後台（bamboo）帶著 session 交接過來（見 crossAdminUrl() 的說明）——網址上
+  // 一偵測到就立刻清掉 hash，不管交接成不成功，都不留在網址列／瀏覽紀錄裡。
+  if(HANDOFF_ACCESS_TOKEN && HANDOFF_REFRESH_TOKEN){
+    history.replaceState(null, "", location.pathname + location.search);
+    try{
+      const { data, error } = await sb.auth.setSession({ access_token: HANDOFF_ACCESS_TOKEN, refresh_token: HANDOFF_REFRESH_TOKEN });
+      if(error) throw error;
+      authSession = data.session;
+    }catch(e){
+      // 帶過來的 token 失效／過期就算了，退回正常登入畫面，不讓使用者卡住看不懂發生什麼事。
+    }
+  }
+
   // 帶著邀請信/忘記密碼連結進來時，Supabase 用網址 hash 帶 token，
   // 客戶端套件會自動讀取並建立好 session——這裡先確認一次再繼續，
   // render() 裡的 isInviteOrRecoveryLink() 判斷會決定要不要先強制設密碼。
-  const { data } = await sb.auth.getSession();
-  authSession = data.session;
+  if(!authSession){
+    const { data } = await sb.auth.getSession();
+    authSession = data.session;
+  }
 
   if(authSession && !isInviteOrRecoveryLink()){
     try{

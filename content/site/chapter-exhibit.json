@@ -47,28 +47,6 @@
         "ja": "竹林アイロン",
         "ko": "대나무 숲 철"
       }
-    },
-    {
-      "image": "https://as-studio001.github.io/asarch/photos/gallery-taipei-1.jpg",
-      "href": "https://as-studio001.github.io/Internal-Pages/?case=taipei-gallery-exhibition",
-      "label": {
-        "zh-Hant": "台北藝廊展",
-        "zh-Hans": "台北艺廊展",
-        "en": "Taipei Art Gallery Exhibition",
-        "ja": "台北市立美術館展",
-        "ko": "타이페이 미술관 전시회"
-      }
-    },
-    {
-      "image": "https://as-studio001.github.io/Internal-Pages/images/site/case-exhibit-tnhs.jpg",
-      "href": "https://as-studio001.github.io/Internal-Pages/?case=good-feeling-space-exhibition",
-      "label": {
-        "zh-Hant": "好感空間展",
-        "zh-Hans": "好感空间展",
-        "en": "Good Feeling Space Exhibition",
-        "ja": "いい感じの空間展",
-        "ko": "기분 좋은 공간 전시"
-      }
     }
   ]
 }
