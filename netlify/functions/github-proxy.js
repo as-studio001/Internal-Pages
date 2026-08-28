@@ -43,39 +43,61 @@ async function ghJson(repo, path, opts) {
   return res.json();
 }
 
-// 影片／GIF 這類明顯偏大的檔案，改走 Git Data API 自己組一次 commit：
-// 建 blob → 讀目前分支最新 commit 的 tree → 建一個只多這一個檔案的新
-// tree → 用新 tree 建一個新 commit → 把分支指標移到這個新 commit。
-// 四個步驟串起來等於「加一個檔案」，但不受 Contents API 單檔大小上限。
-// 檔名衝突（極少見，時間戳記已經降低機率）一樣自動加時間戳記重試一次。
-async function uploadViaBlob(repo, path, base64Content, message) {
-  const attempt = async (targetPath) => {
-    const blob = await ghJson(repo, "/git/blobs", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ content: base64Content, encoding: "base64" }),
-    });
+// 把一批「已經建立好的 blob」實際寫進分支，一次 commit 搞定所有檔案。
+// 讀分支目前的 tip、在它上面疊一個新 tree、包成新 commit，最後把分支
+// 指標移過去——最後那一步（PATCH ref）是「樂觀鎖」：GitHub 只有在分支
+// 沒被別人動過的情況下才會接受，這個系統常常有好幾個人／好幾個分頁
+// 同時在用後台，中間這一瞬間分支被別人的存檔動過是真的會發生的事，
+// 不是理論上的邊角案例——2026-08-28 就實際發生過一次，一次存 10 張
+// 照片存到一半失敗。發生時 GitHub 會回 409/422，這裡改成：那種情況
+// 直接重新讀一次最新的分支狀態、在新的基準上重做一次 tree/commit 再
+// 試一次，最多重試幾次，而不是直接放棄讓使用者整個重來。
+async function commitTreeEntries(repo, treeEntries, message, maxAttempts) {
+  maxAttempts = maxAttempts || 5;
+  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
     const ref = await ghJson(repo, `/git/refs/heads/${REPO_BRANCH}`);
     const parentCommitSha = ref.object.sha;
     const parentCommit = await ghJson(repo, `/git/commits/${parentCommitSha}`);
     const newTree = await ghJson(repo, "/git/trees", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        base_tree: parentCommit.tree.sha,
-        tree: [{ path: targetPath, mode: "100644", type: "blob", sha: blob.sha }],
-      }),
+      body: JSON.stringify({ base_tree: parentCommit.tree.sha, tree: treeEntries }),
     });
     const newCommit = await ghJson(repo, "/git/commits", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ message, tree: newTree.sha, parents: [parentCommitSha] }),
     });
-    await ghJson(repo, `/git/refs/heads/${REPO_BRANCH}`, {
+    const patchRes = await gh(repo, `/git/refs/heads/${REPO_BRANCH}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ sha: newCommit.sha }),
     });
+    if (patchRes.ok) return newCommit.sha;
+    const status = patchRes.status;
+    const errText = await patchRes.text();
+    // 409/422 是「分支被別人動過，不是單純的快轉更新」——這種才值得
+    // 重試；其他狀態碼（例如權杖失效的 401、根本沒權限的 403）重試也
+    // 沒用，直接把錯誤丟出去讓使用者/工程師看得到真正的原因。
+    if (attempt === maxAttempts || (status !== 409 && status !== 422)) {
+      throw new Error(`更新分支失敗（${status}）：${errText}`);
+    }
+    await new Promise((resolve) => setTimeout(resolve, 300 * attempt));
+  }
+}
+
+// 影片／GIF 這類明顯偏大的檔案，改走 Git Data API 自己組一次 commit：
+// 建 blob → 交給 commitTreeEntries() 疊進分支——不受 Contents API 單檔
+// 大小上限。檔名衝突（極少見，時間戳記已經降低機率）一樣自動加時間
+// 戳記重試一次。
+async function uploadViaBlob(repo, path, base64Content, message) {
+  const blob = await ghJson(repo, "/git/blobs", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ content: base64Content, encoding: "base64" }),
+  });
+  const attempt = async (targetPath) => {
+    await commitTreeEntries(repo, [{ path: targetPath, mode: "100644", type: "blob", sha: blob.sha }], message);
   };
   try {
     await attempt(path);
@@ -202,32 +224,13 @@ exports.handler = async (event) => {
     if (body.action === "commitBlobs") {
       const entries = body.entries || [];
       if (!entries.length) return json(400, { error: "no entries" });
-      const ref = await ghJson(repo, `/git/refs/heads/${REPO_BRANCH}`);
-      const parentCommitSha = ref.object.sha;
-      const parentCommit = await ghJson(repo, `/git/commits/${parentCommitSha}`);
-      const newTree = await ghJson(repo, "/git/trees", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          base_tree: parentCommit.tree.sha,
-          tree: entries.map((e) => ({ path: e.path, mode: "100644", type: "blob", sha: e.sha })),
-        }),
-      });
-      const newCommit = await ghJson(repo, "/git/commits", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          message: body.message || `Upload ${entries.length} file(s) via admin`,
-          tree: newTree.sha,
-          parents: [parentCommitSha],
-        }),
-      });
-      await ghJson(repo, `/git/refs/heads/${REPO_BRANCH}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ sha: newCommit.sha }),
-      });
-      return json(200, { ok: true, commit: newCommit.sha });
+      const treeEntries = entries.map((e) => ({ path: e.path, mode: "100644", type: "blob", sha: e.sha }));
+      const commitSha = await commitTreeEntries(
+        repo,
+        treeEntries,
+        body.message || `Upload ${entries.length} file(s) via admin`
+      );
+      return json(200, { ok: true, commit: commitSha });
     }
 
     return json(400, { error: "unknown action" });
