@@ -70,7 +70,7 @@
     }
   ],
   "map": {
-    "address": "",
+    "address": "106臺北市大安區龍坡里和平東路一段248巷10號1樓",
     "lat": null,
     "lng": null,
     "zoom": 17
@@ -84,7 +84,7 @@
     }
   ],
   "type": "subpage",
-  "published": false,
+  "published": true,
   "detailPhotos": [
     {
       "src": "images/taipei-gallery-exhibition/318006_0.jpg",
