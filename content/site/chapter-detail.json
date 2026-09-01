@@ -35,6 +35,17 @@
         "ja": "永遠の黄金都市への入り口のイメージ",
         "ko": "영원한 황금도시 입구 이미지"
       }
+    },
+    {
+      "image": "https://as-studio001.github.io/Internal-Pages/images/site/1787899489994-card-nanning-old-house.jpg",
+      "href": "https://as-studio001.github.io/Internal-Pages/?case=nanning-old-house",
+      "label": {
+        "zh-Hant": "南寧老屋",
+        "zh-Hans": "南宁老屋",
+        "ko": "난닝 고택",
+        "ja": "南寧古民家",
+        "en": "Nanning old house"
+      }
     }
   ],
   "heroPhoto": "https://as-studio001.github.io/Internal-Pages/images/site/chapter02.jpg",
