@@ -15,7 +15,7 @@
   ],
   "photos": [
     {
-      "src": "images/taipei-gallery-exhibition/Enscape_2026-01-12-12-04-31.jpg",
+      "src": "images/taipei-gallery-exhibition/Enscape_2026-01-12-12-48-08.jpg",
       "caption": ""
     },
     {
@@ -23,7 +23,27 @@
       "caption": ""
     },
     {
+      "src": "images/taipei-gallery-exhibition/Enscape_2026-01-12-12-04-31.jpg",
+      "caption": ""
+    },
+    {
+      "src": "images/taipei-gallery-exhibition/Enscape_2026-01-12-12-11-18.jpg",
+      "caption": ""
+    },
+    {
+      "src": "images/taipei-gallery-exhibition/Enscape_2026-01-12-12-16-19.jpg",
+      "caption": ""
+    },
+    {
+      "src": "images/taipei-gallery-exhibition/Enscape_2026-01-12-12-17-31.jpg",
+      "caption": ""
+    },
+    {
       "src": "images/taipei-gallery-exhibition/1787897282539-Enscape_2026-01-12-12-30-14.jpg",
+      "caption": ""
+    },
+    {
+      "src": "images/taipei-gallery-exhibition/Enscape_2026-01-12-12-32-23.jpg",
       "caption": ""
     }
   ],
@@ -41,16 +61,31 @@
   "photoLayout": [
     {
       "photos": [
-        1,
-        2
+        0,
+        1
       ],
       "afterParagraph": 1
     },
     {
       "photos": [
-        0
+        2,
+        3
       ],
-      "afterParagraph": 1
+      "afterParagraph": 3
+    },
+    {
+      "photos": [
+        4,
+        5
+      ],
+      "afterParagraph": 4
+    },
+    {
+      "photos": [
+        6,
+        7
+      ],
+      "afterParagraph": 6
     }
   ]
 }
