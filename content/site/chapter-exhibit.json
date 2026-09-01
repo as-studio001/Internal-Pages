@@ -47,6 +47,17 @@
         "ja": "竹林アイロン",
         "ko": "대나무 숲 철"
       }
+    },
+    {
+      "image": "https://as-studio001.github.io/Internal-Pages/images/site/card-taipei-gallery-exhibition.jpg",
+      "href": "https://as-studio001.github.io/Internal-Pages/?case=taipei-gallery-exhibition",
+      "label": {
+        "zh-Hant": "藝軒 PAVILION",
+        "zh-Hans": "艺轩 PAVILION",
+        "ja": "イーシュアンパビリオン",
+        "en": "Yixuan PAVILION",
+        "ko": "이쉬안 파빌리온"
+      }
     }
   ]
 }
