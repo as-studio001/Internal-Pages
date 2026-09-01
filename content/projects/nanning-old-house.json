@@ -1,7 +1,7 @@
 {
   "slug": "nanning-old-house",
   "title": "南寧老屋",
-  "ledeMeta": "台南市 / 台灣 / 2025 / 三年展",
+  "ledeMeta": "台南市 / 台灣 / 2025 / 老屋改建",
   "tag": "",
   "hero": "images/nanning-old-house/4.jpg",
   "heroPosition": null,
@@ -10,15 +10,15 @@
   ],
   "photos": [
     {
-      "src": "images/nanning-old-house/site.jpg",
-      "caption": ""
-    },
-    {
       "src": "images/nanning-old-house/1787892395060-3.jpg",
       "caption": ""
     },
     {
       "src": "images/nanning-old-house/sec.jpg",
+      "caption": ""
+    },
+    {
+      "src": "images/nanning-old-house/site.jpg",
       "caption": ""
     }
   ],
@@ -69,11 +69,10 @@
     },
     {
       "photos": [
-        2,
-        1
+        1,
+        2
       ],
-      "afterParagraph": 1,
-      "template": "pair-50-50"
+      "afterParagraph": 1
     }
   ]
 }
