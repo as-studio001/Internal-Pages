@@ -11,9 +11,20 @@
     "二、城市與自然的邊界｜感官與記憶被喚起\n竹與金屬開始成為需要穿行的實體結構，打破原有的空間秩序。\u000b透過不同區域的圍塑、步伐放慢，身體開始重新感知距離與方向。這是一種城市記憶的轉換，金屬不再是冰冷的直線，與溫暖的竹材結合後成為高高低低的水窪。",
     "三、初入竹林｜感官被喚起\n竹展架的虛實轉換，彷彿穿梭在被解構的竹林間，看與被看，動靜不斷交錯。\u000b這是一種懷舊的狀態——不是回到過去，而是在當下被觸發的感官經驗，藝術創作反而成為感之間的一個定錨，就像我們成長中重要的記憶節點。",
     "四、入林深處｜感知到達一個巔峰\n經過一系列的感受堆疊，我們將感官回到內心的感受，是一種「歸鄉」的行為。\n透過大型畫作的畫面，我們對世界的認知將重新改觀，透過藝術家的眼睛也重新理解自己。",
-    "案件類型　展覽\n基地位置　台北市大安區\n展場面積　400m²\n業　　主　香港PHD集團（Property Holdings Development Group）\n建築設計　原型建築\n設計專案　原型建築 陳韻愉\n施工單位　與木製研\n施工時間　2026年1月 - 2026年1月\n照片提供　PAVILION TAIPEI"
+    "基地位置　台北市大安區 / 展場面積　400m²",
+    "業　　主　香港PHD集團（Property Holdings Development Group）",
+    "設計專案　原型建築 陳韻愉 / 施工單位　與木製研",
+    "施工時間　2026年1月 - 2026年1月 / 照片提供　PAVILION TAIPEI"
   ],
   "photos": [
+    {
+      "src": "images/taipei-gallery-exhibition/318001_0.jpg",
+      "caption": ""
+    },
+    {
+      "src": "images/taipei-gallery-exhibition/318014_0.jpg",
+      "caption": ""
+    },
     {
       "src": "images/taipei-gallery-exhibition/Enscape_2026-01-12-12-48-08.jpg",
       "caption": ""
@@ -39,11 +50,11 @@
       "caption": ""
     },
     {
-      "src": "images/taipei-gallery-exhibition/1787897282539-Enscape_2026-01-12-12-30-14.jpg",
+      "src": "images/taipei-gallery-exhibition/Enscape_2026-01-12-12-32-23.jpg",
       "caption": ""
     },
     {
-      "src": "images/taipei-gallery-exhibition/Enscape_2026-01-12-12-32-23.jpg",
+      "src": "images/taipei-gallery-exhibition/1787897282539-Enscape_2026-01-12-12-30-14.jpg",
       "caption": ""
     }
   ],
@@ -71,7 +82,7 @@
         2,
         3
       ],
-      "afterParagraph": 3
+      "afterParagraph": 2
     },
     {
       "photos": [
@@ -85,7 +96,36 @@
         6,
         7
       ],
+      "afterParagraph": 5
+    },
+    {
+      "photos": [
+        8,
+        9
+      ],
       "afterParagraph": 6
+    }
+  ],
+  "detailPhotos": [
+    {
+      "src": "images/taipei-gallery-exhibition/318006_0.jpg",
+      "caption": ""
+    },
+    {
+      "src": "images/taipei-gallery-exhibition/318002_0.jpg",
+      "caption": ""
+    },
+    {
+      "src": "images/taipei-gallery-exhibition/318005_0.jpg",
+      "caption": ""
+    },
+    {
+      "src": "images/taipei-gallery-exhibition/318018_0.jpg",
+      "caption": ""
+    },
+    {
+      "src": "images/taipei-gallery-exhibition/318830_0.jpg",
+      "caption": ""
     }
   ]
 }
