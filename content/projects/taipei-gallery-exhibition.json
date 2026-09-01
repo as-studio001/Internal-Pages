@@ -11,6 +11,9 @@
     "二、城市與自然的邊界｜感官與記憶被喚起\n竹與金屬開始成為需要穿行的實體結構，打破原有的空間秩序。\u000b透過不同區域的圍塑、步伐放慢，身體開始重新感知距離與方向。這是一種城市記憶的轉換，金屬不再是冰冷的直線，與溫暖的竹材結合後成為高高低低的水窪。",
     "三、初入竹林｜感官被喚起\n竹展架的虛實轉換，彷彿穿梭在被解構的竹林間，看與被看，動靜不斷交錯。\u000b這是一種懷舊的狀態——不是回到過去，而是在當下被觸發的感官經驗，藝術創作反而成為感之間的一個定錨，就像我們成長中重要的記憶節點。",
     "四、入林深處｜感知到達一個巔峰\n經過一系列的感受堆疊，我們將感官回到內心的感受，是一種「歸鄉」的行為。\n透過大型畫作的畫面，我們對世界的認知將重新改觀，透過藝術家的眼睛也重新理解自己。",
+    "本案最具挑戰的點其實是只有一天的時間內，需要完成所有的施工+布置，隔天上午簡單微調清潔後即開幕，即使是展覽這個時間也幾乎是不可能的任務，因此在一開始的選材決定了竹子。而事前的規劃與統整也是非常關鍵的步驟，所有的展架必須在廠內就先製作完成，到現場僅能做最少的布置與加工動作。",
+    "竹材在本展覽中不僅是一種表面的材料選擇，更直接構成空間的尺度、節奏與結構語彙。其細長而具有方向性的桿件特質，使構造能透過重複、交疊與排列形成具有穿透感的空間界面，在保持視線流動的同時，也建立出不同層次的邊界與秩序。",
+    "竹材本身具有輕量的特性，使展覽構造能夠較容易地被搬運、組裝與重新配置，因應不同展場尺度與條件進行調整。這種材料上的輕盈，也讓展覽系統不必依賴厚重而固定的構造，而能在不同場地之間持續移動與轉換。\n當觀者行走於竹構所形成的尺度、縫隙與層次之間，材料不再只是支撐展示內容的背景，而成為引導視線、身體移動與空間感知的重要媒介。",
     "基地位置　台北市大安區 / 展場面積　400m²",
     "業　　主　香港PHD集團（Property Holdings Development Group）",
     "設計專案　原型建築 陳韻愉 / 施工單位　與木製研",
@@ -56,6 +59,14 @@
     {
       "src": "images/taipei-gallery-exhibition/1787897282539-Enscape_2026-01-12-12-30-14.jpg",
       "caption": ""
+    },
+    {
+      "src": "images/taipei-gallery-exhibition/320527_0.jpg",
+      "caption": ""
+    },
+    {
+      "src": "images/taipei-gallery-exhibition/318017_0.jpg",
+      "caption": ""
     }
   ],
   "map": {
@@ -66,23 +77,50 @@
   },
   "designResearch": [],
   "process": [],
-  "drawings": [],
+  "drawings": [
+    {
+      "src": "images/taipei-gallery-exhibition/Enscape_2026-01-13-14-23-30.jpg",
+      "caption": ""
+    }
+  ],
   "type": "subpage",
   "published": false,
+  "detailPhotos": [
+    {
+      "src": "images/taipei-gallery-exhibition/318006_0.jpg",
+      "caption": ""
+    },
+    {
+      "src": "images/taipei-gallery-exhibition/318002_0.jpg",
+      "caption": ""
+    },
+    {
+      "src": "images/taipei-gallery-exhibition/318005_0.jpg",
+      "caption": ""
+    },
+    {
+      "src": "images/taipei-gallery-exhibition/318018_0.jpg",
+      "caption": ""
+    },
+    {
+      "src": "images/taipei-gallery-exhibition/318830_0.jpg",
+      "caption": ""
+    }
+  ],
   "photoLayout": [
     {
       "photos": [
         0,
         1
       ],
-      "afterParagraph": 1
+      "afterParagraph": 2
     },
     {
       "photos": [
         2,
         3
       ],
-      "afterParagraph": 2
+      "afterParagraph": 3
     },
     {
       "photos": [
@@ -104,28 +142,13 @@
         9
       ],
       "afterParagraph": 6
-    }
-  ],
-  "detailPhotos": [
-    {
-      "src": "images/taipei-gallery-exhibition/318006_0.jpg",
-      "caption": ""
     },
     {
-      "src": "images/taipei-gallery-exhibition/318002_0.jpg",
-      "caption": ""
-    },
-    {
-      "src": "images/taipei-gallery-exhibition/318005_0.jpg",
-      "caption": ""
-    },
-    {
-      "src": "images/taipei-gallery-exhibition/318018_0.jpg",
-      "caption": ""
-    },
-    {
-      "src": "images/taipei-gallery-exhibition/318830_0.jpg",
-      "caption": ""
+      "photos": [
+        10,
+        11
+      ],
+      "afterParagraph": 9
     }
   ]
 }
