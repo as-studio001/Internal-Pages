@@ -3,7 +3,7 @@
   "title": "實驗木場",
   "ledeMeta": "嘉義市 / 台灣 / 2021 / 木做加工實驗場",
   "tag": "",
-  "hero": "images/chiayi-experimental-woodyard/_OSP9943-全景-1788343548479-3.jpg",
+  "hero": "images/chiayi-experimental-woodyard/4_西側全景_兩面_.jpg",
   "cardThumbnail": "images/site/card-chiayi-experimental-woodyard.jpg",
   "cardThumbnailHero": "images/chiayi-experimental-woodyard/_OSP9480-全景.jpg",
   "paragraphs": [
@@ -69,10 +69,39 @@
       "photos": []
     }
   ],
-  "drawings": [],
+  "drawings": [
+    {
+      "src": "images/chiayi-experimental-woodyard/500全區_完成.jpg",
+      "caption": ""
+    },
+    {
+      "src": "images/chiayi-experimental-woodyard/木場透視_改顏色.jpg",
+      "caption": ""
+    },
+    {
+      "src": "images/chiayi-experimental-woodyard/平面圖_修改2.jpg",
+      "caption": ""
+    },
+    {
+      "src": "images/chiayi-experimental-woodyard/北棟_修改.jpg",
+      "caption": ""
+    },
+    {
+      "src": "images/chiayi-experimental-woodyard/南棟_修改.jpg",
+      "caption": ""
+    },
+    {
+      "src": "images/chiayi-experimental-woodyard/外牆剖-ADA.jpg",
+      "caption": ""
+    },
+    {
+      "src": "images/chiayi-experimental-woodyard/屋頂剖-ADA.jpg",
+      "caption": ""
+    }
+  ],
   "heroPosition": {
-    "x": 50,
-    "y": 65.65804073691348
+    "x": 53.37817367622502,
+    "y": 50
   },
   "photoLayout": [
     {
@@ -109,5 +138,51 @@
       "afterParagraph": 3
     }
   ],
-  "published": true
+  "published": true,
+  "detailPhotos": [
+    {
+      "src": "images/chiayi-experimental-woodyard/IMAG5428-1788344030791-3.jpg",
+      "caption": ""
+    },
+    {
+      "src": "images/chiayi-experimental-woodyard/IMAG5456.jpg",
+      "caption": ""
+    },
+    {
+      "src": "images/chiayi-experimental-woodyard/IMAG5540.jpg",
+      "caption": ""
+    },
+    {
+      "src": "images/chiayi-experimental-woodyard/IMAG5571.jpg",
+      "caption": ""
+    },
+    {
+      "src": "images/chiayi-experimental-woodyard/_OSP9605-全景.jpg",
+      "caption": ""
+    },
+    {
+      "src": "images/chiayi-experimental-woodyard/_OSP9705-HDR.jpg",
+      "caption": ""
+    },
+    {
+      "src": "images/chiayi-experimental-woodyard/_OSP9733-HDR.jpg",
+      "caption": ""
+    },
+    {
+      "src": "images/chiayi-experimental-woodyard/_OSP9742-全景.jpg",
+      "caption": ""
+    },
+    {
+      "src": "images/chiayi-experimental-woodyard/_OSP9480-全景.jpg",
+      "caption": ""
+    },
+    {
+      "src": "images/chiayi-experimental-woodyard/_OSP9549-HDR.jpg",
+      "caption": ""
+    },
+    {
+      "src": "images/chiayi-experimental-woodyard/_OSP9514-全景.jpg",
+      "caption": ""
+    }
+  ]
 }
