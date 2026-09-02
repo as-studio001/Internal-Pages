@@ -1,13 +1,52 @@
 {
   "slug": "good-feeling-space-exhibition",
-  "title": "好感空間展",
-  "ledeMeta": "",
+  "title": "好感空間展---木立方",
+  "ledeMeta": "台南市 / 台灣 / 2026 / 展覽",
   "tag": "",
-  "hero": "images/site/case-exhibit-tnhs.jpg",
+  "hero": "images/good-feeling-space-exhibition/2026-展2-01.jpg",
   "paragraphs": [
-    ""
+    "展覽設計",
+    "\"解開木生活與老房子的秘密\" \n---如果生活的想像能具象成建築空間，我們是不是也能用一套邏輯來拆解建築空間，一起找到形成美好空間體驗前的關鍵鑰匙---",
+    "本次展覽思考以4組3x3m CLT版片快速搭建出攤位核心量體，整個量體如同一個正在被拆開的立方體，\n不是一個單純將各單位集中擺放的呈現，也不是會展中心中一個一個的方形量體，而是一連串故事準備揭開的序幕。\n透過四個章節兩個真實案例的呈現，帶大家一步一步了解，木頭與老房子可以怎麼樣的形式存在於我們的生活。",
+    "CH.1 木構建築是甚麼\n木構建築近年來越來越被大家注意，甚至也出現在許多公家案，但究竟該如何開始?\n以\"原型一號宅\"為例，帶大家一步一步來看，或許木構造並沒有離我們這麼遠。",
+    "CH.2 木生活原來這麼近\n3m高的空間，已經可以充分想像生活在木構造裡會是甚麼感覺，\n透過牆上跟展桌上的展示物件，我們細細討論關於木生活的規劃。",
+    "CH.3 當時間開始出現\n具有時間感的舊物件開始出現在空間中，他們就像是記憶的碎片，\n一直陪伴在我們的生活之中。",
+    "CH.4 老房子如何重生\n以\"台南硓?石．芳宅\"為例，建築物陪伴著我們經歷不同的人生階段，房子跟人一樣變老後機能會開始下降，\n我們該如何維護與檢視，並思考是否有新的可能性能讓他重新回到我們的生活中。"
   ],
-  "photos": [],
+  "photos": [
+    {
+      "src": "images/good-feeling-space-exhibition/2026-展2-04.jpg",
+      "caption": ""
+    },
+    {
+      "src": "images/good-feeling-space-exhibition/2026-展2-11.jpg",
+      "caption": ""
+    },
+    {
+      "src": "images/good-feeling-space-exhibition/IMG_1661.jpg",
+      "caption": ""
+    },
+    {
+      "src": "images/good-feeling-space-exhibition/2026-展2-14.jpg",
+      "caption": ""
+    },
+    {
+      "src": "images/good-feeling-space-exhibition/2026-展2-15.jpg",
+      "caption": ""
+    },
+    {
+      "src": "images/good-feeling-space-exhibition/2026-展2-16.jpg",
+      "caption": ""
+    },
+    {
+      "src": "images/good-feeling-space-exhibition/IMG_2780.JPEG",
+      "caption": ""
+    },
+    {
+      "src": "images/good-feeling-space-exhibition/2026-展2-19.jpg",
+      "caption": ""
+    }
+  ],
   "map": {
     "address": "",
     "lat": null,
@@ -18,5 +57,39 @@
   "process": [],
   "drawings": [],
   "type": "subpage",
-  "published": false
+  "published": false,
+  "heroPosition": {
+    "x": 50,
+    "y": 100
+  },
+  "photoLayout": [
+    {
+      "photos": [
+        0,
+        1
+      ],
+      "afterParagraph": 1
+    },
+    {
+      "photos": [
+        2,
+        3
+      ],
+      "afterParagraph": 3
+    },
+    {
+      "photos": [
+        4,
+        5
+      ],
+      "afterParagraph": 4
+    },
+    {
+      "photos": [
+        6,
+        7
+      ],
+      "afterParagraph": 5
+    }
+  ]
 }
