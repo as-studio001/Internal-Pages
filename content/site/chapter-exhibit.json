@@ -58,6 +58,17 @@
         "en": "Yixuan PAVILION",
         "ko": "이쉬안 파빌리온"
       }
+    },
+    {
+      "image": "https://as-studio001.github.io/Internal-Pages/images/site/card-good-feeling-space-exhibition.jpg",
+      "href": "https://as-studio001.github.io/Internal-Pages/?case=good-feeling-space-exhibition",
+      "label": {
+        "zh-Hant": "好感空間展 ─ 木立方",
+        "zh-Hans": "好感空间展 ─ 木立方",
+        "en": "Good Feeling Space Exhibition - Wooden Cube",
+        "ja": "いい感じの空間展 - ウッドキューブ",
+        "ko": "좋은 느낌의 공간 전시 - 나무큐브"
+      }
     }
   ]
 }
