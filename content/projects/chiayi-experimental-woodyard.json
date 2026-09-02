@@ -1,15 +1,17 @@
 {
   "slug": "chiayi-experimental-woodyard",
-  "title": "嘉義實驗木場",
-  "ledeMeta": "嘉義市 / 台灣 / 2021 / 修復再利用工廠",
+  "title": "實驗木場",
+  "ledeMeta": "嘉義市 / 台灣 / 2021 / 木做加工實驗場",
   "tag": "",
-  "hero": "images/chiayi-experimental-woodyard/_OSP9480-全景.jpg",
+  "hero": "images/chiayi-experimental-woodyard/_OSP9943-全景-1788343548479-3.jpg",
   "cardThumbnail": "images/site/card-chiayi-experimental-woodyard.jpg",
   "cardThumbnailHero": "images/chiayi-experimental-woodyard/_OSP9480-全景.jpg",
   "paragraphs": [
-    "實驗木場以木都嘉義為基地，舊監獄日式宿舍群為核心，企圖打造具有新舊結構相融的“實驗木工場”；",
-    "將城市裡傾倒荒置的停滯空間注入新生命，配合嘉義對木構「研究」及「加工」的機能需求，\n於再利用修復設計時重整結構系統進而突破空間跨度的限制，\n且因應日式宿舍建築各部位的條件，嘗試提出符合現代空間需求之特殊木構新結構方式。",
-    "延續嘉義「木都」的特色及價值，\n期能作為全市超過6000棟木造舊建築更新與育成之實驗中心，\n更進一步推廣舊監歷史脈絡暨木結構的文化美學與技術傳承。"
+    "實驗木場是以木都─嘉義為基地，舊監獄日式宿舍群為核心，企圖打造具有新舊結構相融的“實驗木工場”；建築特色為利用舊監旁的日式宿舍群，將兩座四連棟日式宿舍重新解構後，予以再利用之設計，進而形塑出南北兩棟各具特色之木結構實驗工場。",
+    "設計理念為：藉由【北棟】─實驗教學棟的教育傳承與木構研究，以及【南棟】─木構實作工場的加工製材與結構尺度構件 ( 梁與柱 ) 之生產，形成可被用於舊監歷史園區木構的再造與修復，進而延伸至“嘉義木都再更新”之木構物件工場。",
+    "設計上，南棟利用了結構設計手法，跳脫傳統日式宿舍木構柱列及壁體密集的狹小限制，將屋架轉化成嶄新木造空間，以結構系統的轉換設計創造出足夠的空間跨度形成木工場作業空間，將原本和小屋式屋架轉換成版與梁的複合系統，是其一大特色；北棟則因置入新舊構造與木構教育理念的空間，導入了現代木構抗震構法，分別有鋼索張拉、Y 型斜撐、木構阻尼器及玻璃制震器等 4 種特殊木構補強方法，是實驗木場與其他日式宿舍修復工程最大不同之處。",
+    "我們希望將城市裡傾倒荒置的停滯空間注入新生命，配合嘉義對木構「研究」及「加工」的機能需求，於再利用修復設計時重整結構系統進而突破空間跨度的限制，且因應日式宿舍建築各部位的條件，嘗試提出符合現代空間需求之特殊木構新結構方式。延續嘉義「木都」的特色及價值，期能作為全市超過6000棟木造建築更新與育成之實驗中心。",
+    "基地位置　嘉義市東區 / 建物用途　木做加工實驗場\n建物面積　310.71m² / 業　　主　嘉義市政府文化局\n建築設計　原型建築 陳韻愉 / 結構設計　原型結構  \n施工單位　實式木造有限公司 / 施工時間　2020年10月 - 2021年10月\n照片提供　原型結構、原間影像"
   ],
   "photos": [
     {
@@ -17,39 +19,31 @@
       "caption": ""
     },
     {
-      "src": "images/chiayi-experimental-woodyard/_OSP9733-HDR.jpg",
+      "src": "images/chiayi-experimental-woodyard/_OSP9792-全景-1788343548479-10.jpg",
       "caption": ""
     },
     {
-      "src": "images/chiayi-experimental-woodyard/_OSP9742-全景.jpg",
+      "src": "images/chiayi-experimental-woodyard/_OSP9839-全景.jpg",
       "caption": ""
     },
     {
-      "src": "images/chiayi-experimental-woodyard/_OSP9745.jpg",
+      "src": "images/chiayi-experimental-woodyard/_OSP9913-全景.jpg",
       "caption": ""
     },
     {
-      "src": "images/chiayi-experimental-woodyard/_OSP9747-全景.jpg",
+      "src": "images/chiayi-experimental-woodyard/12_實驗木工廠內部2_兩面_.jpg",
       "caption": ""
     },
     {
-      "src": "images/chiayi-experimental-woodyard/_OSP9792-全景.jpg",
+      "src": "images/chiayi-experimental-woodyard/1_正立面_兩面_.jpg",
       "caption": ""
     },
     {
-      "src": "images/chiayi-experimental-woodyard/_OSP9801-全景.jpg",
+      "src": "images/chiayi-experimental-woodyard/11_實驗木工廠等角透視_兩面_.jpg",
       "caption": ""
     },
     {
-      "src": "images/chiayi-experimental-woodyard/_OSP9939.jpg",
-      "caption": ""
-    },
-    {
-      "src": "images/chiayi-experimental-woodyard/_OSP9943-全景.jpg",
-      "caption": ""
-    },
-    {
-      "src": "images/chiayi-experimental-woodyard/_OSP9945-全景.jpg",
+      "src": "images/chiayi-experimental-woodyard/_OSP9544-HDR.jpg",
       "caption": ""
     }
   ],
@@ -76,12 +70,16 @@
     }
   ],
   "drawings": [],
+  "heroPosition": {
+    "x": 50,
+    "y": 65.65804073691348
+  },
   "photoLayout": [
     {
       "photos": [
         0
       ],
-      "afterParagraph": 0
+      "afterParagraph": 1
     },
     {
       "photos": [
@@ -95,27 +93,21 @@
         3,
         4
       ],
-      "afterParagraph": 1
-    },
-    {
-      "photos": [
-        5,
-        6
-      ],
       "afterParagraph": 2
     },
     {
       "photos": [
-        7,
-        8
+        5
       ],
-      "afterParagraph": 2
+      "afterParagraph": 3
     },
     {
       "photos": [
-        9
+        6,
+        7
       ],
       "afterParagraph": 3
     }
-  ]
+  ],
+  "published": true
 }
