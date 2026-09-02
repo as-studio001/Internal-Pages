@@ -1,6 +1,6 @@
 {
   "slug": "good-feeling-space-exhibition",
-  "title": "好感空間展---木立方",
+  "title": "好感空間展 ─ 木立方",
   "ledeMeta": "台南市 / 台灣 / 2026 / 展覽",
   "tag": "",
   "hero": "images/good-feeling-space-exhibition/IMG_2777.JPEG",
@@ -61,7 +61,7 @@
   "process": [],
   "drawings": [],
   "type": "subpage",
-  "published": false,
+  "published": true,
   "heroPosition": {
     "x": 0,
     "y": 100
