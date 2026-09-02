@@ -3,7 +3,7 @@
   "title": "好感空間展---木立方",
   "ledeMeta": "台南市 / 台灣 / 2026 / 展覽",
   "tag": "",
-  "hero": "images/good-feeling-space-exhibition/2026-展2-01.jpg",
+  "hero": "images/good-feeling-space-exhibition/IMG_2777.JPEG",
   "paragraphs": [
     "展覽設計",
     "\"解開木生活與老房子的秘密\" \n---如果生活的想像能具象成建築空間，我們是不是也能用一套邏輯來拆解建築空間，一起找到形成美好空間體驗前的關鍵鑰匙---",
@@ -11,7 +11,11 @@
     "CH.1 木構建築是甚麼\n木構建築近年來越來越被大家注意，甚至也出現在許多公家案，但究竟該如何開始?\n以\"原型一號宅\"為例，帶大家一步一步來看，或許木構造並沒有離我們這麼遠。",
     "CH.2 木生活原來這麼近\n3m高的空間，已經可以充分想像生活在木構造裡會是甚麼感覺，\n透過牆上跟展桌上的展示物件，我們細細討論關於木生活的規劃。",
     "CH.3 當時間開始出現\n具有時間感的舊物件開始出現在空間中，他們就像是記憶的碎片，\n一直陪伴在我們的生活之中。",
-    "CH.4 老房子如何重生\n以\"台南硓?石．芳宅\"為例，建築物陪伴著我們經歷不同的人生階段，房子跟人一樣變老後機能會開始下降，\n我們該如何維護與檢視，並思考是否有新的可能性能讓他重新回到我們的生活中。"
+    "CH.4 老房子如何重生\n以\"台南硓𥑮石．芳宅\"為例，建築物陪伴著我們經歷不同的人生階段，房子跟人一樣變老後機能會開始下降，\n我們該如何維護與檢視，並思考是否有新的可能性能讓他重新回到我們的生活中。",
+    "基地位置　台南市歸仁區 / 攤位面積　108m²",
+    "參展單位　原型建築、原型結構、德豐木業、木介設計、可設計、睿意建築、京都奈本舖、Art paint",
+    "統籌設計　原型建築 陳韻愉 / 施工時間　2026年7月",
+    "照片提供　原型建築、德豐木業"
   ],
   "photos": [
     {
@@ -39,7 +43,7 @@
       "caption": ""
     },
     {
-      "src": "images/good-feeling-space-exhibition/IMG_2780.JPEG",
+      "src": "images/good-feeling-space-exhibition/IMG_1602.jpg",
       "caption": ""
     },
     {
@@ -48,9 +52,9 @@
     }
   ],
   "map": {
-    "address": "",
-    "lat": null,
-    "lng": null,
+    "address": "臺南市歸仁區武東里歸仁十二路3號",
+    "lat": 22.921638536145352,
+    "lng": 120.28521163517205,
     "zoom": 17
   },
   "designResearch": [],
@@ -59,7 +63,7 @@
   "type": "subpage",
   "published": false,
   "heroPosition": {
-    "x": 50,
+    "x": 0,
     "y": 100
   },
   "photoLayout": [
@@ -82,14 +86,44 @@
         4,
         5
       ],
-      "afterParagraph": 4
+      "afterParagraph": 5
     },
     {
       "photos": [
         6,
         7
       ],
-      "afterParagraph": 5
+      "afterParagraph": 7
+    }
+  ],
+  "detailPhotos": [
+    {
+      "src": "images/good-feeling-space-exhibition/IMG_2775-1788340948566-7.JPEG",
+      "caption": ""
+    },
+    {
+      "src": "images/good-feeling-space-exhibition/IMG_2778.JPEG",
+      "caption": ""
+    },
+    {
+      "src": "images/good-feeling-space-exhibition/IMG_2780.JPEG",
+      "caption": ""
+    },
+    {
+      "src": "images/good-feeling-space-exhibition/IMG_1605-1788340948566-9.jpg",
+      "caption": ""
+    },
+    {
+      "src": "images/good-feeling-space-exhibition/IMG_1778-1788340948566-10.jpg",
+      "caption": ""
+    },
+    {
+      "src": "images/good-feeling-space-exhibition/IMG_1690-1788340948566-11.jpg",
+      "caption": ""
+    },
+    {
+      "src": "images/good-feeling-space-exhibition/IMG_1721-1788340948566-12.jpg",
+      "caption": ""
     }
   ]
 }
