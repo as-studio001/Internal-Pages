@@ -26,6 +26,52 @@
   setup("menu-toggle", "menu-dropdown", "[data-menu-box]");
   setup("lang-toggle", "lang-dropdown", "[data-lang-box]");
 
+  // 案件選單由後台依章節類型（CH 1～CH 4）自動產生。原型數位的 href
+  // 已經是外部網站，這裡只照資料原樣輸出，不自行改寫成案例內頁。
+  var caseMenuLinks = document.getElementById("case-menu-links");
+  if (caseMenuLinks) {
+    fetch("content/site/case-links.json", { cache: "no-store" })
+      .then(function (res) {
+        if (!res.ok) throw new Error("Could not load case menu links");
+        return res.json();
+      })
+      .then(function (data) {
+        caseMenuLinks.replaceChildren();
+        var lastChapter = null;
+        (data.links || []).forEach(function (link) {
+          if (!link || !link.label || !link.href) return;
+          var a = document.createElement("a");
+          a.href = link.href;
+          a.target = "_blank";
+          a.rel = "noreferrer";
+          
+          var match = link.label.match(/^(CH\s*(\d+)\.\d+\s*)(.*)$/i);
+          if (match) {
+            var currentChapter = match[2];
+            if (lastChapter !== null && currentChapter !== lastChapter) {
+              var hr = document.createElement("hr");
+              hr.className = "menu-divider";
+              caseMenuLinks.appendChild(hr);
+            }
+            lastChapter = currentChapter;
+            
+            var span = document.createElement("span");
+            span.className = "ch-prefix";
+            span.textContent = match[1];
+            a.appendChild(span);
+            a.appendChild(document.createTextNode(match[3]));
+          } else {
+            a.textContent = link.label;
+          }
+          
+          caseMenuLinks.appendChild(a);
+        });
+      })
+      .catch(function () {
+        // 清單讀取失敗時仍保留固定的「原型首頁」連結，不讓選單完全空白。
+      });
+  }
+
   var langDropdown = document.getElementById("lang-dropdown");
   if (!langDropdown) return;
 

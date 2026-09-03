@@ -388,6 +388,11 @@ button{font-family:inherit;}
 
 .block--text p{font-size:.95rem;font-family:"Noto Sans TC",sans-serif;}
 
+/* 細節資訊是單一文字區塊；white-space:pre-line 保留使用者輸入的換行，
+   但不會把每一行變成獨立的段落。 */
+.details-info{padding:0 0 3rem;}
+.details-info__text{font-size:.95rem;font-family:"Noto Sans TC",sans-serif;white-space:pre-line;}
+
 /* 已修正：同一排照片各自維持真實比例，高度天生不一定一樣（例如直幅照片
    配全景照，高度差很多）。原本 align-items:start 會讓矮的那張上緣對齊、
    下面留一大塊空白，跟下一排內容中間卡一段死白；改成 align-items:end
@@ -603,7 +608,7 @@ button{font-family:inherit;}
 
 /* 圖面：固定大小的網格，比例不合的圖用 object-fit:contain 整張縮小
    塞進格子（不裁切——裁掉一角平面圖／立面圖就看不出完整內容），格子
-   給淺色背景，扁的或窄的圖不會看起來像缺了一塊。格子最小寬度拉大到
+   給淺色背景#eeebe3(改成黑色背景)，扁的或窄的圖不會看起來像缺了一塊。格子最小寬度拉大到
    380px（原本 220px 太小，平面圖上的標註文字幾乎看不清楚）。 */
 .detail-drawing-grid{
   display:grid;
@@ -616,7 +621,7 @@ button{font-family:inherit;}
   cursor:pointer;
   overflow:hidden;
   margin:0;
-  background:#eeebe3;
+  background:#0a0a0a;
 }
 .detail-drawing-grid__item img,
 .detail-drawing-grid__item video,
@@ -686,4 +691,15 @@ button{font-family:inherit;}
   .site-header{padding:16px 20px;}
   .site-header__left,.site-header__right{padding:10px 14px;gap:12px;}
   .site-logo__text{white-space:nowrap;font-size:14px;}
+}
+
+.site-menu__dropdown .ch-prefix {
+  font-size: 0.85em;
+  color: #888;
+  margin-right: 4px;
+}
+.site-menu__dropdown hr.menu-divider {
+  border: none;
+  border-top: 1px solid rgba(255, 255, 255, 0.2);
+  margin: 4px 12px;
 }

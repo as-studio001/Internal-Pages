@@ -9,7 +9,7 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@300;400;500;600;700&family=Noto+Serif+TC:wght@200;300;400;500;600;700;900&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="css/style.css">
-<link rel="icon" type="image/png" href="assets/favicon.png?v=2">
+<link rel="icon" type="image/png" href="assets/favicon-logo2.png">
 </head>
 <body>
 
@@ -36,13 +36,9 @@
       </button>
       <div class="site-menu__dropdown" id="menu-dropdown" hidden>
         <a href="https://www.as-structure.com/" target="_blank" rel="noreferrer">原型首頁</a>
-        <a href="https://as-studio001.github.io/Internal-Pages/" target="_blank" rel="noreferrer">台南硓𥑮石．芳宅</a>
-        <a href="https://www.mashup.com.tw/as%20studio/?page=product_shop&p_id=582351" target="_blank" rel="noreferrer">嘉義實驗木場</a>
-        <a href="https://www.mashup.com.tw/as%20studio/?page=product_shop&p_id=506003" target="_blank" rel="noreferrer">原型事務所</a>
-        <a href="https://www.tnhs.com.tw/" target="_blank" rel="noreferrer">好感空間展</a>
-        <a href="https://as-studio001.github.io/asarch/#cases-exhibit" target="_blank" rel="noreferrer">ADA建築展</a>
-        <a href="https://as-studio001.github.io/asarch/#cases-exhibit" target="_blank" rel="noreferrer">構竹林鐵</a>
-        <a href="https://as-studio001.github.io/asarch/#cases-exhibit" target="_blank" rel="noreferrer">台北藝廊展</a>
+        <!-- 案件連結由 js/site-chrome.js 讀取 content/site/case-links.json；
+             後台每次儲存案例會自動依類型重建這份清單。 -->
+        <span id="case-menu-links"></span>
       </div>
     </div>
     <a href="https://as-studio001.github.io/asarch/" class="site-logo" target="_blank" rel="noreferrer">
@@ -82,6 +78,13 @@
 
   <!-- 內文：文字與照片交錯 -->
   <div class="content grid" id="content"></div>
+
+  <!-- 細節資訊：後台以單一文字欄位輸入；保留換行、不拆成多個段落。 -->
+  <section class="details-info" id="details-info" hidden>
+    <div class="grid">
+      <div class="details-info__text c-8 s-5" id="details-text"></div>
+    </div>
+  </section>
 
   <!-- More in Detail：兩個 Pinterest 風格的純照片圖庫（照片區／圖面區），
        不再有文字敘述，滑鼠移到照片上才顯示圖說。兩區都選填，兩區都沒有

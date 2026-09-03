@@ -366,6 +366,10 @@ const FUNCTIONS_BASE = "https://zingy-bonbon-36e6c9.netlify.app/.netlify/functio
 // 顯示不出來，畫面會整個空白。
 const SETUP_INCOMPLETE = /^REPLACE_WITH_/.test(SUPABASE_URL) || /^REPLACE_WITH_/.test(SUPABASE_ANON_KEY) || /^REPLACE_WITH_/.test(FUNCTIONS_BASE);
 const sb = SETUP_INCOMPLETE ? null : supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+// 僅限本機瀏覽器的唯讀預覽：方便檢查後台版面與案例預覽，正式網域即使
+// 帶同一個 query string 也完全不會略過 Supabase 登入。
+const LOCAL_PREVIEW = (location.hostname === "localhost" || location.hostname === "127.0.0.1")
+  && new URLSearchParams(location.search).get("local-preview") === "1";
 
 function rawUrl(path){
   if(!path) return "";
@@ -470,6 +474,7 @@ const CALL_FUNCTION_MAX_ATTEMPTS = 4;
    多試幾次都不行、或本來就是使用者需要處理的錯誤（例如 401 沒登入、
    400 資料本身有問題）才會真正把錯誤丟出來。 */
 async function callFunction(name, payload, attempt){
+  if(LOCAL_PREVIEW) throw new Error("本機預覽模式為唯讀，不能呼叫正式後端或儲存資料。");
   attempt = attempt || 1;
   let res;
   try{
@@ -566,6 +571,15 @@ async function ghFetchPublic(path, repo){
 }
 
 async function ghGetFile(path, repo){
+  // 本機唯讀預覽直接讀目前工作資料夾的檔案：這樣點進案例時看到的是
+  // 尚未 commit 的內容，也不會因 GitHub API 讀取失敗而退回需登入的後端。
+  if(LOCAL_PREVIEW && !repo){
+    const localUrl = new URL("../" + path, location.href);
+    const localRes = await fetch(localUrl, { cache: "no-store" });
+    if(!localRes.ok) throw new Error(`讀取本機檔案失敗：${path}`);
+    const content = await localRes.text();
+    return { sha: null, content, json: JSON.parse(content) };
+  }
   const res = await ghFetchPublic(path, repo);
   const data = (res && res.ok) ? await res.json() : await callFunction("github-proxy", { action: "getFile", path, repo });
   const { sha, content } = decodeGhFileData(data);
@@ -858,10 +872,8 @@ const SUBPAGE_PAGES = {
 // 不會影響那 3 張。
 //
 // hamburger 旗標決定這個章節的案例連結要不要一併同步進漢堡選單清單
-// （見 regenerateCaseLinksManifest）——原型數位是 false：它自己的跳轉
-// 卡片可以像其他章節一樣勾選「建築案例」來連結、修改照片/標題時一樣會
-// 自動同步到章節卡片（不會再資料脫節），但特意不進漢堡選單，跟其他三
-// 個章節分開處理。
+// （見 regenerateCaseLinksManifest）。四個類型都會進選單；原型數位的
+// 卡片 href 則維持外部網站網址，不會被換成 Internal-Pages 的案例內頁。
 // preferExternal：原型數位這個章節的定位本身就是「展示數位／外部版本」
 // （裡面其他卡片全部連到外部的 Wix 展覽網站），所以掛在這個章節底下的
 // 卡片，只要案例有填外部網站連結，就該連到那個外部網址，即使是一般
@@ -871,10 +883,27 @@ const CASE_CARD_CHAPTERS = [
   { name: "chapter-restore", label: "原型修復", file: "content/site/chapter-restore.json", hamburger: true },
   { name: "chapter-exhibit", label: "原型展覽", file: "content/site/chapter-exhibit.json", hamburger: true },
   { name: "chapter-detail", label: "原型細部", file: "content/site/chapter-detail.json", hamburger: true },
-  { name: "chapter-digital", label: "原型數位", file: "content/site/chapter-digital.json", hamburger: false, preferExternal: true },
+  { name: "chapter-digital", label: "原型數位", file: "content/site/chapter-digital.json", hamburger: true, preferExternal: true },
 ];
 
 async function loadCaseList(){
+  // 靜態本機伺服器無法列出資料夾；預覽模式改讀同樣存放在工作資料夾、
+  // 由正式後台維護的案例連結索引，再逐筆讀本機 JSON。這條路完全離線於
+  // GitHub／Netlify，避免清單因未登入的遠端讀取備援而永遠卡在「載入中」。
+  if(LOCAL_PREVIEW){
+    const indexRes = await fetch("../content/site/case-links.json", { cache: "no-store" });
+    if(!indexRes.ok) throw new Error("讀取本機案例索引失敗");
+    const index = await indexRes.json();
+    const slugs = (index.links || []).map((link) => {
+      try{ return new URL(link.href).searchParams.get("case"); }catch(e){ return null; }
+    }).filter(Boolean);
+    const items = await Promise.all(slugs.map(async (slug) => {
+      const { json } = await ghGetFile(`content/projects/${slug}.json`);
+      return { slug: json.slug || slug, title: json.title || "", ledeMeta: json.ledeMeta || "", hero: json.hero || "", type: json.type || "subpage", published: json.published !== false, externalUrl: json.externalUrl || "" };
+    }));
+    state.cases = items;
+    return;
+  }
   const entries = await ghListDir("content/projects");
   const files = entries.filter(e => e.type === "file" && e.name.endsWith(".json"));
   const items = await Promise.all(files.map(async f => {
@@ -921,11 +950,11 @@ function render(){
     `;
     return;
   }
-  if(isInviteOrRecoveryLink()){
+  if(!LOCAL_PREVIEW && isInviteOrRecoveryLink()){
     renderSetPassword();
     return;
   }
-  if(!authSession || !state.user){
+  if(!LOCAL_PREVIEW && (!authSession || !state.user)){
     renderLogin();
     return;
   }
@@ -1376,7 +1405,7 @@ function blankCase(type){
   }
   return {
     slug: "", title: "", ledeMeta: "", tag: "", hero: "",
-    paragraphs: [""], photos: [],
+    paragraphs: [""], details: "", photos: [],
     externalUrl: "", externalUrlCover: "", youtubeUrl: "",
     map: { address: "", lat: null, lng: null, zoom: 17 },
     detailPhotos: [], drawings: [],
@@ -1853,7 +1882,7 @@ function convertCaseType(ed, newType){
     ed.item = {
       slug: c.slug || "", title: c.title || "", ledeMeta: c.ledeMeta || "", tag: "",
       hero: c.hero || "", heroPosition: c.heroPosition || null,
-      paragraphs: [""], photos: [],
+      paragraphs: [""], details: "", photos: [],
       map: { address: "", lat: null, lng: null, zoom: 17 },
       detailPhotos: [], drawings: [],
       published: c.published !== false, type: "subpage",
@@ -1993,6 +2022,11 @@ function caseEditorHtml(ed){
           <div class="label">內文段落</div>
           <textarea id="paragraphsText" style="min-height:320px">${esc((c.paragraphs || []).join("\n\n"))}</textarea>
           <div class="field-hint">直接打字就好，一整段連續打，段落之間空一行即可——存檔時會自動依空行拆成段落</div>
+        </div>
+        <div class="field-block">
+          <div class="label">細節資訊</div>
+          <textarea id="detailsText" style="min-height:200px">${esc(c.details || "")}</textarea>
+          <div class="field-hint">直接打字就好，一整段連續打，換行不分段落</div>
         </div>
         <div class="field-block">
           <div class="label">內文照片</div>
@@ -2418,6 +2452,12 @@ function pickImageFile(cb){
 function handleCaseEdit(ed, data){
   if(data.field === "title"){ ed.item.title = data.value; return; }
   if(data.field === "ledeMeta"){ ed.item.ledeMeta = data.value; return; }
+  if(data.field === "details"){
+    ed.item.details = data.value;
+    const ta = document.getElementById("detailsText");
+    if(ta) ta.value = data.value;
+    return;
+  }
   if(data.field === "paragraph"){
     ed.item.paragraphs = ed.item.paragraphs || [];
     ed.item.paragraphs[data.index] = data.value;
@@ -2541,6 +2581,12 @@ function renderCaseEditor(){
       .filter(Boolean);
     postCaseProjectToIframe(ed);
     if(ed.isNew) refreshNewCaseGuide(ed);
+  });
+
+  document.getElementById("detailsText").addEventListener("input", (e) => {
+    // 細節資訊是單一字串，保留使用者輸入的所有換行，不依空行拆成陣列。
+    ed.item.details = e.target.value;
+    postCaseProjectToIframe(ed);
   });
 
   const folder = () => `images/${ed.item.slug || "tmp"}`;
@@ -2776,36 +2822,28 @@ async function removeCaseCardFromChapter(meta, href){
 }
 
 // 原型建築網站（asarch）漢堡選單裡的案例連結不再另外開一個編輯區維護，
-// 而是每次案例存檔／刪除後，直接照目前實際狀況重新產生這份清單——但
-// 不是「隨便一筆案例」都算：只有連結到 CASE_CARD_CHAPTERS 裡
-// hamburger:true 那幾個章節的案例才會進漢堡選單（原型數位是
-// hamburger:false，就算案例有勾選連結原型數位，也不會單靠這樣就出現在
-// 選單裡）。新增/移除章節連結，漢堡選單就自動跟著多一條/少一條，不需要
-// 額外手動同步。asarch 那邊讀這個檔案失敗時會退回它自己原始碼裡的一份
-// 備援清單（只有「原型首頁」是永遠固定的那一條，不在這份清單裡）。
+// 而是每次案例存檔／刪除後，直接照目前實際章節卡片重新產生。選單順序
+// 跟 asarch 既有結構一致：原型修復＝CH 1、原型展覽＝CH 2、原型細部＝CH 3；
+// 同類型內的編號則依該章節案例卡片順序自動遞增。原型數位為 CH 4，且
+// 直接沿用卡片的外部網站連結。
+// asarch 讀取失敗時會退回它自己原始碼裡的一份備援清單（只有「原型首頁」
+// 是永遠固定的那一條，不在這份清單裡）。
 async function regenerateCaseLinksManifest(){
   try{
-    const eligibleHrefs = new Set();
-    // 這幾個章節各自是獨立檔案，讀取順序不影響結果，同時發出去省時間
-    // （這支函式幾乎每次案例存檔/刪除都會跑，值得省）。
-    await Promise.all(CASE_CARD_CHAPTERS.filter((m) => m.hamburger).map(async (meta) => {
+    const menuChapters = CASE_CARD_CHAPTERS.filter((m) => m.hamburger);
+    // 每一章節 JSON 中的 cases[] 就是該類型在主網站上的實際排序；直接
+    // 使用它可避免原本「讀所有專案檔再按檔名排序」造成選單類型混排。
+    const chapters = await Promise.all(menuChapters.map(async (meta) => {
       try{
         const { json } = await ghGetFile(meta.file);
-        (json.cases || []).forEach((c) => eligibleHrefs.add(c.href));
-      }catch(e){ /* 忽略單一章節讀取失敗，不擋住整個重新產生流程 */ }
+        return json.cases || [];
+      }catch(e){ return []; }
     }));
-    const entries = await ghListDir("content/projects");
-    const files = entries.filter(e => e.type === "file" && e.name.endsWith(".json"));
-    const items = await Promise.all(files.map(async f => {
-      try{
-        const { json } = await ghGetFile(f.path);
-        return { slug: json.slug || f.name.replace(/\.json$/, ""), title: json.title || "", externalUrl: json.externalUrl || "", type: json.type || "subpage" };
-      }catch(e){ return null; }
-    }));
-    const links = items
-      .filter(it => it && it.title)
-      .map(it => ({ label: it.title, href: caseTargetHref(it.slug, it.externalUrl, it.type) }))
-      .filter((l) => eligibleHrefs.has(l.href));
+    const links = chapters.flatMap((cases, chapterIndex) => cases
+      .map((card) => ({ href: card.href || "", title: typeof card.label === "string" ? card.label : (card.label || {})["zh-Hant"] || "" }))
+      .filter((card) => card.href && card.title)
+      .map((card, caseIndex) => ({ label: `CH ${chapterIndex + 1}.${caseIndex + 1}${card.title}`, href: card.href }))
+    );
     const body = JSON.stringify({ links }, null, 2) + "\n";
     let sha = null;
     try{
@@ -5086,6 +5124,20 @@ function renderHomepageEditor(){
    ============================================================ */
 (async function init(){
   if(SETUP_INCOMPLETE){ render(); return; }
+
+  if(LOCAL_PREVIEW){
+    state.user = { email: "本機預覽（唯讀）" };
+    try{
+      setLoading(true, "載入公開案例資料中…");
+      await loadCaseList();
+    }catch(err){
+      toast(err.message || "載入案例失敗", true);
+    }finally{
+      setLoading(false);
+    }
+    render();
+    return;
+  }
 
   // 從另一邊後台（bamboo）帶著 session 交接過來（見 crossAdminUrl() 的說明）——網址上
   // 一偵測到就立刻清掉 hash，不管交接成不成功，都不留在網址列／瀏覽紀錄裡。

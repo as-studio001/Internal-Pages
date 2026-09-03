@@ -434,6 +434,18 @@
     applyRowAlignment(root);
   }
 
+  // 細節資訊不參與主文段落／照片的交錯排版：它是主文後的一整塊文字。
+  // textContent 搭配 CSS white-space:pre-line 可安全保留換行，且不將內容
+  // 當 HTML 解析。
+  function renderDetails() {
+    const section = $("#details-info");
+    const text = $("#details-text");
+    if (!section || !text) return;
+    const details = typeof PROJECT.details === "string" ? PROJECT.details : "";
+    text.textContent = details;
+    section.hidden = !details.trim();
+  }
+
   // 已修正：一排並排的照片各自維持真實比例，高度不一定一樣（.block--photos 的
   // align-items:end 讓矮的那張貼齊高的下緣，見 style.css）。但插入位置剛好讓兩組
   // 照片緊接在一起、中間沒有段落文字隔開時，兩排都底部切齊，矮的那張還是會在
@@ -806,6 +818,7 @@
     ]);
     PROJECT = Object.assign({}, project, { photos, detailPhotos, drawings });
     renderContent();
+    renderDetails();
     renderDetailPhotos();
     renderDrawings();
     updateDetailSectionVisibility();
@@ -1024,6 +1037,7 @@
     $$("[data-paragraph-index]").forEach((p) => {
       makeTextEditable(p, (val) => postCmsEdit({ field: "paragraph", index: Number(p.dataset.paragraphIndex), value: val }));
     });
+    makeTextEditable($("#details-text"), (val) => postCmsEdit({ field: "details", value: val }));
 
     const heroPhotoEl = $("#hero-photo img") || $("#hero-photo video") || $("#hero-photo .ph");
     makeAdjustablePhoto(heroPhotoEl, $("#hero-photo"), "heroPosition", "hero-position", "hero-replace");
@@ -1089,7 +1103,7 @@
   // 而不是整個網頁只是捲到某個位置、旁邊還露出一截別的區塊。
   const FOCUS_SELECTORS = {
     hero: [".page-head", ".hero-photo"],
-    content: ["#content"],
+    content: ["#content", "#details-info"],
     detail: [".detail-section"],
     map: [".external-link-section", ".video-section", ".map-full"],
   };

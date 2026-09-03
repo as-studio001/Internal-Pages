@@ -1,44 +1,64 @@
 {
   "links": [
     {
-      "label": "2024 第七屆 ADA新銳建築獎展覽",
-      "href": "https://as-studio001.github.io/Internal-Pages/?case=ada-architecture-exhibition"
-    },
-    {
-      "label": "原型結構事務所",
-      "href": "https://as-studio001.github.io/Internal-Pages/?case=as-studio-office"
-    },
-    {
-      "label": "構竹林鐵",
-      "href": "https://as-studio001.github.io/Internal-Pages/?case=bamboo-forest-railway-exhibit"
-    },
-    {
-      "label": "實驗木場",
+      "label": "CH 1.1實驗木場",
       "href": "https://as-studio001.github.io/Internal-Pages/?case=chiayi-experimental-woodyard"
     },
     {
-      "label": "好感空間展 ─ 木立方",
-      "href": "https://as-studio001.github.io/Internal-Pages/?case=good-feeling-space-exhibition"
-    },
-    {
-      "label": "台南硓𥑮石．芳宅",
+      "label": "CH 1.2台南硓𥑮石．芳宅",
       "href": "https://as-studio001.github.io/Internal-Pages/?case=laogu-fang"
     },
     {
-      "label": "南寧老屋",
+      "label": "CH 1.3原型結構事務所",
+      "href": "https://as-studio001.github.io/Internal-Pages/?case=as-studio-office"
+    },
+    {
+      "label": "CH 1.4南寧老屋",
       "href": "https://as-studio001.github.io/Internal-Pages/?case=nanning-old-house"
     },
     {
-      "label": "原型1號宅",
+      "label": "CH 2.1原型1號宅",
       "href": "https://as-studio001.github.io/Internal-Pages/?case=prototype-house-1"
     },
     {
-      "label": "藝軒 PAVILION",
+      "label": "CH 2.2億載金城入口意象",
+      "href": "https://as-studio001.github.io/Internal-Pages/?case=yizaijincheng-entrance"
+    },
+    {
+      "label": "CH 3.1構竹林鐵",
+      "href": "https://as-studio001.github.io/Internal-Pages/?case=bamboo-forest-railway-exhibit"
+    },
+    {
+      "label": "CH 3.2藝軒 PAVILION",
       "href": "https://as-studio001.github.io/Internal-Pages/?case=taipei-gallery-exhibition"
     },
     {
-      "label": "億載金城入口意象",
-      "href": "https://as-studio001.github.io/Internal-Pages/?case=yizaijincheng-entrance"
+      "label": "CH 3.3好感空間展 ─ 木立方",
+      "href": "https://as-studio001.github.io/Internal-Pages/?case=good-feeling-space-exhibition"
+    },
+    {
+      "label": "CH 3.4 2024 第七屆 ADA新銳建築獎展覽",
+      "href": "https://as-studio001.github.io/Internal-Pages/?case=ada-architecture-exhibition"
+    },
+    {
+      "label": "CH 4.1嘉義實驗木場",
+      "href": "https://astaiwan.wixsite.com/website-1"
+    },
+    {
+      "label": "CH 4.2構竹林鐵",
+      "href": "https://astaiwan.wixsite.com/bamboo-newfield"
+    },
+    {
+      "label": "CH 4.3原型未來",
+      "href": "https://www.as-structure.com/"
+    },
+    {
+      "label": "CH 4.4原型1號宅",
+      "href": "https://asstudio029.wixsite.com/ashouse1"
+    },
+    {
+      "label": "CH 4.5台南硓𥑮石．芳宅",
+      "href": "https://asas2026.wixsite.com/mysite"
     }
   ]
 }

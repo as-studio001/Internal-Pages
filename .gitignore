@@ -3,3 +3,7 @@ images/OSD09573-全景-已增強-雜訊減少-編輯.jpg
 images/OSD09659-全景-已增強-雜訊減少-編輯.jpg
 images/OSD09813-全景-已增強-雜訊減少-編輯.jpg
 images/OSD09937-全景-編輯.jpg
+
+# Local Netlify folder
+.netlify
+deno.lock
