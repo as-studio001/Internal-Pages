@@ -203,7 +203,7 @@ button{font-family:inherit;}
   box-shadow:0 8px 24px rgba(0,0,0,.2);
   z-index:1001;
 }
-.site-menu__dropdown{left:0;width:200px;}
+.site-menu__dropdown{left:0;width:300px;}
 .site-lang__dropdown{right:0;min-width:140px;}
 .site-menu__dropdown a{
   display:block;
@@ -216,6 +216,16 @@ button{font-family:inherit;}
 }
 .site-menu__dropdown a:last-child{border-bottom:none;}
 .site-menu__dropdown a:hover{background-color:rgba(255,255,255,.1);}
+.site-menu__dropdown .ch-prefix {
+  font-size: 0.85em;
+  color: #888;
+  margin-right: 4px;
+}
+.site-menu__dropdown hr.menu-divider {
+  border: none;
+  border-top: 1px solid rgba(255, 255, 255, 0.2);
+  margin: 0px 0px;
+}
 .site-logo{display:flex;align-items:center;gap:12px;}
 .site-logo__img{width:36px;height:36px;display:block;}
 .site-logo__text{
@@ -693,13 +703,4 @@ button{font-family:inherit;}
   .site-logo__text{white-space:nowrap;font-size:14px;}
 }
 
-.site-menu__dropdown .ch-prefix {
-  font-size: 0.85em;
-  color: #888;
-  margin-right: 4px;
-}
-.site-menu__dropdown hr.menu-divider {
-  border: none;
-  border-top: 1px solid rgba(255, 255, 255, 0.2);
-  margin: 4px 12px;
-}
+
