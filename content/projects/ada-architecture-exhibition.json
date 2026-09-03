@@ -1,11 +1,11 @@
 {
   "slug": "ada-architecture-exhibition",
-  "title": "ADA建築展",
-  "ledeMeta": "",
+  "title": "2024 第七屆 ADA新銳建築獎展覽",
+  "ledeMeta": "台北市 / 台灣 / 2024 / 展覽",
   "tag": "",
   "hero": "https://as-studio001.github.io/asarch/photos/gallery-ada-1.jpg",
   "paragraphs": [
-    ""
+    "本次策展人根據十組入圍者的設計作品，將展覽的目標設定為「設計的自由與不受限、回歸自然、反思材料」以此我們發展出了以下展場設計概念: 在2024年的現今，地球面臨著各種生態浩劫，環境的永續不再是環保團體或政府的事，而是每個人都切身相關的議題，如何從生活中做起，並讓永續成為一種生活的答案。\n台灣是一個太平洋上充滿高山的小島國，擁有非常多元的生態多樣性，及各種人文薈萃並存碰撞，而這個展場裡有十組創意正在發生，每組新銳都像是活在有各自性格的小島上，如漂浮般不受拘束，島群匯集將形成一股建築新的力量。"
   ],
   "photos": [],
   "map": {
@@ -17,5 +17,6 @@
   "designResearch": [],
   "process": [],
   "drawings": [],
-  "type": "subpage"
+  "type": "subpage",
+  "published": true
 }
