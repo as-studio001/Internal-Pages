@@ -29,9 +29,9 @@
     }
   ],
   "map": {
-    "address": "",
-    "lat": null,
-    "lng": null,
+    "address": "臺南市東區崇信里中華東路三段44巷7號1樓",
+    "lat": 22.980658134087374,
+    "lng": 120.22986880251203,
     "zoom": 17
   },
   "designResearch": [],
@@ -100,5 +100,7 @@
       "src": "images/as-studio-office/DSC05965.jpg",
       "caption": ""
     }
-  ]
+  ],
+  "cardThumbnail": "images/site/card-as-studio-office.jpg",
+  "cardThumbnailHero": "images/as-studio-office/DSC05769.jpg"
 }
