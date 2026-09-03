@@ -40,11 +40,11 @@
       "image": "https://as-studio001.github.io/Internal-Pages/images/site/card-as-studio-office.jpg",
       "href": "https://as-studio001.github.io/Internal-Pages/?case=as-studio-office",
       "label": {
-        "zh-Hant": "原型事務所",
-        "zh-Hans": "原型事务所",
-        "en": "prototype office",
-        "ja": "プロトタイプオフィス",
-        "ko": "프로토타입 사무실"
+        "zh-Hant": "原型結構事務所",
+        "zh-Hans": "原型结构事务所",
+        "en": "prototyping structure office",
+        "ko": "프로토타입 구조 사무실",
+        "ja": "試作構造事務所"
       }
     }
   ],
