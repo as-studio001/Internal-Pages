@@ -27,17 +27,6 @@
   ],
   "cases": [
     {
-      "image": "https://as-studio001.github.io/asarch/photos/gallery-ada-1.jpg",
-      "href": "https://as-studio001.github.io/Internal-Pages/?case=ada-architecture-exhibition",
-      "label": {
-        "zh-Hant": "ADA建築展",
-        "zh-Hans": "ADA建筑展",
-        "en": "ADA Architecture Exhibition",
-        "ja": "ADA建築展",
-        "ko": "ADA 건축 전시회"
-      }
-    },
-    {
       "image": "https://as-studio001.github.io/asarch/photos/case-exhibit-bamboo.jpg",
       "href": "https://as-studio001.github.io/Internal-Pages/?case=bamboo-forest-railway-exhibit",
       "label": {
