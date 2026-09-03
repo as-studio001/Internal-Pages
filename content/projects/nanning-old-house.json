@@ -10,11 +10,11 @@
   ],
   "photos": [
     {
-      "src": "images/nanning-old-house/1787892395060-3.jpg",
+      "src": "images/nanning-old-house/sec.jpg",
       "caption": ""
     },
     {
-      "src": "images/nanning-old-house/sec.jpg",
+      "src": "images/nanning-old-house/1787892395060-3.jpg",
       "caption": ""
     },
     {
@@ -63,14 +63,14 @@
   "photoLayout": [
     {
       "photos": [
-        0
+        0,
+        2
       ],
-      "afterParagraph": 0
+      "afterParagraph": 1
     },
     {
       "photos": [
-        1,
-        2
+        1
       ],
       "afterParagraph": 1
     }
