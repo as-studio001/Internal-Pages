@@ -705,7 +705,7 @@
   }
 
   function renderDrawings() {
-    renderDrawingsGrid("detail-drawings-gallery", PROJECT.drawings, "drawings");
+    renderDetailGallery("detail-drawings-gallery", PROJECT.drawings, "drawings"); //renderDrawingsGrid，改成跟照片相同排列
   }
 
   // More in Detail 整個區塊（含「+ More in Detail」按鈕跟上面那條分隔線）
