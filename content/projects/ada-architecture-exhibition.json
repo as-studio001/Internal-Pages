@@ -30,9 +30,9 @@
     }
   ],
   "map": {
-    "address": "",
-    "lat": null,
-    "lng": null,
+    "address": "臺北市中山區金泰里樂群三路200號",
+    "lat": 25.082273171112067,
+    "lng": 121.55742804232263,
     "zoom": 17
   },
   "designResearch": [],
@@ -90,5 +90,7 @@
       "src": "images/ada-architecture-exhibition/DSC03928-HDR.jpg",
       "caption": ""
     }
-  ]
+  ],
+  "cardThumbnail": "images/site/card-ada-architecture-exhibition.jpg",
+  "cardThumbnailHero": "images/ada-architecture-exhibition/DSC03870-HDR.jpg"
 }
