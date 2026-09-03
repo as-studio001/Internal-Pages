@@ -46,6 +46,17 @@
         "zh-Hans": "原型结构事务所",
         "ja": "試作構造事務所"
       }
+    },
+    {
+      "image": "https://as-studio001.github.io/Internal-Pages/images/site/1787899489994-card-nanning-old-house.jpg",
+      "href": "https://as-studio001.github.io/Internal-Pages/?case=nanning-old-house",
+      "label": {
+        "zh-Hant": "南寧老屋",
+        "zh-Hans": "南宁老屋",
+        "en": "Nanning old house",
+        "ko": "난닝 고택",
+        "ja": "南寧古民家"
+      }
     }
   ],
   "heroPhoto": "https://as-studio001.github.io/Internal-Pages/images/site/chapter01.jpg",
