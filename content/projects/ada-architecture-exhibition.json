@@ -8,10 +8,24 @@
     "本次策展人根據十組入圍者的設計作品，將展覽的目標設定為\n「設計的自由與不受限、回歸自然、反思材料」",
     "觀察了十組入圍者，我們發現每一組的個性都十分鮮明，希望透過作品訴說出自己的觀點，以此發想了以下的展場設計概念:",
     "在2024年的現今，地球面臨著各種生態浩劫，環境的永續不再是環保團體或政府的事，而是每個人都切身相關的議題，如何從生活中做起，並讓永續成為一種生活的答案。台灣是一個太平洋上充滿高山的小島國，擁有非常多元的生態多樣性，及各種人文薈萃並存碰撞，而這個展場裡有十組創意正在發生，每組新銳都像是活在有各自性格的小島上，如漂浮般不受拘束，島群匯集將形成一股建築新的力量。",
-    "為了達到可以快速拆裝並且重複利用的特性，本次展覽沒有使用裝潢木工，所有的展架即是各組的展桌，透過僅有2mm的薄鋼板雷切與彎折+木角料形成的桌腳，從遠處即可見該組的個性。每一組發展完自己的造型後，再與原型討論合理的結構配置，讓展桌呈現出極致的輕薄，如同漂浮小島般，乘載著大家的作品。",
-    "在設計展桌時，各團隊不僅要思考在現場的展示，也須思考回到各自事務所時的樣貌。因此在設計時，鋼板與木角料的單元皆為一個人可搬運的重量，結束後即回歸到各自的事務所，成為大家創作空間內的一個角落。讓展覽不只是一個事件，而是能陪伴大家持續創作的經驗。"
+    "為了達到可以快速拆裝並且重複利用的特性，本次展覽沒有使用裝潢木工，所有的展架即是各組的展桌，透過僅有1-2mm的薄鋼板雷切與彎折+木角料形成的桌腳，從遠處即可見該組的個性。每一組發展完自己的造型後，再與原型討論合理的結構配置，讓展桌呈現出極致的輕薄，如同漂浮小島般，乘載著大家的作品。",
+    "在設計展桌時，各團隊不僅要思考在現場的展示，也須思考回到各自事務所時的樣貌。因此在設計時，鋼板與木角料的單元皆為一個人可搬運的重量，結束後即回歸到各自的事務所，成為大家創作空間內的一個角落。讓展覽不只是一個事件，而是能陪伴大家持續創作的經驗。",
+    "展場面積　486m² / 業　　主　台北市建築世代會\n設計專案　原型建築 陳韻愉\n設計時間　2024年9月 - 2024年10月\n照片提供　實構築"
   ],
-  "photos": [],
+  "photos": [
+    {
+      "src": "images/ada-architecture-exhibition/DSC03919.jpg",
+      "caption": ""
+    },
+    {
+      "src": "images/ada-architecture-exhibition/DSC04085-1788412120659-2.jpg",
+      "caption": ""
+    },
+    {
+      "src": "images/ada-architecture-exhibition/DSC04178-HDR.jpg",
+      "caption": ""
+    }
+  ],
   "map": {
     "address": "",
     "lat": null,
@@ -20,7 +34,58 @@
   },
   "designResearch": [],
   "process": [],
-  "drawings": [],
+  "drawings": [
+    {
+      "src": "images/ada-architecture-exhibition/1022展覽平面.jpg",
+      "caption": ""
+    },
+    {
+      "src": "images/ada-architecture-exhibition/2024_7thADA_展桌施工圖_Final_頁面_1.jpg",
+      "caption": ""
+    }
+  ],
   "type": "subpage",
-  "published": true
+  "published": true,
+  "photoLayout": [
+    {
+      "photos": [
+        0
+      ],
+      "afterParagraph": 3
+    },
+    {
+      "photos": [
+        1
+      ],
+      "afterParagraph": 5
+    },
+    {
+      "photos": [
+        2
+      ],
+      "afterParagraph": 5
+    }
+  ],
+  "detailPhotos": [
+    {
+      "src": "images/ada-architecture-exhibition/DSC04014-HDR.jpg",
+      "caption": ""
+    },
+    {
+      "src": "images/ada-architecture-exhibition/DSC04044-HDR.jpg",
+      "caption": ""
+    },
+    {
+      "src": "images/ada-architecture-exhibition/DSC04074-HDR.jpg",
+      "caption": ""
+    },
+    {
+      "src": "images/ada-architecture-exhibition/DSC04189-HDR.jpg",
+      "caption": ""
+    },
+    {
+      "src": "images/ada-architecture-exhibition/DSC03928-HDR.jpg",
+      "caption": ""
+    }
+  ]
 }
