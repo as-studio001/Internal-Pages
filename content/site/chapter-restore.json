@@ -26,17 +26,6 @@
       }
     },
     {
-      "image": "https://as-studio001.github.io/Internal-Pages/images/site/case-restore-office.jpg",
-      "href": "https://as-studio001.github.io/Internal-Pages/?case=as-studio-office",
-      "label": {
-        "zh-Hant": "原型事務所",
-        "zh-Hans": "原型事务所",
-        "en": "prototype office",
-        "ja": "プロトタイプオフィス",
-        "ko": "프로토타입 사무실"
-      }
-    },
-    {
       "image": "https://as-studio001.github.io/Internal-Pages/images/site/card-laogu-fang.jpg",
       "href": "https://as-studio001.github.io/Internal-Pages/?case=laogu-fang",
       "label": {
