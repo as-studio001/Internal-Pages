@@ -35,6 +35,17 @@
         "ko": "태안석. 팡자이",
         "en": "Tainan stone. Fangzhai"
       }
+    },
+    {
+      "image": "https://as-studio001.github.io/Internal-Pages/images/site/card-as-studio-office.jpg",
+      "href": "https://as-studio001.github.io/Internal-Pages/?case=as-studio-office",
+      "label": {
+        "zh-Hant": "原型事務所",
+        "zh-Hans": "原型事务所",
+        "en": "prototype office",
+        "ja": "プロトタイプオフィス",
+        "ko": "프로토타입 사무실"
+      }
     }
   ],
   "heroPhoto": "https://as-studio001.github.io/Internal-Pages/images/site/chapter01.jpg",
