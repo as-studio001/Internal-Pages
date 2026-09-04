@@ -4726,13 +4726,13 @@ function renderSiteEditor(){
     });
   } else {
     // 章節（restore/detail/exhibit/digital）共通的三組照片
-    if("heroPhoto" in ed.item) bindCoverDropEvents(ed, "heroPhoto", "images/site");
-    bindCoverDropEvents(ed, "mainPhoto", "images/site");
-    bindImageList(ed, "thumbnails", "thumbnailsList", "images/site");
+    if("heroPhoto" in ed.item) bindCoverDropEvents(ed, "heroPhoto", "https://as-studio001.github.io/Internal-Pages/images/site");
+    bindCoverDropEvents(ed, "mainPhoto", "https://as-studio001.github.io/Internal-Pages/images/site");
+    bindImageList(ed, "thumbnails", "thumbnailsList", "https://as-studio001.github.io/Internal-Pages/images/site");
 
     if(Array.isArray(ed.item.cases)){
       ed.item.cases.forEach((c, i) => {
-        bindCoverDropEvents(ed, `cases.${i}.image`, "images/site");
+        bindCoverDropEvents(ed, `cases.${i}.image`, "https://as-studio001.github.io/Internal-Pages/images/site");
       });
       app.querySelectorAll("[data-remove-case]").forEach(btn => {
         btn.addEventListener("click", () => {
